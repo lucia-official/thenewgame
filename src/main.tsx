@@ -23,6 +23,8 @@ import React from 'react'
         appId: "1:123456789012:web:abcdef0123456789abcdef"
     });
 
+    window.__gemini_api_key = "PASTE_YOUR_GEMINI_API_KEY_HERE";
+
     // An empty token will force the app to use signInAnonymously, which is fine locally.
     window.__initial_auth_token = ''; 
     // ---------------------------------

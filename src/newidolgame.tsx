@@ -101,6 +101,7 @@ const useIdolManager = () => {
     const [currentTab, setCurrentTab] = useState('members');
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([]);
+    const [formattedDate, setFormattedDate] = useState('');
     const [songs, setSongs] = useState([]);
     const [teams, setTeams] = useState([]);
     const [allSetlists, setAllSetlists] = useState([
@@ -237,6 +238,27 @@ const saveGame = async (gameUsername, uidParam) => {
     setMessage(`Error saving game: ${e.message}`);
   }
 };
+// PASTE THIS ENTIRE BLOCK BEFORE loadGame
+const getFormattedDateForWeek = (weekNumber) => {
+    if (!weekNumber) return '';
+    const startDate = new Date('2025-01-01');
+    const currentDate = new Date(startDate.getTime());
+    currentDate.setDate(startDate.getDate() + (weekNumber - 1) * 7);
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.toLocaleString('default', { month: 'long' });
+
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const dayOfWeek = firstDayOfMonth.getDay();
+
+    const weekOfMonth = Math.ceil((currentDate.getDate() + dayOfWeek) / 7);
+
+    return `Week ${weekOfMonth}, ${month}, ${year}`;
+};
+
+useEffect(() => {
+    setFormattedDate(getFormattedDateForWeek(week));
+}, [week]); // This tells the code to run only when 'week' changes.
 
 const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupName) => {
   const currentUserId = uidParam || userId;
@@ -484,11 +506,21 @@ const getMemberGroupStatus = (member) => {
     parts.push(`Group: ${groupName}`);
   }
 
+  // --- Find Member's Teams ---
+  const memberId = String(member.id); // Ensure member ID is a string for comparison
+  const memberTeams = (teams || [])
+    .filter(team => (team.members || []).map(String).includes(memberId))
+    .map(team => team.name);
+
+  if (memberTeams.length > 0) {
+      parts.push(`Team: ${memberTeams.join(', ')}`);
+  }
+
   // --- Kennin Groups Text ---
   if (member.kenninGroups?.length > 0) {
     const kenninNames = member.kenninGroups.map(id => {
-      if (id === "main") return groupName;                // FIX #1
-      const sg = sisterGroups?.find(g => g.id === id);    // FIX #2
+      if (id === "main") return groupName;
+      const sg = sisterGroups?.find(g => g.id === id);
       return sg ? sg.name : id;
     });
 
@@ -1422,14 +1454,220 @@ const getMemberGroupStatus = (member) => {
     const nextWeek = () => {
       if (activeTour) return progressTour();
       
-      const scandalRoll = Math.random();
-      if (scandalRoll < 0.05 && members.length > 0) { 
-          const target = members[Math.floor(Math.random() * members.length)];
-          const scandalType = ['Paparazzi Date', 'Social Media Gaffe', 'Bad Behavior'][Math.floor(Math.random() * 3)];
-          setModalData({ member: target, type: scandalType });
-          setShowModal('scandal');
-          return; 
-      }
+// Inside the `nextWeek` function:
+
+const scandalRoll = Math.random();
+// Define your scandals with descriptions here
+const scandalTypes = [
+  {
+    type: 'ปาปารัสซี่แฉ! เดตลับกลางวันแสก ๆ',
+    description: 'ชาวเน็ตตาไวจับภาพสมาชิกคนหนึ่งขณะนั่งใกล้ชิดกับบุคคลปริศนานอกคาเฟ่ชื่อดัง แม้จะพยายามปิดบังตัวตน แต่บรรยากาศที่ดูสนิทสนมเกินเพื่อนทำให้เกิดกระแสตั้งคำถามถึงความสัมพันธ์ที่แท้จริง จนแฟน ๆ แห่ถกเถียงสนั่นโซเชียล'
+  },
+  {
+    type: 'ไฟลุกโซเชียล! โพสต์เดียวสะเทือนทั้งด้อม',
+    description: 'สมาชิกคนหนึ่งเผลอโพสต์ข้อความที่ถูกมองว่าไม่เหมาะสมและอ่อนไหวบนบัญชีโซเชียลมีเดียสาธารณะ ส่งผลให้เกิดเสียงวิพากษ์วิจารณ์อย่างรุนแรง บางส่วนออกมาปกป้อง ขณะที่อีกฝ่ายเรียกร้องคำขอโทษ ทำให้ประเด็นลุกลามจนติดเทรนด์ในเวลาอันรวดเร็ว'
+  },
+  {
+    type: 'คลิปหลุดหลังเวที! พฤติกรรมจริงที่แฟน ๆ ไม่เคยเห็น',
+    description: 'คลิปจากกล้องลับถูกเผยแพร่ออกมา เผยให้เห็นสมาชิกคนหนึ่งแสดงท่าทีไม่เหมาะสมและใช้คำพูดแข็งกร้าวใส่ทีมงานหลังเวที ภาพลักษณ์ที่เคยดูเป็นมิตรพังทลายลงทันที คลิปดังกล่าวถูกแชร์ต่ออย่างรวดเร็ว จนกลายเป็นประเด็นร้อนที่สั่นสะเทือนวงการ'
+  },
+  {
+    type: 'ช็อกแฟนคลับ! ข่าวลือแตกคอกลางวง',
+    description: 'แหล่งข่าววงในเผยว่าสมาชิกภายในวงมีปัญหาความขัดแย้งสะสมมานาน ก่อนจะปะทุขึ้นระหว่างการซ้อมอย่างดุเดือด แม้ต้นสังกัดจะพยายามปิดข่าว แต่แฟน ๆ เริ่มสังเกตความผิดปกติจากท่าทีที่ห่างเหินบนเวที'
+  },
+  {
+    type: 'แฉยับ! เบื้องหลังการคัมแบ็กที่ไม่ราบรื่น',
+    description: 'การคัมแบ็กครั้งล่าสุดถูกตั้งคำถาม หลังมีรายงานว่าสมาชิกบางคนไม่พอใจกับการแบ่งไลน์และเวลาออกสื่อ จนบรรยากาศภายในวงตึงเครียด แฟน ๆ เริ่มแบ่งฝ่ายถกเถียงกันอย่างหนัก'
+  },
+  {
+    type: 'หลุดแชตลับ! คำพูดแรงสะเทือนภาพลักษณ์',
+    description: 'ภาพแชตส่วนตัวที่อ้างว่าเป็นของสมาชิกคนหนึ่งถูกปล่อยออกมา เผยคำพูดที่ถูกมองว่าไม่ให้เกียรติผู้อื่น แม้ยังไม่ยืนยันความจริง แต่กระแสวิจารณ์ก็ถาโถมไม่หยุด'
+  },
+  {
+    type: 'ดราม่าสปอนเซอร์! แบรนด์ดังขอถอนตัว',
+    description: 'แบรนด์ระดับท็อปประกาศยุติสัญญาอย่างกะทันหัน หลังสมาชิกคนหนึ่งตกเป็นประเด็นฉาว ชาวเน็ตจับตาว่าเหตุการณ์นี้อาจส่งผลต่อรายได้และภาพลักษณ์ของวงในระยะยาว'
+  },
+  {
+    type: 'พฤติกรรมบนเวทีถูกจับผิด! คลิปเดียวไฟลุก',
+    description: 'คลิปแฟนแคมเผยท่าทีที่ถูกมองว่าไม่เป็นมืออาชีพระหว่างการแสดง ทำให้เกิดเสียงวิจารณ์ถึงความตั้งใจและความพร้อมของสมาชิกคนหนึ่ง จนแฮชแท็กติดเทรนด์'
+  },
+  {
+    type: 'อดีตถูกขุด! ประวัติที่ไม่เคยเปิดเผย',
+    description: 'ชาวเน็ตเริ่มขุดคุ้ยอดีตของสมาชิกคนหนึ่ง พบพฤติกรรมและโพสต์เก่าที่ถูกมองว่าไม่เหมาะสม แม้เรื่องจะผ่านมานาน แต่กระแสดราม่าก็กลับมาร้อนแรงอีกครั้ง'
+  },
+  {
+    type: 'แฟนคลับแตกเป็นสองฝ่าย! ดราม่าปกป้อง vs แบน',
+    description: 'ประเด็นร้อนล่าสุดทำให้แฟนคลับแบ่งออกเป็นสองฝั่งอย่างชัดเจน ระหว่างผู้ที่ยังคงสนับสนุนและผู้ที่เรียกร้องให้รับผิดชอบ ส่งผลให้บรรยากาศในด้อมตึงเครียดอย่างไม่เคยเป็นมาก่อน'
+  },
+  {
+    type: 'ต้นสังกัดออกแถลงด่วน! แต่ยิ่งพูดยิ่งพัง',
+    description: 'แถลงการณ์อย่างเป็นทางการถูกปล่อยออกมาเพื่อชี้แจงดราม่า แต่ถ้อยคำที่คลุมเครือกลับยิ่งกระตุ้นความไม่พอใจ แฟน ๆ เรียกร้องความชัดเจนมากกว่านี้'
+  },
+  {
+    type: 'ตารางงานสะดุด! กิจกรรมถูกยกเลิกกะทันหัน',
+    description: 'หลายงานถูกยกเลิกหรือเลื่อนออกไปโดยไม่แจ้งเหตุผลชัดเจน ทำให้แฟน ๆ สงสัยว่าเกี่ยวข้องกับประเด็นฉาวที่กำลังร้อนแรงหรือไม่'
+  },
+  {
+    type: 'อนาคตวงสั่นคลอน! กระแสยุบวงเริ่มมา',
+    description: 'ท่ามกลางดราม่าที่ถาโถมไม่หยุด ชาวเน็ตเริ่มตั้งคำถามถึงอนาคตของวง บางส่วนถึงขั้นคาดเดาเรื่องการพักกิจกรรมหรือยุบวง ท่ามกลางความกังวลของแฟนคลับ'
+  },
+  {
+    type: 'ชาวเน็ตตาแตก! ภาพเดียวเปลี่ยนทุกอย่าง',
+    description: 'ภาพปริศนาที่ถูกปล่อยออกมาเพียงภาพเดียว กลับทำให้ชื่อของสมาชิกคนหนึ่งถูกพูดถึงทั่วโซเชียล รายละเอียดในภาพถูกขยาย วิเคราะห์ ซูมทุกพิกเซล จนเกิดคำถามใหญ่ที่ไม่มีใครกล้าตอบตรง ๆ'
+  },
+  {
+    type: 'พูดไม่คิดชีวิตเปลี่ยน! ประโยคเดียวไฟลามทั้งวง',
+    description: 'คำพูดสั้น ๆ จากปากสมาชิกคนหนึ่งระหว่างไลฟ์สด ถูกตัดคลิปออกมาเผยแพร่จนกลายเป็นประเด็นร้อน หลายคนมองว่าเจตนาไม่บริสุทธิ์ ขณะที่บางส่วนเชื่อว่าเป็นแค่ความผิดพลาด แต่ผลลัพธ์กลับรุนแรงเกินคาด'
+  },
+  {
+    type: 'วงในหลุด! สิ่งที่แฟน ๆ ไม่ควรรู้',
+    description: 'บัญชีปริศนาอ้างตัวเป็นทีมงานวง ได้ออกมาเปิดเผยข้อมูลเบื้องหลังที่ไม่เคยถูกพูดถึงมาก่อน เนื้อหาที่หลุดออกมาทำให้แฟน ๆ เริ่มตั้งคำถามว่า ภาพที่เห็นตลอดมานั้นคือเรื่องจริงหรือภาพที่ถูกสร้างขึ้น'
+  },
+  {
+    type: 'ยิ้มบนเวที แต่ความจริงไม่สวยงาม',
+    description: 'แม้การแสดงจะออกมาสมบูรณ์แบบ แต่ชาวเน็ตกลับสังเกตความผิดปกติจากสายตาและท่าทางของสมาชิกบางคน คลิปเบื้องหลังถูกนำมาเปรียบเทียบจนเกิดข้อสงสัยถึงสภาพจิตใจที่แท้จริง'
+  },
+  {
+    type: 'เงียบผิดปกติ! การหายตัวที่ไม่มีคำอธิบาย',
+    description: 'สมาชิกคนหนึ่งหายไปจากกิจกรรมและโซเชียลโดยไร้คำชี้แจง แฟน ๆ เริ่มคาดเดาสาเหตุต่าง ๆ ตั้งแต่ปัญหาส่วนตัวไปจนถึงความขัดแย้งภายใน ทำให้กระแสข่าวลือยิ่งทวีความรุนแรง'
+  },
+  {
+    type: 'คำชมที่ฟังแล้วแปลก? แฟน ๆ เริ่มเอะใจ',
+    description: 'บทสัมภาษณ์ที่ดูเหมือนจะเป็นคำชมธรรมดา กลับถูกตีความใหม่ว่าแฝงนัยบางอย่าง ชาวเน็ตนำคำพูดแต่ละประโยคมาวิเคราะห์จนเกิดทฤษฎีที่ทำให้หลายคนขนลุก'
+  },
+  {
+    type: 'ท่าทีเปลี่ยนกลางงาน! คลิปนี้ดูให้จบ',
+    description: 'ระหว่างงานอีเวนต์ สมาชิกคนหนึ่งแสดงท่าทีที่ต่างจากปกติอย่างเห็นได้ชัด คลิปสั้น ๆ ถูกแชร์ต่ออย่างรวดเร็ว พร้อมคำถามว่าเกิดอะไรขึ้นหลังเวทีที่ไม่มีใครรู้'
+  },
+  {
+    type: 'โพสต์ลบไม่ทัน! ร่องรอยยังอยู่',
+    description: 'แม้โพสต์ต้นเรื่องจะถูกลบไปอย่างรวดเร็ว แต่ชาวเน็ตกลับแคปทันทุกวินาที เนื้อหาที่ถูกลบยิ่งกระตุ้นความสงสัยและทำให้กระแสดราม่าปะทุหนักกว่าเดิม'
+  },
+  {
+    type: 'ใครกันแน่ที่โกหก? เรื่องนี้มีมากกว่าหนึ่งมุม',
+    description: 'ข้อมูลจากหลายฝั่งเริ่มขัดแย้งกันเอง แฟน ๆ ถูกบังคับให้เลือกว่าจะเชื่อใคร ขณะที่หลักฐานใหม่ ๆ ทยอยโผล่มา ทำให้เรื่องราวซับซ้อนขึ้นทุกชั่วโมง'
+  },
+  {
+    type: 'จุดเริ่มต้นของจุดจบ? สัญญาณที่ไม่มีใครอยากเห็น',
+    description: 'เหตุการณ์เล็ก ๆ ที่หลายคนมองข้าม กลับถูกนำมาเชื่อมโยงจนกลายเป็นภาพใหญ่ ชาวเน็ตตั้งคำถามว่านี่อาจเป็นสัญญาณของการเปลี่ยนแปลงครั้งใหญ่ที่กำลังจะเกิดขึ้นหรือไม่'
+  },
+  {
+    type: 'ต้นเรื่องเริ่มจากคลิปนี้… ก่อนทุกอย่างจะพัง',
+    description: 'ดราม่าเริ่มต้นจากคลิปสั้นเพียงไม่กี่วินาทีที่แฟนคลับอัปโหลดขึ้นโซเชียล โดยในคลิปเผยให้เห็นสมาชิกเดี่ยวคนหนึ่งอยู่ในสถานการณ์ที่ดูไม่เหมาะสม แม้ตอนแรกจะมีคนมองว่าเป็นเรื่องเล็ก แต่เมื่อคลิปถูกแชร์ซ้ำพร้อมคำบรรยายชวนสงสัย กระแสก็เริ่มควบคุมไม่ได้'
+  },
+  {
+    type: 'จากคลิปแฟน → กลายเป็นหลักฐานมัดตัว',
+    description: 'หลังคลิปแรกถูกพูดถึง ภาพถ่ายและข้อมูลเพิ่มเติมเริ่มทยอยหลุดออกมา ชาวเน็ตนำมาปะติดปะต่อจนเกิดไทม์ไลน์ที่ชี้ไปที่สมาชิกเดี่ยวคนเดิม ทำให้เรื่องที่เคยถูกมองว่า “คิดไปเอง” เริ่มดูมีน้ำหนักมากขึ้น'
+  },
+  {
+    type: 'ความลับที่ปิดไม่อยู่ เมื่ออดีตถูกขุดขึ้นมา',
+    description: 'ชาวเน็ตเริ่มขุดพฤติกรรมและร่องรอยในอดีตของสมาชิกคนดังกล่าว ทั้งโพสต์เก่า ไลฟ์เก่า และคำพูดที่เคยถูกมองข้าม ก่อนจะถูกตีความใหม่ในบริบทของดราม่าปัจจุบัน จนภาพลักษณ์เริ่มสั่นคลอน'
+  },
+  {
+    type: 'เงียบตั้งแต่ต้นเรื่อง ยิ่งทำให้ข้อสงสัยแรงขึ้น',
+    description: 'แม้กระแสจะร้อนแรงขึ้นเรื่อย ๆ แต่สมาชิกเดี่ยวคนนี้กลับไม่มีการออกมาชี้แจงใด ๆ ตั้งแต่คลิปแรกถูกเผยแพร่ ความเงียบดังกล่าวยิ่งทำให้ชาวเน็ตเชื่อว่าอาจมีบางอย่างที่ไม่สามารถอธิบายได้'
+  },
+  {
+    type: 'จากประเด็นเล็ก กลายเป็นดราม่าเดี่ยวระดับประเทศ',
+    description: 'สิ่งที่เริ่มจากคลิปและภาพไม่กี่ชิ้น กลับลุกลามกลายเป็นดราม่าที่โฟกัสไปยังสมาชิกเพียงคนเดียว แฟน ๆ เริ่มตั้งคำถามถึงความรับผิดชอบ ขณะที่ทุกการเคลื่อนไหวของเขากลายเป็นที่จับตามอง'
+  },
+  {
+    type: 'จุดแตกหัก เมื่อข้อมูลใหม่โผล่ไม่หยุด',
+    description: 'ขณะที่กระแสยังไม่ซา แหล่งข่าวนิรนามเริ่มปล่อยข้อมูลเพิ่มเติมที่สอดคล้องกับหลักฐานก่อนหน้า ทำให้ดราม่าจาก “ข่าวลือ” เริ่มขยับเข้าใกล้คำว่า “เรื่องจริง” มากขึ้นทุกที'
+  },
+  {
+    type: 'ชีวิตส่วนตัวที่ถูกเปิดโปงตั้งแต่วันนั้น',
+    description: 'หลังเหตุการณ์แรกถูกเปิดเผย ชีวิตส่วนตัวของสมาชิกเดี่ยวคนนี้ถูกจับตามองอย่างละเอียด ตั้งแต่ตารางเวลาไปจนถึงคนรอบข้าง ทำให้เส้นแบ่งระหว่างงานกับเรื่องส่วนตัวแทบไม่เหลือ'
+  },
+  {
+    type: 'แฟนเริ่มตั้งคำถาม เพราะเรื่องนี้ไม่ใช่ครั้งแรก',
+    description: 'บางส่วนของแฟนคลับเริ่มสังเกตว่าประเด็นล่าสุดอาจไม่ใช่เหตุการณ์เดี่ยว แต่เป็นฟางเส้นสุดท้ายที่ต่อจากพฤติกรรมก่อนหน้า ซึ่งไม่เคยถูกอธิบายอย่างชัดเจน'
+  },
+  {
+    type: 'เมื่อทุกอย่างชี้ไปที่เขาคนเดียว',
+    description: 'แม้จะไม่มีการยืนยันอย่างเป็นทางการ แต่ข้อมูลและไทม์ไลน์ทั้งหมดกลับพุ่งเป้าไปยังสมาชิกเพียงคนเดียว จนยากจะปฏิเสธว่าเขาไม่เกี่ยวข้องกับดราม่าที่เกิดขึ้น'
+  },
+  {
+    type: 'เรื่องนี้เริ่มต้นแล้ว และยังไม่จบง่าย ๆ',
+    description: 'จากหลักฐานแรกจนถึงกระแสล่าสุด ดราม่าสมาชิกเดี่ยวครั้งนี้ยังไม่มีทีท่าว่าจะจบลงง่าย ๆ หลายฝ่ายเชื่อว่าสิ่งที่ถูกเปิดเผยไปแล้วอาจเป็นเพียงจุดเริ่มต้นเท่านั้น'
+  },
+  {
+    type: 'แอคหลุมปริศนา จุดชนวนดราม่าคนเดียวทั้งประเทศ',
+    description: 'เรื่องทั้งหมดเริ่มจากแอคเคานต์นิรนามบนโซเชียลที่คอยโพสต์ข้อความเหน็บแนมและวิจารณ์สมาชิกคนอื่นในวงอย่างต่อเนื่อง ก่อนที่ชาวเน็ตจะเริ่มจับสังเกตพฤติกรรมการโพสต์ เวลาออนไลน์ และสำนวนภาษา ที่คล้ายกับสมาชิกเดี่ยวคนหนึ่งอย่างน่าตกใจ จนเกิดข้อสงสัยว่าแอคหลุมดังกล่าวอาจไม่ใช่คนนอกอย่างที่คิด'
+  },
+  {
+    type: 'แชตหลุดนินทาเพื่อน ภาพลักษณ์พังในคืนเดียว',
+    description: 'ดราม่าปะทุหนักเมื่อมีภาพแชตกลุ่มส่วนตัวหลุดออกมา เผยให้เห็นข้อความที่สมาชิกเดี่ยวคนหนึ่งพูดถึงเพื่อนร่วมวงในเชิงดูถูกและประชดประชัน แม้จะยังไม่ยืนยันความจริง แต่ถ้อยคำในแชตกลับรุนแรงพอที่จะทำให้แฟน ๆ เริ่มตั้งคำถามถึงนิสัยที่แท้จริง'
+  },
+  {
+    type: 'บูลลี่เงียบ ๆ ที่ไม่มีใครรู้ จนวันนี้ถูกเปิดโปง',
+    description: 'อดีตทีมงานและบุคคลใกล้ชิดออกมาเล่าว่า สมาชิกเดี่ยวคนนี้มีพฤติกรรมกดดันและพูดจาดูถูกเพื่อนร่วมงานเป็นระยะ แม้จะไม่เคยเกิดเรื่องใหญ่ แต่เมื่อข้อมูลเหล่านี้ถูกเปิดเผยพร้อมกัน ภาพลักษณ์ที่เคยดูอบอุ่นก็เริ่มพังทลาย'
+  },
+  {
+    type: 'คำพูดเล่น ๆ ที่ไม่ขำ เมื่อคนฟังเจ็บจริง',
+    description: 'คลิปเบื้องหลังการซ้อมถูกนำมาเผยแพร่ เผยให้เห็นสมาชิกเดี่ยวคนหนึ่งพูดจาในลักษณะล้อเลียนรูปร่างและความสามารถของเพื่อนร่วมวง แม้เจ้าตัวจะหัวเราะเหมือนเป็นเรื่องตลก แต่สีหน้าของอีกฝ่ายกลับบ่งบอกถึงความอึดอัดอย่างชัดเจน'
+  },
+  {
+    type: 'จากแอคแฟนคลับ สู่แอคแฉที่โยงถึงตัวจริง',
+    description: 'แอคหลุมที่เคยอ้างตัวว่าเป็นแฟนคลับ เริ่มหลุดโพสต์ข้อมูลวงในที่คนทั่วไปไม่ควรรู้ ชาวเน็ตจึงเริ่มเชื่อมโยงว่าเจ้าของแอคอาจเป็นคนในวงการ และเมื่อข้อมูลหลายอย่างตรงกับตารางชีวิตของสมาชิกเดี่ยวคนหนึ่ง ความสงสัยก็พุ่งเป้าไปที่เขาทันที'
+  },
+  {
+    type: 'เพื่อนเงียบ แต่ร่องรอยการกดทับชัดขึ้นเรื่อย ๆ',
+    description: 'แม้เพื่อนร่วมวงจะไม่ออกมาให้สัมภาษณ์หรือแสดงท่าทีใด ๆ แต่คลิปเก่า ๆ ถูกนำกลับมาดูใหม่ จนแฟน ๆ สังเกตได้ถึงรูปแบบการพูด การแซว และการวางตัวที่ทำให้บางคนดูด้อยค่ากว่า'
+  },
+  {
+    type: 'แอคหลุมโดนจับได้ เพราะลืมสลับบัญชี',
+    description: 'จุดพีคของดราม่าเกิดขึ้นเมื่อแอคหลุมโพสต์ข้อความแรง ก่อนจะถูกลบอย่างรวดเร็ว แต่ชาวเน็ตสังเกตว่าโพสต์ดังกล่าวดันไปปรากฏในบัญชีหลักของสมาชิกเดี่ยวคนหนึ่งเพียงไม่กี่วินาที ทำให้ข้อสงสัยกลายเป็นไฟลุกทันที'
+  },
+  {
+    type: 'นินทาลับหลัง แต่ยิ้มใส่หน้ากล้อง',
+    description: 'ข้อมูลจากแชตและคำให้การของคนใกล้ตัวเผยให้เห็นความแตกต่างระหว่างภาพลักษณ์หน้ากล้องกับพฤติกรรมหลังบ้าน สมาชิกเดี่ยวคนนี้ถูกกล่าวหาว่าพูดจาดูถูกเพื่อนลับหลัง ขณะที่ต่อหน้าสื่อกลับทำตัวสนิทสนม'
+  },
+  {
+    type: 'เรื่องเล็กที่สะสม จนวันนี้ไม่มีใครทน',
+    description: 'หลายเหตุการณ์ที่เคยถูกมองข้าม เช่น คำพูดแรง ๆ การแซวซ้ำ ๆ และท่าทีเย็นชา ถูกนำมาร้อยเรียงเข้าด้วยกัน จนแฟน ๆ เริ่มเชื่อว่านี่ไม่ใช่อุบัติเหตุ แต่เป็นพฤติกรรมที่เกิดขึ้นซ้ำ ๆ'
+  },
+  {
+    type: 'จากดราม่าแอคหลุม สู่คำถามเรื่องตัวตนที่แท้จริง',
+    description: 'เมื่อหลักฐานทั้งแอคหลุม แชตหลุด และพฤติกรรมในอดีตถูกเปิดเผยพร้อมกัน ชาวเน็ตเริ่มตั้งคำถามว่าสิ่งที่เห็นบนเวทีคือภาพลักษณ์ที่ถูกสร้างขึ้น หรือแค่หน้ากากที่กำลังหลุดออกทีละชิ้น'
+  },
+{
+  type: 'โน้ตส่วนตัวหลุด! ความคิดจริงที่ไม่เคยพูดออกมา',
+  description: 'ดราม่าเริ่มจากภาพหน้าจอ “บันทึกส่วนตัว” ที่หลุดออกมาโดยไม่คาดคิด อ้างว่าเป็นของสมาชิกเดี่ยวคนหนึ่ง ภายในมีการเขียนประเมินเพื่อนร่วมวงแบบเจ็บ ๆ ทั้งเรื่องความสามารถ ความนิยม และตำแหน่งในทีม ที่พีคคือมีการระบุวันเวลาและสถานการณ์ที่ตรงกับเหตุการณ์จริงในช่วงซ้อมและคัมแบ็ก ทำให้ชาวเน็ตเชื่อว่าไม่ใช่การตัดต่อเล่น ๆ เมื่อข้อความบางประโยคถูกตีความว่าเป็นการดูถูกซ้ำ ๆ กระแสก็เดือดทันที เพราะมันไม่ใช่คำพูดเผลอ แต่เหมือน “ทัศนคติที่สะสม” จนภาพลักษณ์อบอุ่นที่เห็นหน้ากล้องถูกตั้งคำถามหนัก'
+},
+{
+  type: 'มือไม่เปื้อน แต่เปื้อนคนอื่น? แฉใช้คนกลางปล่อยข่าว',
+  description: 'เรื่องเริ่มจากชาวเน็ตสังเกตว่า “ข่าวลบ” ที่พุ่งใส่สมาชิกบางคน มักหลุดจากแหล่งเดิม ๆ ที่เป็นคนใกล้ตัววง และทุกครั้งกลับจบด้วยการที่สมาชิกเดี่ยวคนหนึ่งดูได้ประโยชน์เต็ม ๆ จนเกิดการขุดเส้นทางการติดต่อ พบความเชื่อมโยงระหว่างคนปล่อยข่าวกับสมาชิกคนดังกล่าวทั้งก่อนและหลังประเด็นหลุดหลายครั้ง ทำให้ข้อสงสัยหนักขึ้นว่าเขาอาจไม่พูดเอง แต่ใช้คนอื่นเป็นปากเป็นเสียง สร้างภาพเป็นคนนิ่ง ๆ ขณะเดียวกันปล่อยให้คนอื่น “พูดแทน” จนวงปั่นป่วน'
+},
+{
+  type: 'เลือกปฏิบัติเนียน ๆ จนหลักฐานล้น! คลิปรวมทำชาวเน็ตตาแตก',
+  description: 'ดราม่าปะทุเมื่อแฟน ๆ ทำคลิปรวมพฤติกรรมที่เกิดซ้ำ ๆ ของสมาชิกเดี่ยวคนหนึ่ง ไม่ว่าจะเป็นการเลี่ยงสบตา ไม่ตอบประเด็นที่เกี่ยวกับเพื่อนบางคน เดินหนีตอนเข้ากล้อง หรือเว้นระยะห่างผิดปกติในไลฟ์และแฟนไซน์ ที่น่ากังวลคือพฤติกรรมเหล่านี้ดันเกิดกับ “คนเดิม” ตลอด จนคำว่า “คิดไปเอง” เริ่มใช้ไม่ได้อีกต่อไป เมื่อคลิปสะสมมากขึ้นเรื่อย ๆ แฟนคลับเริ่มตั้งคำถามว่านี่คือการกีดกันแบบเงียบ ๆ หรือไม่'
+},
+{
+  type: 'มุกแรงไม่ใช่มุก! หลุดคำพูด “ล้อเล่น” ที่คนโดนไม่ขำเลย',
+  description: 'ชนวนเกิดจากคลิปเบื้องหลังการซ้อมและพักกองที่ถูกตัดรวม เผยให้เห็นสมาชิกเดี่ยวคนหนึ่งชอบใช้คำพูดจิกกัดเพื่อนร่วมวง เช่น ล้อความสามารถ ล้อความนิยม หรือพูดทำนอง “ถ้าไม่มีฉันวงคงไม่รอด” แล้วปิดท้ายด้วยคำว่า “ล้อเล่นนะ” แต่สิ่งที่ทำให้คนเดือดคือคนพูดหัวเราะคนเดียว ขณะที่คนโดนกลับหน้าเสียและเงียบลงหลายครั้ง พอมีคนไล่ดูหลายคลิปก็ยิ่งชัดว่ามุกพุ่งไปหาเป้าหมายเดิมซ้ำ ๆ จนประเด็นถูกยกระดับเป็นคำถามใหญ่เรื่องเส้นแบ่งระหว่างอารมณ์ขันกับการบูลลี่'
+},
+{
+  type: 'กดดันด้วยความเงียบ! อาวุธที่พิสูจน์ยาก แต่ทุกคนรู้สึกได้',
+  description: 'เรื่องเริ่มจากบรรยากาศในวงที่แฟน ๆ สังเกตว่าตึงผิดปกติ ทั้งในคลิปเบื้องหลังและไลฟ์สด สมาชิกเดี่ยวคนหนึ่งเริ่มแสดงพฤติกรรม “เงียบกดดัน” เช่น ไม่ร่วมบทสนทนา ตอบสั้น ๆ ตัดจบประโยค หรือทำให้บรรยากาศตกทันทีที่เข้าฉาก บางช่วงถึงขั้นเหมือนหลีกเลี่ยงการทำงานเป็นทีม ทำให้คนดูเริ่มตั้งคำถามว่ามีการใช้อำนาจทางอารมณ์เพื่อควบคุมคนอื่นหรือไม่ แม้ไม่มีหลักฐานคำด่าตรง ๆ แต่ความต่อเนื่องของท่าทีและพลังงานที่เปลี่ยนไปทำให้เรื่องนี้ยิ่งน่ากลัว เพราะมันทำร้ายคนอื่นได้โดยไม่ต้องพูดคำเดียว'
+},
+        
+];
+
+if (scandalRoll < 0.05 && members.length > 0) { 
+    const target = members[Math.floor(Math.random() * members.length)];
+    // Now we select a random scandal object from the array
+    const scandal = scandalTypes[Math.floor(Math.random() * scandalTypes.length)];
+    
+    // And pass its properties to the modal
+    setModalData({ 
+      member: target, 
+      type: scandal.type, 
+      description: scandal.description 
+    });
+    setShowModal('scandal');
+    return; 
+}
 
       const baseIncome = Math.floor((totalFans || 0) * 2);
       const sisterIncome = (sisterGroups || []).reduce((s, g) => s + (g.income || 0), 0);
@@ -1518,11 +1756,11 @@ const getMemberGroupStatus = (member) => {
 
     return {
         // State
-        gameStarted, setGameStarted, groupName, money, week, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes,
+        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes,
         // Firebase/Persistence
         db, auth, userId, isAuthReady, saveGame, loadGame,
         // Utilities
-        startGame, getAllAvailableMembers, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+        startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
         trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, confirmCreateSong, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert
     };
@@ -1532,11 +1770,11 @@ const getMemberGroupStatus = (member) => {
 const App = () => {
     // Destructure everything from the custom hook
     const {
-        gameStarted, setGameStarted, groupName, money, week, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, merchPrices, merchProdCost, activeTour, venues, performanceHistory, performanceTypes,
+        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, merchPrices, merchProdCost, activeTour, venues, performanceHistory, performanceTypes,
         // Firebase/Persistence
         db, userId, isAuthReady, saveGame, loadGame,
         // Utilities
-        startGame, getAllAvailableMembers, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+        startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
         trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, confirmCreateSong, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert
     } = useIdolManager();
@@ -1663,49 +1901,94 @@ const App = () => {
     };
     
     const ScandalModal = () => {
-      const { member, type } = modalData;
+      const { member, type, description } = modalData;
       if (!member) return null;
 
       const handleChoice = (choice) => {
           let messageText = '';
           let fanChange = 0;
+          let groupFanChange = 0;
           let moraleChange = 0;
           
+          const roll = Math.random(); // A single dice roll for the outcome
+
           switch (choice) {
               case 'apologize':
-                  fanChange = -Math.floor((member.fans || 0) * 0.05);
-                  moraleChange = -15;
-                  updateMemberState(member.id, m => ({ ...m, fans: Math.max(100, (m.fans || 0) + fanChange), morale: Math.max(10, (m.morale || 0) + moraleChange), scandals: (m.scandals || 0) + 1 }));
-                  setTotalFans(prev => Math.max(1000, (prev || 0) + fanChange));
-                  messageText = `${member.name} sincerely apologized. Fan loss minimized, but morale is low. (-5% fans)`;
+                  if (roll < 0.2) { // Best-case Apology (20% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.10);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.05);
+                      moraleChange = -20;
+                      messageText = `The apology was sincere, controlling the damage. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else if (roll < 0.8) { // Normal Apology (60% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.25);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.12);
+                      moraleChange = -40;
+                      messageText = `A standard PR apology; many fans are still disappointed. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else { // Worst-case Apology (20% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.40);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.20);
+                      moraleChange = -65;
+                      messageText = `Disaster! The apology seemed fake, enraging the public. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  }
                   break;
+
               case 'deny':
-                  const success = Math.random() > 0.6;
-                  fanChange = success ? -Math.floor((member.fans || 0) * 0.01) : -Math.floor((member.fans || 0) * 0.20);
-                  moraleChange = success ? 0 : -10;
-                  updateMemberState(member.id, m => ({ ...m, fans: Math.max(100, (m.fans || 0) + fanChange), morale: Math.max(10, (m.morale || 0) + moraleChange), scandals: (m.scandals || 0) + 1 }));
-                  setTotalFans(prev => Math.max(1000, (prev || 0) + fanChange));
-                  messageText = success 
-                      ? `Denial worked! Minor fan dip. (-1% fans)`
-                      : `The media exposed the truth! Major fan backlash. (-20% fans)`;
+                  if (roll < 0.15) { // Success (15% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.02);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.01);
+                      moraleChange = 0;
+                      messageText = `The denial holds! The public is convinced, for now. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else if (roll < 0.7) { // Standard Failure (55% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.50);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.25);
+                      moraleChange = -70;
+                      messageText = `It backfired! New evidence proved the denial was false. Major backlash! (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else { // Catastrophic Failure (30% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.75);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.40);
+                      moraleChange = -90;
+                      messageText = `Total disaster! The denial became a joke; the group's reputation is in tatters. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  }
                   break;
+
               case 'ignore':
-                  fanChange = -Math.floor((member.fans || 0) * 0.10);
-                  moraleChange = -5;
-                  updateMemberState(member.id, m => ({ ...m, fans: Math.max(100, (m.fans || 0) + fanChange), morale: Math.max(10, (m.morale || 0) + moraleChange), scandals: (m.scandals || 0) + 1 }));
-                  setTotalFans(prev => Math.max(1000, (prev || 0) + fanChange));
-                  messageText = `The scandal was ignored. It will linger in the public eye. (-10% fans)`;
+                  if (roll < 0.1) { // Best-case Ignore (10% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.05);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.02);
+                      moraleChange = -5;
+                      messageText = `You got lucky! A rival's scandal overshadowed yours. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else if (roll < 0.7) { // Normal Ignore (60% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.30);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.15);
+                      moraleChange = -25;
+                      messageText = `Ignoring it was a mistake. The public's silence is deafening. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  } else { // Worst-case Ignore (30% chance)
+                      fanChange = -Math.floor((member.fans || 0) * 0.60);
+                      groupFanChange = -Math.floor((totalFans || 0) * 0.30);
+                      moraleChange = -50;
+                      messageText = `Catastrophe! Your silence was seen as arrogance. (Member Fans: ${fanChange.toLocaleString()}, Group Fans: ${groupFanChange.toLocaleString()}, Morale: ${moraleChange})`;
+                  }
                   break;
           }
-          addNotification('SCANDAL ALERT', `${member.name} involved in ${type}. Result: ${messageText}`);
+
+          // Apply all the state changes together at the end
+          updateMemberState(member.id, m => ({ ...m, fans: Math.max(100, (m.fans || 0) + fanChange), morale: Math.max(0, (m.morale || 0) + moraleChange), scandals: (m.scandals || 0) + 1 }));
+          setTotalFans(prev => Math.max(1000, (prev || 0) + groupFanChange));
+          addNotification('SCANDAL RESULT', `${member.name}: ${messageText}`);
           setMessage(messageText);
           setShowModal(null);
       };
 
       return (
           <ModalWrapper title={<span className="flex items-center text-red-600"><AlertCircle size={24} className="mr-2"/> SCANDAL ALERT!</span>} maxWidth="max-w-xl">
-              <h4 className="text-xl font-bold mb-4">Member: {member.name}</h4>
-              <p className="mb-4 text-gray-700">A serious issue has come to light: <span className="font-semibold italic text-red-500">"{type}"</span>. This requires immediate management action. Your decision will affect her fans and morale, and the group's reputation.</p>
+              <h4 className="text-xl font-bold mb-2">Member: {member.name}</h4>
+              <p className="mb-2 text-gray-700 dark:text-gray-300">A serious issue has come to light: <span className="font-semibold italic text-red-500">"{type}"</span>.</p>
+              
+              <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded">
+                <p className="text-red-800">{description}</p>
+              </div>
+
+              <p className="mb-4 text-gray-700 dark:text-gray-300">This requires immediate management action. Your decision will affect her fans and morale, and the group's reputation.</p>
               
               <h5 className="font-semibold mb-2">Choose your action:</h5>
               <div className="grid grid-cols-1 gap-3">
@@ -1713,19 +1996,19 @@ const App = () => {
                       onClick={() => handleChoice('apologize')} 
                       className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors"
                   >
-                      1. Public Apology & Punishment (Minimizes fan loss, but heavy morale hit.)
+                      1. Public Apology & Punishment
                   </button>
                   <button 
                       onClick={() => handleChoice('deny')} 
                       className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors"
                   >
-                      2. Strong Denial (High risk: if proven false, major fan loss; if successful, minor fan loss.)
+                      2. Strong Denial (High Risk)
                   </button>
                   <button 
                       onClick={() => handleChoice('ignore')} 
                       className="p-3 bg-gray-100 text-gray-800 rounded font-bold border-l-4 border-gray-500 hover:bg-gray-200 transition-colors"
                   >
-                      3. Ignore It (Moderate fan loss guaranteed, low morale hit.)
+                      3. Ignore It
                   </button>
               </div>
               <p className="text-xs text-red-500 mt-4">The game will resume after you make a decision.</p>
@@ -1733,205 +2016,236 @@ const App = () => {
       );
     };
 
-    const CreateSongModal = () => { 
-      const { targetGroupId } = modalData; 
-      
-      const allGroups = [{ id: 'main', name: groupName, isSister: false }, ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name, isSister: true }))];
-      const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
+const CreateSongModal = () => { 
+    const { targetGroupId } = modalData; 
+    
+    const allGroups = [{ id: 'main', name: groupName, isSister: false }, ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name, isSister: true }))];
+    const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
 
-      let selectableMembers = [];
-      if (targetGroup === 'main') {
-          const mainMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable);
-          const sgMembers = getAllAvailableMembers(true).filter(m => m.isSister && m.isAvailable);
-          selectableMembers = [...mainMembers, ...sgMembers];
-      } else {
-          const sg = sisterGroups.find(s => s.name === targetGroup);
-          if (sg) {
-              selectableMembers = (sg.members || []).map(m => ({
-                  ...m,
-                  id: `sg-${sg.id}-${m.id}`,
-                  name: `${m.name} (${sg.name})`,
-                  homeGroup: sg.name,
-                  isSister: true,
-                  groupId: sg.id
-              })).filter(m => m.isAvailable);
-              
-              const mainGroupKennin = members.filter(m => (m.kenninGroups || []).includes(targetGroup) && m.isAvailable)
-                  .map(m => ({ ...m, isKennin: true }));
-              selectableMembers = [...selectableMembers, ...mainGroupKennin];
-          }
-      }
-      
-
-      const [songName, setSongName] = useState('');
-      const [tracks, setTracks] = useState([
-          { name: 'Title Track', type: 'title', members: [], center: null },
-          { name: 'B-Side 1', type: 'b-side', members: [], center: null }
-      ]);
-      const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
-
-      const updateTrackName = (index, newName) => {
-        setTracks(prev => (prev || []).map((track, i) => i === index ? { ...track, name: newName } : track));
-      };
-
-      const toggleMember = (memberId) => {
-          setTracks(prev => (prev || []).map((track, index) => {
-              if (index === selectedTrackIndex) {
-                  const memberIdStr = String(memberId);
-                  const newMembers = (track.members || []).map(String).includes(memberIdStr)
-                      ? (track.members || []).filter(id => String(id) !== memberIdStr)
-                      : [...(track.members || []).map(String), memberIdStr];
-                  
-                  let newCenter = track.center;
-                  if (!(newMembers || []).includes(String(track.center))) {
-                      newCenter = null; 
-                  }
-
-                  return { ...track, members: newMembers, center: newCenter };
-              }
-              return track;
-          }));
-      };
-      
-      const setCenter = (memberId) => {
-          setTracks(prev => (prev || []).map((track, index) => {
-              if (index === selectedTrackIndex) {
-                  const memberIdStr = String(memberId);
-                  if ((track.members || []).map(String).includes(memberIdStr)) {
-                       return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr };
-                  }
-              }
-              return track;
-          }));
-      };
-      
-      const addTrack = () => {
-          setTracks(prev => [
-              ...(prev || []),
-              { 
-                  name: `B-Side ${prev.length}`, 
-                  type: 'b-side', 
-                  members: [], 
-                  center: null 
-              }
-          ]);
-          setSelectedTrackIndex((tracks || []).length); 
-      };
-
-      const currentTrack = (tracks || [])[selectedTrackIndex];
-      const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
-
-      const handleConfirm = () => {
-          if (!songName.trim()) return setMessage("Please name the single.");
-          
-          const validatedTracks = (tracks || []).map(track => ({
-              ...track,
-              members: (track.members || []).map(String).filter(id => getMemberById(id))
-          }));
-          
-          confirmCreateSong({
-              songName: songName.trim(),
-              tracks: validatedTracks,
-              targetGroupId: targetGroup
-          });
-      };
-
-      return (
-        <ModalWrapper title={<span className="flex items-center"><Music size={24} className="mr-2"/> Create New Single</span>} maxWidth="max-w-3xl">
-            <h4 className="font-semibold mb-1">Target Group for Release</h4>
-            <select 
-              value={targetGroup}
-              onChange={(e) => { 
-                  setTargetGroup(e.target.value); 
-                  setTracks([{ name: 'Title Track', type: 'title', members: [], center: null }, { name: 'B-Side 1', type: 'b-side', members: [], center: null }]);
-              }}
-              className="w-full p-2 border rounded mb-3"
-            >
-              <option value="main">{groupName} (Main Group)</option>
-              {(sisterGroups || []).map(sg => (
-                  <option key={sg.id} value={sg.name}>{sg.name} (Sister Group)</option>
-              ))}
-            </select>
+    let selectableMembers = [];
+    if (targetGroup === 'main') {
+        const mainMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable);
+        const sgMembers = getAllAvailableMembers(true).filter(m => m.isSister && m.isAvailable);
+        selectableMembers = [...mainMembers, ...sgMembers];
+    } else {
+        const sg = sisterGroups.find(s => s.name === targetGroup);
+        if (sg) {
+            selectableMembers = (sg.members || []).map(m => ({
+                ...m,
+                id: `sg-${sg.id}-${m.id}`,
+                name: `${m.name} (${sg.name})`,
+                homeGroup: sg.name,
+                isSister: true,
+                groupId: sg.id
+            })).filter(m => m.isAvailable);
             
-            <input
-              type="text"
-              value={songName}
-              onChange={(e) => setSongName(e.target.value)}
-              className="w-full p-2 border rounded mb-4 text-lg"
-              placeholder="Enter Single Name (e.g., Flying Get)"
-            />
+            const mainGroupKennin = members.filter(m => (m.kenninGroups || []).includes(targetGroup) && m.isAvailable)
+                .map(m => ({ ...m, isKennin: true }));
+            selectableMembers = [...selectableMembers, ...mainGroupKennin];
+        }
+    }
+    
 
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="col-span-1 border-r pr-3">
-                  <h4 className="font-semibold mb-2">Tracks ({(tracks || []).length})</h4>
-                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                      {(tracks || []).map((track, index) => (
-                          <div key={index} className={`p-2 border rounded cursor-pointer ${selectedTrackIndex === index ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
-                              <div className='flex justify-between items-center mb-1'>
-                                  <span className="font-medium text-sm">{track.type === 'title' ? 'Title Track' : `B-Side ${index + 1}`}</span>
-                                  <span className={`text-xs ml-2 px-1 rounded ${track.type === 'title' ? 'bg-red-400 text-white' : 'bg-green-400 text-white'}`}>
-                                      {track.type.toUpperCase()}
-                                  </span>
-                              </div>
-                              <input
-                                  type="text"
-                                  value={track.name}
-                                  onChange={(e) => updateTrackName(index, e.target.value)}
-                                  onClick={(e) => e.stopPropagation()} 
-                                  className={`w-full p-1 border rounded text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex !== index && 'bg-gray-200'}`}
-                                  placeholder={`Name of ${track.type} track`}
-                              />
-                              <button 
-                                  onClick={() => setSelectedTrackIndex(index)}
-                                  className="w-full mt-2 p-1 text-sm bg-blue-300 text-blue-900 rounded"
-                              >
-                                  Select Members
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-                  <button onClick={addTrack} className="w-full mt-2 p-1 bg-gray-200 text-gray-700 rounded text-sm flex items-center justify-center">
-                      <Plus size={16} className="mr-1"/> Add B-Side Track
-                  </button>
-              </div>
+    const [songName, setSongName] = useState('');
+    const [tracks, setTracks] = useState([
+        { name: 'Title Track', type: 'title', members: [], center: null },
+        { name: 'B-Side 1', type: 'b-side', members: [], center: null }
+    ]);
+    const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
 
-              <div className="col-span-2">
-                  <h4 className="font-semibold mb-2">Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400">{currentTrack?.name || 'Track'}</span></h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Select members. Main group singles can include Sister Group members.</p>
-                  
-                  <MemberSelectionList 
-                      members={selectableMembers} 
-                      selectedIds={currentTrack?.members || []} 
-                      toggleMember={toggleMember} 
-                  />
-
-                  <div className="mt-4">
-                      <h5 className="font-semibold text-md mb-2">Center Selection</h5>
-                      <select 
-                          value={currentTrack?.center || ''}
-                          onChange={(e) => setCenter(e.target.value)}
-                          className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 transition-colors"
-                      >
-                          <option value="">-- Select Center (Optional) --</option>
-                          {selectableSenbatsu.map(m => (
-                              <option key={m.id} value={m.id}>
-                                  {m.name}
-                              </option>
-                          ))}
-                      </select>
-                  </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-              <button onClick={handleConfirm} disabled={!songName.trim() || (tracks || []).some(t => (t.members || []).length === 0)} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
-                Release Single (¥10,000)
-              </button>
-            </div>
-        </ModalWrapper>
-      );
+    const updateTrackName = (index, newName) => {
+      setTracks(prev => (prev || []).map((track, i) => i === index ? { ...track, name: newName } : track));
     };
+
+    const toggleMember = (memberId) => {
+        setTracks(prev => (prev || []).map((track, index) => {
+            if (index === selectedTrackIndex) {
+                const memberIdStr = String(memberId);
+                const newMembers = (track.members || []).map(String).includes(memberIdStr)
+                    ? (track.members || []).filter(id => String(id) !== memberIdStr)
+                    : [...(track.members || []).map(String), memberIdStr];
+                
+                let newCenter = track.center;
+                if (!(newMembers || []).includes(String(track.center))) {
+                    newCenter = null; 
+                }
+
+                return { ...track, members: newMembers, center: newCenter };
+            }
+            return track;
+        }));
+    };
+    
+    const setCenter = (memberId) => {
+        setTracks(prev => (prev || []).map((track, index) => {
+            if (index === selectedTrackIndex) {
+                const memberIdStr = String(memberId);
+                if ((track.members || []).map(String).includes(memberIdStr)) {
+                     return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr };
+                }
+            }
+            return track;
+        }));
+    };
+    
+    const addTrack = () => {
+        setTracks(prev => [
+            ...(prev || []),
+            { 
+                name: `B-Side ${prev.length}`, 
+                type: 'b-side', 
+                members: [], 
+                center: null 
+            }
+        ]);
+        setSelectedTrackIndex((tracks || []).length); 
+    };
+
+    const selectAllMembersForTrack = () => {
+        setTracks(prev => prev.map((track, index) => {
+            if (index === selectedTrackIndex) {
+                return { ...track, members: selectableMembers.map(m => m.id) };
+            }
+            return track;
+        }));
+    };
+
+    const deselectAllMembersForTrack = () => {
+        setTracks(prev => prev.map((track, index) => {
+            if (index === selectedTrackIndex) {
+                return { ...track, members: [], center: null };
+            }
+            return track;
+        }));
+    };
+
+    const currentTrack = (tracks || [])[selectedTrackIndex];
+    const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
+
+    const handleConfirm = () => {
+        if (!songName.trim()) return setMessage("Please name the single.");
+        
+        const validatedTracks = (tracks || []).map(track => ({
+            ...track,
+            members: (track.members || []).map(String).filter(id => getMemberById(id))
+        }));
+        
+        confirmCreateSong({
+            songName: songName.trim(),
+            tracks: validatedTracks,
+            targetGroupId: targetGroup
+        });
+    };
+
+    return (
+      <ModalWrapper title={<span className="flex items-center"><Music size={24} className="mr-2"/> Create New Single</span>} maxWidth="max-w-3xl">
+          <h4 className="font-semibold mb-1">Target Group for Release</h4>
+          <select 
+            value={targetGroup}
+            onChange={(e) => { 
+                setTargetGroup(e.target.value); 
+                setTracks([{ name: 'Title Track', type: 'title', members: [], center: null }, { name: 'B-Side 1', type: 'b-side', members: [], center: null }]);
+            }}
+            className="w-full p-2 border rounded mb-3"
+          >
+            <option value="main">{groupName} (Main Group)</option>
+            {(sisterGroups || []).map(sg => (
+                <option key={sg.id} value={sg.name}>{sg.name} (Sister Group)</option>
+            ))}
+          </select>
+          
+          <input
+            type="text"
+            value={songName}
+            onChange={(e) => setSongName(e.target.value)}
+            className="w-full p-2 border rounded mb-4 text-lg"
+            placeholder="Enter Single Name (e.g., Flying Get)"
+          />
+
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="col-span-1 border-r pr-3">
+                <h4 className="font-semibold mb-2">Tracks ({(tracks || []).length})</h4>
+                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {(tracks || []).map((track, index) => (
+                        <div key={index} className={`p-2 border rounded cursor-pointer ${selectedTrackIndex === index ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                            <div className='flex justify-between items-center mb-1'>
+                                <span className="font-medium text-sm">{track.type === 'title' ? 'Title Track' : `B-Side ${index + 1}`}</span>
+                                <span className={`text-xs ml-2 px-1 rounded ${track.type === 'title' ? 'bg-red-400 text-white' : 'bg-green-400 text-white'}`}>
+                                    {track.type.toUpperCase()}
+                                </span>
+                            </div>
+                            <input
+                                type="text"
+                                value={track.name}
+                                onChange={(e) => updateTrackName(index, e.target.value)}
+                                onClick={(e) => e.stopPropagation()} 
+                                className={`w-full p-1 border rounded text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex !== index && 'bg-gray-200'}`}
+                                placeholder={`Name of ${track.type} track`}
+                            />
+                            <button 
+                                onClick={() => setSelectedTrackIndex(index)}
+                                className="w-full mt-2 p-1 text-sm bg-blue-300 text-blue-900 rounded"
+                            >
+                                Select Members
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                <button onClick={addTrack} className="w-full mt-2 p-1 bg-gray-200 text-gray-700 rounded text-sm flex items-center justify-center">
+                    <Plus size={16} className="mr-1"/> Add B-Side Track
+                </button>
+            </div>
+
+            <div className="col-span-2">
+                <h4 className="font-semibold mb-2">Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400">{currentTrack?.name || 'Track'}</span></h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Select members. Main group singles can include Sister Group members.</p>
+                <div className="flex gap-2 mb-2">
+                    <button
+                        onClick={selectAllMembersForTrack}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                        Select All
+                    </button>
+                    <button
+                        onClick={deselectAllMembersForTrack}
+                        className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                    >
+                        Deselect All
+                    </button>
+                </div>
+                <MemberSelectionList 
+                    members={selectableMembers} 
+                    selectedIds={currentTrack?.members || []} 
+                    toggleMember={toggleMember} 
+                />
+
+                <div className="mt-4">
+                    <h5 className="font-semibold text-md mb-2">Center Selection</h5>
+                    <select 
+                        value={currentTrack?.center || ''}
+                        onChange={(e) => setCenter(e.target.value)}
+                        className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 transition-colors"
+                    >
+                        <option value="">-- Select Center (Optional) --</option>
+                        {selectableSenbatsu.map(m => (
+                            <option key={m.id} value={m.id}>
+                                {m.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+            <button onClick={handleConfirm} disabled={!songName.trim() || (tracks || []).some(t => (t.members || []).length === 0)} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
+              Release Single (¥10,000)
+            </button>
+          </div>
+      </ModalWrapper>
+    );
+};
     
     const SingleDetailsModal = () => { 
       const single = modalData;
@@ -1944,7 +2258,7 @@ const App = () => {
 
       return (
           <ModalWrapper title={`${single.name} Single`} maxWidth="max-w-2xl">
-              <p className="text-gray-600 mb-4">Released by: {single.targetGroup === 'main' ? groupName : single.targetGroup} | Week {single.releaseWeek} | Total Sales: {single.sales.toLocaleString()} | Revenue: ¥{single.revenue.toLocaleString()}</p>
+              <p className="text-gray-600 mb-4">Released by: {single.targetGroup === 'main' ? groupName : single.targetGroup} | {getFormattedDateForWeek(single.releaseWeek)} | Total Sales: {single.sales.toLocaleString()} | Revenue: ¥{single.revenue.toLocaleString()}</p>
 
               <h4 className="font-semibold text-lg mb-3 border-t pt-3 flex items-center"><Music size={18} className="mr-2"/> Track Listing ({single.totalTracks})</h4>
               <div className="space-y-3">
@@ -2003,230 +2317,274 @@ const App = () => {
     };
     
     // NEW: Performance Selection Modal (Consolidates large concerts/tours)
-    const PerformanceModal = () => {
-        const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
-        const [selectedTracks, setSelectedTracks] = useState([]);
-        const [selectedMembers, setSelectedMembers] = useState([]);
-        const [filterCategory, setFilterCategory] = useState('All');
+const PerformanceModal = () => {
+    const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
+    const [selectedTracks, setSelectedTracks] = useState([]);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [filterCategory, setFilterCategory] = useState('All');
 
-        const allTracks = songs.flatMap(s => (s.tracks || []).map(t => ({
-            id: `${s.id}-${t.name}-${s.targetGroup}`, // Unique ID based on single ID, track name, and group
-            name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
-            singleName: s.name,
-            group: s.targetGroup,
-            isTitle: t.type === 'title',
-        })));
+    const allTracks = songs.flatMap(s => (s.tracks || []).map(t => ({
+        id: `${s.id}-${t.name}-${s.targetGroup}`, // Unique ID based on single ID, track name, and group
+        name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
+        singleName: s.name,
+        group: s.targetGroup,
+        isTitle: t.type === 'title',
+    })));
+    
+    const availableMembers = getAllAvailableMembers(true); 
+    const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
+    const filteredTypes = filterCategory === 'All'
+        ? performanceTypes
+        : performanceTypes.filter(p => p.category === filterCategory);
         
-        const availableMembers = getAllAvailableMembers(true); 
-        const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
-        const filteredTypes = filterCategory === 'All'
-            ? performanceTypes
-            : performanceTypes.filter(p => p.category === filterCategory);
+    const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
+    
+    const toggleTrack = (trackId) => {
+        setSelectedTracks(prev => {
+            const isSelected = prev.some(t => t.id === trackId);
+            const track = allTracks.find(t => t.id === trackId);
+            if (!track) return prev;
             
-        const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
-        
-        const toggleTrack = (trackId) => {
-            setSelectedTracks(prev => {
-                const isSelected = prev.some(t => t.id === trackId);
-                const track = allTracks.find(t => t.id === trackId);
-                if (!track) return prev;
-                
-                return isSelected 
-                    ? prev.filter(t => t.id !== trackId) 
-                    : [...prev, track];
-            });
-        };
-        
-        const toggleMember = (memberId) => {
-            setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-                ? prev.filter(id => String(id) !== String(memberId))
-                : [...prev, memberId]
-            );
-        };
-
-        const executePerformance = () => {
-            if (!selectedTypeData) return setMessage("Please select a performance type.");
-            if (selectedTracks.length === 0) return setMessage("Must select at least one song to perform.");
-            if (selectedMembers.length === 0) return setMessage("Must select at least one performing member.");
-
-            recordPerformance(selectedTypeData, selectedTracks, selectedMembers);
-        };
-
-        return (
-            <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-4xl">
-                <div className="grid grid-cols-3 gap-6">
-                    {/* Performance Type Selection */}
-                    <div className="col-span-1 border-r pr-4">
-                        <h4 className="font-semibold mb-2 flex items-center"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {categories.map(cat => (
-                                <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                    {cat}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="max-h-64 overflow-y-auto space-y-2">
-                            {filteredTypes.map(type => (
-                                <div 
-                                    key={type.label} 
-                                    onClick={() => setSelectedTypeLabel(type.label)}
-                                    className={`p-3 border rounded cursor-pointer transition-all duration-100 
-            ${selectedTypeLabel === type.label 
-              ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-700' 
-              : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'} 
-            text-gray-800 dark:text-gray-100`}
-                                    title={type.desc}
-                                >
-                                    <span className="font-bold block">{type.label}</span>
-                                    <span className="text-xs text-gray-600 block">Category: {type.category} | Cost: ¥{type.cost.toLocaleString()}</span>
-                                </div>
-                            ))}
-                            <div className="p-3 bg-gray-200 rounded text-sm text-center italic text-gray-500">
-                                + Add Custom Performance (Not Yet Implemented)
-                            </div>
-                        </div>
-                        {selectedTypeData && (
-                            <div className='mt-3 p-3 bg-green-50 rounded text-sm'>
-                                <p className='font-semibold'>{selectedTypeData.label} selected.</p>
-                                <p className='text-xs text-gray-700'>Cost: **¥{selectedTypeData.cost.toLocaleString()}**</p>
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Track Selection */}
-                    <div className="col-span-1 border-r pr-4">
-                        <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className='mr-1'/> 2. Select Tracks ({selectedTracks.length})</h4>
-                        <div className="max-h-96 overflow-y-auto space-y-2 border p-2 rounded">
-                            {allTracks.map(track => (
-                                <div 
-                                    key={track.id} 
-                                    onClick={() => toggleTrack(track.id)}
-                                    className={`p-2 border rounded text-sm cursor-pointer ${selectedTracks.some(t => t.id === track.id) ? 'bg-blue-200' : 'hover:bg-gray-100'}`}
-                                >
-                                    <span className='font-medium'>{track.name}</span>
-                                    <span className='text-xs text-gray-500 block'>({track.group} | {track.isTitle ? 'Title' : 'B-Side'})</span>
-                                </div>
-                            ))}
-                            {allTracks.length === 0 && <p className='text-gray-500 italic'>No songs released yet!</p>}
-                        </div>
-                    </div>
-
-                    {/* Member Selection */}
-                    <div className="col-span-1">
-                        <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
-                        <MemberSelectionList 
-                            members={availableMembers} 
-                            selectedIds={selectedMembers} 
-                            toggleMember={toggleMember} 
-                        />
-                        <div className="mt-4 pt-4 border-t">
-                            <button 
-                                onClick={executePerformance} 
-                                disabled={!selectedTypeData || selectedTracks.length === 0 || selectedMembers.length === 0 || money < selectedTypeData.cost}
-                                className="w-full p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400"
-                            >
-                                Execute Performance (¥{selectedTypeData?.cost.toLocaleString() || '---'})
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </ModalWrapper>
-        );
+            return isSelected 
+                ? prev.filter(t => t.id !== trackId) 
+                : [...prev, track];
+        });
     };
     
-    // NEW: Major Concert Modal
-    const MajorConcertModal = () => {
-        const [selectedVenueId, setSelectedVenueId] = useState(venues[1]?.id || '');
-        const [selectedSetlistId, setSelectedSetlistId] = useState('');
-        const [selectedMembers, setSelectedMembers] = useState([]);
-        
-        const selectedVenue = venues.find(v => v.id === selectedVenueId);
-        const selectedSetlist = allSetlists.find(sl => sl.id === selectedSetlistId);
-        const availableMembers = getAllAvailableMembers(true); 
-        
-        const toggleMember = (memberId) => {
-            setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-                ? prev.filter(id => String(id) !== String(memberId))
-                : [...prev, memberId]
-            );
-        };
-        
-        const handleConfirm = () => {
-            if (!selectedVenue || !selectedSetlist) return setMessage("Must select a venue and a setlist.");
-            if (selectedMembers.length < 5) return setMessage("Need at least 5 members for a major concert.");
-            
-            holdMajorConcert(selectedVenue, selectedSetlist, selectedMembers);
-        };
-        
-        const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
-
-        return (
-            <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-4xl">
-                <p className="text-sm text-gray-600 mb-4">Book a major venue using a full setlist. This has a high cost but massive potential for fan and revenue growth.</p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Venue & Setlist Selection */}
-                    <div className="col-span-1 space-y-3">
-                        <h4 className="font-semibold mb-1">1. Select Venue (Capacity)</h4>
-                        <select 
-                            value={selectedVenueId}
-                            onChange={(e) => setSelectedVenueId(parseInt(e.target.value))}
-                            className="w-full p-2 border rounded"
-                        >
-                            <option value="">-- Select Venue --</option>
-                            {venues.filter(v => v.id > 1).map(v => ( // Exclude theater here
-                                <option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>
-                            ))}
-                        </select>
-                        
-                        {selectedVenue && (
-                            <div className='p-3 bg-yellow-50 rounded text-sm'>
-                                <p className='font-semibold'>Venue Cost:</p>
-                                <p className='text-xs text-gray-700'>Booking Fee: ¥{selectedVenue.cost.toLocaleString()}</p>
-                                <p className='text-xs text-gray-700'>Maintenance/Ops: ¥{selectedVenue.maintenance.toLocaleString()}</p>
-                                <p className='text-red-600 font-bold'>TOTAL INITIAL COST: ¥{(selectedVenue.cost + selectedVenue.maintenance).toLocaleString()}</p>
-                            </div>
-                        )}
-                        
-                        <h4 className="font-semibold mb-1 pt-2">2. Select Setlist</h4>
-                        <select 
-                            value={selectedSetlistId}
-                            onChange={(e) => setSelectedSetlistId(parseInt(e.target.value))}
-                            className="w-full p-2 border rounded"
-                        >
-                            <option value="">-- Select Setlist --</option>
-                            {(allSetlists || []).map(sl => (
-                                <option key={sl.id} value={sl.id}>{sl.name} (Difficulty: {sl.difficulty})</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Member Selection */}
-                    <div className="col-span-1">
-                        <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
-                        <p className="text-xs text-gray-500 mb-2">Min 5 members required. Stamina will be heavily drained!</p>
-                        <MemberSelectionList 
-                            members={availableMembers} 
-                            selectedIds={selectedMembers} 
-                            toggleMember={toggleMember} 
-                        />
-                    </div>
-                </div>
-
-                <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                    <button 
-                        onClick={handleConfirm} 
-                        disabled={!selectedVenue || !selectedSetlist || selectedMembers.length < 5 || money < cost} 
-                        className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400"
-                    >
-                        Book Concert (¥{cost.toLocaleString()})
-                    </button>
-                </div>
-            </ModalWrapper>
+    const toggleMember = (memberId) => {
+        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
+            ? prev.filter(id => String(id) !== String(memberId))
+            : [...prev, memberId]
         );
     };
+
+    const selectAllMembers = () => {
+        setSelectedMembers(availableMembers.map(m => m.id));
+    };
+
+    const deselectAllMembers = () => {
+        setSelectedMembers([]);
+    };
+
+    const executePerformance = () => {
+        if (!selectedTypeData) return setMessage("Please select a performance type.");
+        if (selectedTracks.length === 0) return setMessage("Must select at least one song to perform.");
+        if (selectedMembers.length === 0) return setMessage("Must select at least one performing member.");
+
+        recordPerformance(selectedTypeData, selectedTracks, selectedMembers);
+    };
+
+    return (
+        <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-4xl">
+            <div className="grid grid-cols-3 gap-6">
+                {/* Performance Type Selection */}
+                <div className="col-span-1 border-r pr-4">
+                    <h4 className="font-semibold mb-2 flex items-center"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {categories.map(cat => (
+                            <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                        {filteredTypes.map(type => (
+                            <div 
+                                key={type.label} 
+                                onClick={() => setSelectedTypeLabel(type.label)}
+                                className={`p-3 border rounded cursor-pointer transition-all duration-100 
+        ${selectedTypeLabel === type.label 
+          ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-700' 
+          : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'} 
+        text-gray-800 dark:text-gray-100`}
+                                title={type.desc}
+                            >
+                                <span className="font-bold block">{type.label}</span>
+                                <span className="text-xs text-gray-600 block">Category: {type.category} | Cost: ¥{type.cost.toLocaleString()}</span>
+                            </div>
+                        ))}
+                        <div className="p-3 bg-gray-200 rounded text-sm text-center italic text-gray-500">
+                            + Add Custom Performance (Not Yet Implemented)
+                        </div>
+                    </div>
+                    {selectedTypeData && (
+                        <div className='mt-3 p-3 bg-green-50 rounded text-sm'>
+                            <p className='font-semibold'>{selectedTypeData.label} selected.</p>
+                            <p className='text-xs text-gray-700'>Cost: **¥{selectedTypeData.cost.toLocaleString()}**</p>
+                        </div>
+                    )}
+                </div>
+                
+                {/* Track Selection */}
+                <div className="col-span-1 border-r pr-4">
+                    <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className='mr-1'/> 2. Select Tracks ({selectedTracks.length})</h4>
+                    <div className="max-h-96 overflow-y-auto space-y-2 border p-2 rounded">
+                        {allTracks.map(track => (
+                            <div 
+                                key={track.id} 
+                                onClick={() => toggleTrack(track.id)}
+                                className={`p-2 border rounded text-sm cursor-pointer ${selectedTracks.some(t => t.id === track.id) ? 'bg-blue-200' : 'hover:bg-gray-100'}`}
+                            >
+                                <span className='font-medium'>{track.name}</span>
+                                <span className='text-xs text-gray-500 block'>({track.group} | {track.isTitle ? 'Title' : 'B-Side'})</span>
+                            </div>
+                        ))}
+                        {allTracks.length === 0 && <p className='text-gray-500 italic'>No songs released yet!</p>}
+                    </div>
+                </div>
+
+                {/* Member Selection */}
+                <div className="col-span-1">
+                    <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
+                    <div className="flex gap-2 mb-2">
+                        <button
+                            onClick={selectAllMembers}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                        >
+                            Select All
+                        </button>
+                        <button
+                            onClick={deselectAllMembers}
+                            className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                        >
+                            Deselect All
+                        </button>
+                    </div>
+                    <MemberSelectionList 
+                        members={availableMembers} 
+                        selectedIds={selectedMembers} 
+                        toggleMember={toggleMember} 
+                    />
+                    <div className="mt-4 pt-4 border-t">
+                        <button 
+                            onClick={executePerformance} 
+                            disabled={!selectedTypeData || selectedTracks.length === 0 || selectedMembers.length === 0 || money < selectedTypeData.cost}
+                            className="w-full p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400"
+                        >
+                            Execute Performance (¥{selectedTypeData?.cost.toLocaleString() || '---'})
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </ModalWrapper>
+    );
+};
+    
+    // NEW: Major Concert Modal
+const MajorConcertModal = () => {
+    const [selectedVenueId, setSelectedVenueId] = useState(venues[1]?.id || '');
+    const [selectedSetlistId, setSelectedSetlistId] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    
+    const selectedVenue = venues.find(v => v.id === selectedVenueId);
+    const selectedSetlist = allSetlists.find(sl => sl.id === selectedSetlistId);
+    const availableMembers = getAllAvailableMembers(true); 
+    
+    const toggleMember = (memberId) => {
+        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
+            ? prev.filter(id => String(id) !== String(memberId))
+            : [...prev, memberId]
+        );
+    };
+
+    const selectAllMembers = () => {
+        setSelectedMembers(availableMembers.map(m => m.id));
+    };
+
+    const deselectAllMembers = () => {
+        setSelectedMembers([]);
+    };
+    
+    const handleConfirm = () => {
+        if (!selectedVenue || !selectedSetlist) return setMessage("Must select a venue and a setlist.");
+        if (selectedMembers.length < 5) return setMessage("Need at least 5 members for a major concert.");
+        
+        holdMajorConcert(selectedVenue, selectedSetlist, selectedMembers);
+    };
+    
+    const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
+
+    return (
+        <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-4xl">
+            <p className="text-sm text-gray-600 mb-4">Book a major venue using a full setlist. This has a high cost but massive potential for fan and revenue growth.</p>
+            
+            <div className="grid grid-cols-2 gap-4">
+                {/* Venue & Setlist Selection */}
+                <div className="col-span-1 space-y-3">
+                    <h4 className="font-semibold mb-1">1. Select Venue (Capacity)</h4>
+                    <select 
+                        value={selectedVenueId}
+                        onChange={(e) => setSelectedVenueId(parseInt(e.target.value))}
+                        className="w-full p-2 border rounded"
+                    >
+                        <option value="">-- Select Venue --</option>
+                        {venues.filter(v => v.id > 1).map(v => ( // Exclude theater here
+                            <option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>
+                        ))}
+                    </select>
+                    
+                    {selectedVenue && (
+                        <div className='p-3 bg-yellow-50 rounded text-sm'>
+                            <p className='font-semibold'>Venue Cost:</p>
+                            <p className='text-xs text-gray-700'>Booking Fee: ¥{selectedVenue.cost.toLocaleString()}</p>
+                            <p className='text-xs text-gray-700'>Maintenance/Ops: ¥{selectedVenue.maintenance.toLocaleString()}</p>
+                            <p className='text-red-600 font-bold'>TOTAL INITIAL COST: ¥{(selectedVenue.cost + selectedVenue.maintenance).toLocaleString()}</p>
+                        </div>
+                    )}
+                    
+                    <h4 className="font-semibold mb-1 pt-2">2. Select Setlist</h4>
+                    <select 
+                        value={selectedSetlistId}
+                        onChange={(e) => setSelectedSetlistId(parseInt(e.target.value))}
+                        className="w-full p-2 border rounded"
+                    >
+                        <option value="">-- Select Setlist --</option>
+                        {(allSetlists || []).map(sl => (
+                            <option key={sl.id} value={sl.id}>{sl.name} (Difficulty: {sl.difficulty})</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Member Selection */}
+                <div className="col-span-1">
+                    <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
+                    <p className="text-xs text-gray-500 mb-2">Min 5 members required. Stamina will be heavily drained!</p>
+                    <div className="flex gap-2 mb-2">
+                        <button
+                            onClick={selectAllMembers}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                        >
+                            Select All
+                        </button>
+                        <button
+                            onClick={deselectAllMembers}
+                            className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                        >
+                            Deselect All
+                        </button>
+                    </div>
+                    <MemberSelectionList 
+                        members={availableMembers} 
+                        selectedIds={selectedMembers} 
+                        toggleMember={toggleMember} 
+                    />
+                </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                <button 
+                    onClick={handleConfirm} 
+                    disabled={!selectedVenue || !selectedSetlist || selectedMembers.length < 5 || money < cost} 
+                    className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400"
+                >
+                    Book Concert (¥{cost.toLocaleString()})
+                </button>
+            </div>
+        </ModalWrapper>
+    );
+};
 
     const SaveGameModal = () => {
         const [saveUsername, setSaveUsername] = useState(username);
@@ -2346,77 +2704,96 @@ const App = () => {
         );
     };
     
-    const CreateTeamModal = () => {
-        const [teamName, setTeamName] = useState('');
-        const [selectedMembers, setSelectedMembers] = useState([]);
-        const [selectedSetlistId, setSelectedSetlistId] = useState('');
-        
-        const availableMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable).map(m => ({
-            id: m.id,
-            name: m.name,
-            isSister: false,
-        }));
-        
-        const toggleMember = (memberId) => {
-            setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-                ? prev.filter(id => String(id) !== String(memberId))
-                : [...prev, memberId]
-            );
-        };
-        
-        const handleConfirm = () => {
-            if (!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId) {
-                return setMessage("Team needs a name, members, and a setlist.");
-            }
-            
-            confirmCreateTeam({
-                name: teamName.trim(),
-                members: selectedMembers,
-                setlistId: parseInt(selectedSetlistId),
-            });
-        };
+const CreateTeamModal = () => {
+    const [teamName, setTeamName] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [selectedSetlistId, setSelectedSetlistId] = useState('');
+    
+    // This is the line that's been changed
+    const availableMembers = getAllAvailableMembers(true);
+    
+    const selectAllMembers = () => {
+        setSelectedMembers(availableMembers.map(m => m.id));
+    };
 
-        return (
-            <ModalWrapper title={<span className="flex items-center"><Layers size={20} className="mr-2"/> Create New Team</span>} maxWidth="max-w-xl">
-                <p className="text-sm text-gray-600 mb-4">Create a new theater performance unit.</p>
-                
-                <h4 className="font-semibold mb-1">Team Name</h4>
-                <input 
-                    type="text" 
-                    value={teamName} 
-                    onChange={(e) => setTeamName(e.target.value)}
-                    className="w-full p-2 border rounded mb-3"
-                    placeholder="e.g., Team A"
-                />
-                
-                <h4 className="font-semibold mb-1">Select Setlist</h4>
-                <select 
-                    value={selectedSetlistId}
-                    onChange={(e) => setSelectedSetlistId(e.target.value)}
-                    className="w-full p-2 border rounded mb-3"
-                >
-                    <option value="">-- Select a Setlist --</option>
-                    {(allSetlists || []).map(sl => (
-                        <option key={sl.id} value={sl.id}>{sl.name} (Theme: {sl.theme})</option>
-                    ))}
-                </select>
+    const deselectAllMembers = () => {
+        setSelectedMembers([]);
+    };
 
-                <h4 className="font-semibold mb-1">Select Members ({selectedMembers.length})</h4>
-                <MemberSelectionList 
-                    members={availableMembers} 
-                    selectedIds={selectedMembers} 
-                    toggleMember={toggleMember} 
-                />
-
-                <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                    <button onClick={handleConfirm} disabled={!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
-                        Create Team
-                    </button>
-                </div>
-            </ModalWrapper>
+    const toggleMember = (memberId) => {
+        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
+            ? prev.filter(id => String(id) !== String(memberId))
+            : [...prev, memberId]
         );
     };
+    
+    const handleConfirm = () => {
+        if (!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId) {
+            return setMessage("Team needs a name, members, and a setlist.");
+        }
+        
+        confirmCreateTeam({
+            name: teamName.trim(),
+            members: selectedMembers,
+            setlistId: parseInt(selectedSetlistId),
+        });
+    };
+
+    return (
+        <ModalWrapper title={<span className="flex items-center"><Layers size={20} className="mr-2"/> Create New Team</span>} maxWidth="max-w-xl">
+            <p className="text-sm text-gray-600 mb-4">Create a new theater performance unit.</p>
+            
+            <h4 className="font-semibold mb-1">Team Name</h4>
+            <input 
+                type="text" 
+                value={teamName} 
+                onChange={(e) => setTeamName(e.target.value)}
+                className="w-full p-2 border rounded mb-3"
+                placeholder="e.g., Team A"
+            />
+            
+            <h4 className="font-semibold mb-1">Select Setlist</h4>
+            <select 
+                value={selectedSetlistId}
+                onChange={(e) => setSelectedSetlistId(e.target.value)}
+                className="w-full p-2 border rounded mb-3"
+            >
+                <option value="">-- Select a Setlist --</option>
+                {(allSetlists || []).map(sl => (
+                    <option key={sl.id} value={sl.id}>{sl.name} (Theme: {sl.theme})</option>
+                ))}
+            </select>
+
+            <h4 className="font-semibold mb-1">Select Members ({selectedMembers.length})</h4>
+            <div className="flex gap-2 mb-2">
+                <button
+                    onClick={selectAllMembers}
+                    className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                >
+                    Select All
+                </button>
+                <button
+                    onClick={deselectAllMembers}
+                    className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                >
+                    Deselect All
+                </button>
+            </div>
+            <MemberSelectionList 
+                members={availableMembers} 
+                selectedIds={selectedMembers} 
+                toggleMember={toggleMember} 
+            />
+
+            <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                <button onClick={handleConfirm} disabled={!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
+                    Create Team
+                </button>
+            </div>
+        </ModalWrapper>
+    );
+};
     
     const EditTeamModal = () => {
         const team = modalData;
@@ -2424,17 +2801,22 @@ const App = () => {
         const [selectedMembers, setSelectedMembers] = useState(team?.members || []);
         const [selectedSetlistId, setSelectedSetlistId] = useState(team?.currentSetlistId || '');
         
-        const availableMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable).map(m => ({
-            id: m.id,
-            name: m.name,
-            isSister: false,
-        }));
+        // Use getAllAvailableMembers to include sister group members
+        const availableMembers = getAllAvailableMembers(true);
         
         const toggleMember = (memberId) => {
             setSelectedMembers(prev => prev.map(String).includes(String(memberId))
                 ? prev.filter(id => String(id) !== String(memberId))
                 : [...prev, memberId]
             );
+        };
+
+        const selectAllMembers = () => {
+            setSelectedMembers(availableMembers.map(m => m.id));
+        };
+    
+        const deselectAllMembers = () => {
+            setSelectedMembers([]);
         };
         
         const handleConfirm = () => {
@@ -2480,6 +2862,20 @@ const App = () => {
                 </select>
 
                 <h4 className="font-semibold mb-1">Select Members ({selectedMembers.length})</h4>
+                <div className="flex gap-2 mb-2">
+                    <button
+                        onClick={selectAllMembers}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                        Select All
+                    </button>
+                    <button
+                        onClick={deselectAllMembers}
+                        className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                    >
+                        Deselect All
+                    </button>
+                </div>
                 <MemberSelectionList 
                     members={availableMembers} 
                     selectedIds={selectedMembers} 
@@ -3616,7 +4012,7 @@ if (!gameStarted) {
             </div>
             <div className="flex items-center">
               <Calendar className="text-blue-500 mr-2" size={20} />
-              <span className="text-lg">Week {week}</span>
+              <span className="text-lg">{formattedDate}</span>
             </div>
             <button 
               onClick={activeTour ? progressTour : nextWeek} 
@@ -3638,22 +4034,9 @@ if (!gameStarted) {
     {/* Display Name */}
     <h2 className="text-2xl font-bold mb-2">{selectedMember.name}</h2>
 
-    {/* Member Type */}
+    {/* UPDATED: Member Status */}
     <p className="text-sm text-gray-600 mb-1">
-      {selectedMember.homeGroup === "main"
-        ? "Main Group Member"
-        : `Sister Group Member (${selectedMember.homeGroup})`}
-      {selectedMember.kenninGroups?.length > 0 && (
-  <>
-    {" — Kennin: "}
-    {selectedMember.kenninGroups
-      .map(id => {
-        const sg = sisterGroups?.find(g => g.id === id);
-        return sg ? sg.name : id; // fallback to ID if group missing
-      })
-      .join(", ")}
-  </>
-)}
+      {getMemberGroupStatus(selectedMember)}
     </p>
 
     <p className="text-gray-600 mb-4">
