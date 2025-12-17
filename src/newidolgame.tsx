@@ -30,54 +30,63 @@ const useIdolManager = () => {
     const SAVE_COLLECTION = "game_data";
     const SAVE_DOC_ID = "save_slot";
 
-useEffect(() => {
-  setLogLevel("debug");
+  useEffect(() => {
+    // You can uncomment the line below for more detailed logs in the console
+    // setLogLevel("debug");
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyByiOkhjMRmhg_Y5l2byzhnWKxdY0SXFUw",
-    authDomain: "newidolgame.firebaseapp.com",
-    projectId: "newidolgame",
-    storageBucket: "newidolgame.appspot.com",
-    messagingSenderId: "167024582833",
-    appId: "1:167024582833:web:3e37558077a853e7ba8290",
-    measurementId: "G-CDMTML8QW6"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyByiOkhjMRmhg_Y5l2byzhnWKxdY0SXFUw",
+      authDomain: "newidolgame.firebaseapp.com",
+      projectId: "newidolgame",
+      storageBucket: "newidolgame.appspot.com",
+      messagingSenderId: "167024582833",
+      appId: "1:167024582833:web:3e37558077a853e7ba8290",
+      measurementId: "G-CDMTML8QW6"
+    };
 
-  // ✅ only ONE initialization line — this replaces the duplicate
-  const app = getApps().length === 0 
-    ? initializeApp(firebaseConfig)
-    : getApps()[0];
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const firestore = getFirestore(app);
+    const firebaseAuth = getAuth(app);
 
-  const firestore = getFirestore(app);
-  const firebaseAuth = getAuth(app);
+    setDb(firestore);
+    setAuth(firebaseAuth);
 
-  setDb(firestore);
-  setAuth(firebaseAuth);
-
-  const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-    if (user) {
-      console.log("✅ Authenticated:", user.uid);
-      setUserId(user.uid);
-    } else {
+    // This new async function ensures we wait for authentication to complete
+    const authenticate = async () => {
       try {
+        // This will either sign in a new anonymous user or get the existing one.
         const userCredential = await signInAnonymously(firebaseAuth);
-        console.log("✅ Signed in anonymously:", userCredential.user.uid);
-        setUserId(userCredential.user.uid);
+        const user = userCredential.user;
+        
+        if (user) {
+          console.log("✅ Authentication successful. User ID:", user.uid);
+          setUserId(user.uid);
+        } else {
+          // This case is unlikely but good to handle
+          throw new Error("Firebase did not return a user after anonymous sign-in.");
+        }
       } catch (e) {
-        console.error("❌ Auth failed:", e);
+        console.error("❌ Firebase Authentication Failed:", e);
+        setMessage("Error: Could not connect to game servers. Saving/loading is disabled.");
+      } finally {
+        // This part now runs *after* the `await` is finished, solving the race condition.
+        setIsAuthReady(true);
       }
-    }
-    setIsAuthReady(true);
-  });
+    };
 
-  return () => unsubscribe();
-}, []);
-    
-      const getSavePath = useCallback((uid) => {
-        if (!uid || !db) return null;
-        // This is the corrected path to match the firestore.rules
-        return doc(db, 'savegames', uid);
-      }, [db]);
+    // Call the function to start the authentication process.
+    authenticate();
+
+    // Return a cleanup function for when the component unmounts.
+    return () => { /* No specific cleanup needed for this auth logic */ };
+  }, []);
+
+  const getSavePath = useCallback((uid) => {
+      if (!uid || !db) return null;
+      // This is the corrected path to match the firestore.rules
+      return doc(db, 'savegames', uid);
+  }, [db]);
+
 
 
     // --- GAME STATE ---
