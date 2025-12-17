@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === Global Page Setup === */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* === Light Mode (Default) === */
+body {
+  background-color: #f9fafb; /* gray-50 */
+  color: #111827; /* gray-900 */
+}
+
+/* === Typography === */
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+/* === Links === */
+a {
+  font-weight: 500;
+  color: #3b82f6; /* blue-500 */
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover {
+  color: #2563eb; /* blue-600 */
+}
+
+/* === Buttons === */
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+button:hover {
+  border-color: #2563eb;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* === Tabs & Cards (Light Mode) === */
+.card,
+.tab,
+[role='tab'] {
+  background-color: #ffffff !important; /* white */
+  color: #111827 !important; /* gray-900 */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.tab:hover,
+[role='tab']:hover {
+  background-color: #e5e7eb !important; /* gray-200 */
+}
+.tab-active,
+[aria-selected='true'] {
+  background-color: #2563eb !important; /* blue-600 */
+  color: #fff !important;
+}
+
+/* === DARK MODE (Triggered by .dark on <html>) === */
+.dark body {
+  background-color: #111827; /* gray-900 */
+  color: #f9fafb; /* gray-50 */
+}
+
+.dark .card,
+.dark .tab,
+.dark [role='tab'],
+.dark button {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f9fafb !important;
+  border-color: #374151 !important;
+}
+
+.dark button:hover,
+.dark .tab:hover,
+.dark [role='tab']:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+.dark .tab-active,
+.dark [aria-selected='true'] {
+  background-color: #3b82f6 !important; /* blue-500 */
+  color: white !important;
+}
+
+.dark a {
+  color: #93c5fd; /* blue-300 */
+}
+.dark a:hover {
+  color: #60a5fa; /* blue-400 */
+}
+
+/* === Inputs === */
+input,
+textarea,
+select {
+  background-color: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #374151;
+  color: #f9fafb;
+  border-color: #4b5563;
+}
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #60a5fa;
+}
+
+/* === Responsive Alignment Fix === */
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+}
