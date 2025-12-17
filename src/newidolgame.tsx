@@ -73,11 +73,11 @@ useEffect(() => {
   return () => unsubscribe();
 }, []);
     
-    const getSavePath = useCallback((uid) => {
+      const getSavePath = useCallback((uid) => {
         if (!uid || !db) return null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        return doc(db, `artifacts/${appId}/users/${uid}/${SAVE_COLLECTION}/${SAVE_DOC_ID}`);
-    }, [db]);
+        // This is the corrected path to match the firestore.rules
+        return doc(db, 'savegames', uid);
+      }, [db]);
 
 
     // --- GAME STATE ---
