@@ -1147,8 +1147,9 @@ const getMemberGroupStatus = (member) => {
     };
 
 
-    const recordPerformance = (typeData, selectedTracks, selectedMemberIds) => {
-        if (selectedTracks.length === 0) return setMessage("Must select at least one song to perform.");
+    const recordPerformance = (typeData, setlist, selectedMemberIds, performanceName) => {
+        const songTracks = setlist.filter(item => item.type === 'song');
+        if (songTracks.length === 0) return setMessage("Must select at least one song to perform.");
         if (selectedMemberIds.length === 0) return setMessage("Must select at least one member to perform.");
         
         const cost = typeData.cost;
@@ -1159,25 +1160,18 @@ const getMemberGroupStatus = (member) => {
 
         const avgSkill = performingMembers.reduce((sum, m) => m.singing + m.dancing, 0) / (performingMembers.length * 200);
         
-        // Calculate Impact
         const baseFanGain = totalFans * typeData.fanImpact * (1 + avgSkill);
         const fanGain = Math.floor(baseFanGain);
         const skillImprovement = typeData.skillImpact * 10;
         
-        // Revenue is scaled, allowing for profit margin based on difficulty/cost
         const totalRevenue = typeData.cost * (typeData.category === 'Internal' ? 1.0 : 1.5) * (1 + avgSkill * 0.5); 
-        
         const profit = totalRevenue - cost;
 
-        // 1. Update State
         setMoney(prev => prev + profit);
         setTotalFans(prev => (prev || 0) + fanGain);
         setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
-
-        // 2. Update Members (Stamina/Morale/Skill)
         const performingMemberIds = performingMembers.map(m => m.id);
-        
         const applyMemberUpdate = (m) => {
             if (performingMemberIds.some(id => String(id) === String(m.id))) {
                 return {
@@ -1191,32 +1185,22 @@ const getMemberGroupStatus = (member) => {
             }
             return m;
         };
-        
-        // Apply update to main members
         setMembers(prev => prev.map(applyMemberUpdate));
-        
-        // Apply update to sister group members (if they participated as kennin)
-        setSisterGroups(prev => prev.map(sg => ({
-            ...sg,
-            members: sg.members.map(m => applyMemberUpdate(m))
-        })));
+        setSisterGroups(prev => prev.map(sg => ({ ...sg, members: sg.members.map(m => applyMemberUpdate(m)) })));
 
-
-        // 3. Record History
         const newEntry = {
             id: Date.now(),
-            name: typeData.label,
+            name: performanceName || typeData.label,
             category: typeData.category,
             week,
             cost: typeData.cost,
             revenue: totalRevenue,
             members: performingMembers.map(m => m.name),
-            tracks: selectedTracks.map(t => t.name)
+            tracks: setlist,
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
 
-        // 4. Message
-        setMessage(`Performance: "${typeData.label}" successful! +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`);
+        setMessage(`Performance: "${newEntry.name}" successful! +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`);
         setShowModal(null);
     };
 
@@ -2495,138 +2479,144 @@ const CreateSongModal = () => {
     };
     
     // NEW: Performance Selection Modal (Consolidates large concerts/tours)
-const PerformanceModal = () => {
-    // --- STATE ---
-    const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
-    const [setlist, setSetlist] = useState([]);
-    const [selectedMembers, setSelectedMembers] = useState([]);
-    const [filterCategory, setFilterCategory] = useState('All');
+    const PerformanceModal = () => {
+        // --- STATE ---
+        const [performanceName, setPerformanceName] = useState('');
+        const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
+        const [setlist, setSetlist] = useState([]);
+        const [selectedMembers, setSelectedMembers] = useState([]);
+        const [filterCategory, setFilterCategory] = useState('All');
+        
+        // --- DERIVED DATA ---
+        const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
+        const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
+            .flatMap(s => (s.tracks || []).map(t => ({
+                id: `${s.id}-${t.name}-${s.targetGroup}`,
+                name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
+            })));
+        
+        const availableMembers = getAllAvailableMembers(true); 
+        const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
+        const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
     
-    // --- DERIVED DATA ---
-    const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
-    const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
-        .flatMap(s => (s.tracks || []).map(t => ({
-            id: `${s.id}-${t.name}-${s.targetGroup}`,
-            name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
-        })));
+        // --- SETLIST MANIPULATION ---
+        const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
+        const addSpecialItemToSetlist = (itemType) => {
+            if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
+            let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
+            setSetlist(prev => [...prev, newItem]);
+        };
+        const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
+        const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
+        const moveSetlistItem = (index, direction) => {
+            if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
+            setSetlist(prev => {
+                const newList = [...prev];
+                const item = newList.splice(index, 1)[0];
+                newList.splice(index + direction, 0, item);
+                return newList;
+            });
+        };
     
-    const availableMembers = getAllAvailableMembers(true); 
-    const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
-    const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
+        // --- MEMBER & EXECUTION ---
+        const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+        const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
+        const deselectAllMembers = () => setSelectedMembers([]);
+        const executePerformance = () => {
+            if (!selectedTypeData) return setMessage("Please select a performance type.");
+            recordPerformance(selectedTypeData, setlist, selectedMembers, performanceName.trim());
+        };
+    
+        // --- RENDER LOGIC ---
+        let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
+    
+        return (
+            <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
+                <div className="grid grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
+                    {/* Col 1-3: Performance Type */}
+                    <div className="col-span-3 space-y-3 border-r pr-3">
+                        <div>
+                            <h4 className="font-semibold mb-1 dark:text-gray-100">Performance Name (Optional)</h4>
+                            <input type="text" value={performanceName} onChange={e => setPerformanceName(e.target.value)} placeholder="e.g., Weekly Showcase" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
+                        </div>
 
-    // --- SETLIST MANIPULATION ---
-    const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
-    const addSpecialItemToSetlist = (itemType) => {
-        if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
-        let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
-        setSetlist(prev => [...prev, newItem]);
-    };
-    const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
-    const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
-    const moveSetlistItem = (index, direction) => {
-        if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
-        setSetlist(prev => {
-            const newList = [...prev];
-            const item = newList.splice(index, 1)[0];
-            newList.splice(index + direction, 0, item);
-            return newList;
-        });
-    };
-
-    // --- MEMBER & EXECUTION ---
-    const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
-    const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
-    const deselectAllMembers = () => setSelectedMembers([]);
-    const executePerformance = () => {
-        if (!selectedTypeData) return setMessage("Please select a performance type.");
-        recordPerformance(selectedTypeData, setlist, selectedMembers);
-    };
-
-    // --- RENDER LOGIC ---
-    let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
-
-    return (
-        <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
-            <div className="grid grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
-                {/* Col 1-3: Performance Type */}
-                <div className="col-span-3 space-y-3 border-r pr-3">
-                    <h4 className="font-semibold flex items-center dark:text-gray-100"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                        {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full font-semibold ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}>{cat}</button>)}
-                    </div>
-                    <div className="h-[500px] overflow-y-auto space-y-2">
-                        {filteredTypes.map(type => (
-                            <div key={type.label} onClick={() => setSelectedTypeLabel(type.label)} className={`p-3 border rounded cursor-pointer ${selectedTypeLabel === type.label ? 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-300 dark:bg-indigo-900 dark:border-indigo-600' : 'bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'}`} title={type.desc}>
-                                <span className="font-bold block dark:text-gray-100">{type.label}</span>
-                                <span className="text-xs text-gray-600 dark:text-gray-400">Cost: ¥{type.cost.toLocaleString()}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Col 4-6: Available Tracks */}
-                <div className="col-span-3 border-r pr-3">
-                    <h4 className="font-semibold mb-2 dark:text-gray-100">2. Available Tracks</h4>
-                     <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
-                        {allTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
-                        {allTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs released yet!</p>}
-                    </div>
-                </div>
-
-                {/* Col 7-9: Setlist Builder */}
-                <div className="col-span-3 border-r pr-3">
-                    <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>3. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
-                    <div className="flex gap-2 mb-2"><button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
-                    <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
-                        {setlist.map((item, index) => {
-                            let label, labelColor;
-                            if (item.type === 'encore') inEncore = true;
-                            if (item.type === 'song') {
-                                if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
-                                labelColor = 'text-blue-600 dark:text-blue-400';
-                            } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
-                            
-                            return (
-                                <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
-                                    <div className="flex items-center overflow-hidden flex-1"><span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
-                                        {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
-                                        {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200" />}
-                                        {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE ---</span>}
-                                    </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-2">
-                                        {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Ann?</label>}
-                                        <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
-                                        <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
-                                        <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
-                                    </div>
+                        <h4 className="font-semibold flex items-center dark:text-gray-100 pt-2"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full font-semibold ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}>{cat}</button>)}
+                        </div>
+                        <div className="h-[450px] overflow-y-auto space-y-2">
+                            {filteredTypes.map(type => (
+                                <div key={type.label} onClick={() => setSelectedTypeLabel(type.label)} className={`p-3 border rounded cursor-pointer ${selectedTypeLabel === type.label ? 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-300 dark:bg-indigo-900 dark:border-indigo-600' : 'bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'}`} title={type.desc}>
+                                    <span className="font-bold block dark:text-gray-100">{type.label}</span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">Cost: ¥{type.cost.toLocaleString()}</span>
                                 </div>
-                            );
-                        })}
+                            ))}
+                        </div>
+                    </div>
+    
+                    {/* Col 4-6: Available Tracks */}
+                    <div className="col-span-3 border-r pr-3">
+                        <h4 className="font-semibold mb-2 dark:text-gray-100">2. Available Tracks</h4>
+                         <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
+                            {allTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
+                            {allTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs released yet!</p>}
+                        </div>
+                    </div>
+    
+                    {/* Col 7-9: Setlist Builder */}
+                    <div className="col-span-3 border-r pr-3">
+                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>3. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
+                        <div className="flex gap-2 mb-2"><button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
+                        <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
+                            {setlist.map((item, index) => {
+                                let label, labelColor;
+                                if (item.type === 'encore') inEncore = true;
+                                if (item.type === 'song') {
+                                    if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
+                                    labelColor = 'text-blue-600 dark:text-blue-400';
+                                } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
+                                
+                                return (
+                                    <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
+                                        <div className="flex items-center overflow-hidden flex-1"><span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
+                                            {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
+                                            {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200" />}
+                                            {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE ---</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-2">
+                                            {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Ann?</label>}
+                                            <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
+                                            <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
+                                            <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+    
+                    {/* Col 10-12: Member Selection */}
+                    <div className="col-span-3">
+                        <h4 className="font-semibold mb-2 dark:text-gray-100">4. Select Members ({selectedMembers.length})</h4>
+                        <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button></div>
+                        <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
                     </div>
                 </div>
-
-                {/* Col 10-12: Member Selection */}
-                <div className="col-span-3">
-                    <h4 className="font-semibold mb-2 dark:text-gray-100">4. Select Members ({selectedMembers.length})</h4>
-                    <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button></div>
-                    <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+    
+                <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                    <div>
+                      {selectedTypeData && <p className="font-bold text-lg dark:text-gray-100">Cost: ¥{selectedTypeData.cost.toLocaleString()}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                        <button onClick={executePerformance} disabled={!selectedTypeData || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length === 0 || money < (selectedTypeData?.cost || 0)} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                            Execute Performance
+                        </button>
+                    </div>
                 </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-6 pt-4 border-t">
-                <div>
-                  {selectedTypeData && <p className="font-bold text-lg dark:text-gray-100">Cost: ¥{selectedTypeData.cost.toLocaleString()}</p>}
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                    <button onClick={executePerformance} disabled={!selectedTypeData || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length === 0 || money < (selectedTypeData?.cost || 0)} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
-                        Execute Performance
-                    </button>
-                </div>
-            </div>
-        </ModalWrapper>
-    );
-};
+            </ModalWrapper>
+        );
+    };
     
     const MajorConcertModal = () => {
         // --- STATE ---
