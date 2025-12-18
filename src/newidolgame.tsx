@@ -332,6 +332,7 @@ const saveGame = async (gameUsername, uidParam) => {
     username: gameUsername,
     venues: JSON.stringify(venues),
     performanceHistory: JSON.stringify(performanceHistory),
+    scheduledSingles: JSON.stringify(scheduledSingles), // <-- FIX: This line is added
     timestamp: Date.now(),
   };
 
@@ -392,23 +393,19 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setGroupName(data.groupName || "");
       setMoney(data.money || 0);
       setWeek(data.week || 1);
-
       setMembers(JSON.parse(data.members || "[]"));
       setTotalFans(data.totalFans || 0);
       setSongs(JSON.parse(data.songs || "[]"));
       setTeams(JSON.parse(data.teams || "[]"));
-      setBuildings(JSON.parse(data.buildings || "[]"));
-
-      // 🔴 This is the one you are missing
+      setBuildings(JSON.parse(data.buildings || "{}"));
       setSisterGroups(JSON.parse(data.sisterGroups || "[]"));
-
       setRivalGroups(JSON.parse(data.rivalGroups || "[]"));
       setAchievements(JSON.parse(data.achievements || "[]"));
       setHallOfFame(JSON.parse(data.hallOfFame || "[]"));
       setEvents(JSON.parse(data.events || "[]"));
       setSponsorships(JSON.parse(data.sponsorships || "[]"));
       setDifficulty(data.difficulty || "normal");
-      setInternationalMarkets(JSON.parse(data.internationalMarkets || "[]"));
+      setInternationalMarkets(JSON.parse(data.internationalMarkets || "{}"));
       setOutfits(JSON.parse(data.outfits || "[]"));
       setTours(JSON.parse(data.tours || "[]"));
       setActiveTour(JSON.parse(data.activeTour || "null"));
@@ -422,6 +419,8 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setMerchInventory(JSON.parse(data.merchInventory || "{}"));
       setActiveTrainingCamp(JSON.parse(data.activeTrainingCamp || "null"));
       setPerformanceHistory(JSON.parse(data.performanceHistory || "[]"));
+      setScheduledSingles(JSON.parse(data.scheduledSingles || "[]")); // <-- FIX: This line is added
+
       setGameStarted(true);
       setMessage(`🎮 Game loaded for ${data.username || gameUsername}!`);
       setShowModal(null);
@@ -1019,13 +1018,14 @@ const getMemberGroupStatus = (member) => {
       const senbatsuMemberIds = songData.tracks[0].members.map(String);
       const isSisterSong = songData.targetGroupId !== 'main';
       const targetGroupName = songData.targetGroupId;
-      const targetGroup = isSisterSong ? sisterGroups.find(sg => sg.name === targetGroupName) : { members, name: groupName, songs, id: 'main' };
 
-      // Apply Production Bonuses to Members
+      // Apply Production Bonuses to a temporary copy of members to calculate sales correctly
+      let updatedMembers = [...members];
+      let updatedSisterGroups = [...sisterGroups];
+
       const applyBonuses = (member) => {
         const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
-        const moraleBuff = productionData.outfits === 'custom' || productionData.outfits === 'concept' || productionData.outfits === 'luxury' ? 10 : 0;
-        
+        const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
         return {
           ...member,
           singing: (member.singing || 0) + trainingBuff,
@@ -1035,20 +1035,23 @@ const getMemberGroupStatus = (member) => {
       };
 
       if (isSisterSong) {
-        setSisterGroups(prev => prev.map(sg => {
+        updatedSisterGroups = sisterGroups.map(sg => {
           if (sg.name === targetGroupName) {
-            return { ...sg, members: sg.members.map(m => senbatsuMemberIds.includes(`sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
+            return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
           }
           return sg;
-        }));
+        });
       } else {
-        setMembers(prev => prev.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m));
+        updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
       }
       
-      // Calculate Sales & Fan Gain with Bonuses
-      const allMembersAfterUpdate = getAllAvailableMembers(true); 
+      const allMembersAfterBonuses = [
+        ...updatedMembers,
+        ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
+      ];
+      
       const avgSkill = senbatsuMemberIds.reduce((sum, memberId) => {
-          const member = allMembersAfterUpdate.find(m => String(m.id) === memberId);
+          const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
           return sum + (member ? ((member.singing || 0) + (member.dancing || 0)) / 2 : 0);
       }, 0) / (senbatsuMemberIds.length || 1);
       
@@ -1060,35 +1063,54 @@ const getMemberGroupStatus = (member) => {
       const newFans = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
       const revenue = sales * 15;
 
-      const newSong = { id: (songs?.length || 0) + 1 + sisterGroups.reduce((acc, sg) => acc + (sg.songs?.length || 0), 0), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week, totalTracks: songData.tracks.length, salesHistory: [{ week, sales }], production: productionData };
+      const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
       
       const updateMemberHistory = (m, sg = null) => {
           const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
           if (!songData.tracks.some(track => track.members.includes(memberId))) return m;
           const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
-          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week, singleName: songData.songName, songName: track.name, group: sg ? sg.name : groupName }));
+          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: sg ? sg.name : groupName }));
           const isTitleCenter = String(songData.tracks[0].center) === memberId;
-          return { ...m, singlesParticipation: [...(m.singlesParticipation || []), ...(participatedTracks.some(t => t.type === 'title') ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: sg ? sg.name : groupName }] : [])], songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week, type: t.type, isCenter: String(t.center) === memberId, group: sg ? sg.name : groupName, row: t.lineup[memberId] }))], centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] };
+          const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
+          
+          return { 
+              ...m, 
+              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: sg ? sg.name : groupName }] : [])], 
+              songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: sg ? sg.name : groupName, row: t.lineup[memberId] }))], 
+              centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
+          };
       };
 
       if (isSisterSong) {
           setSisterGroups(prev => prev.map(sg => {
-              if (sg.name === targetGroupName) return { ...sg, songs: [...(sg.songs || []), newSong], fans: (sg.fans || 0) + newFans, members: sg.members.map(m => updateMemberHistory(m, sg)) };
-              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
+              if (sg.name === targetGroupName) {
+                  return { ...sg, songs: [...(sg.songs || []), newSong], fans: (sg.fans || 0) + newFans, members: updatedSisterGroups.find(usg => usg.id === sg.id).members.map(m => updateMemberHistory(m, sg)) };
+              }
+              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
+                  return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
+              }
               return sg;
           }));
       } else {
           setSongs(prev => [...(prev || []), newSong]);
           setTotalFans(prev => (prev || 0) + newFans);
-          setMembers(prev => prev.map(m => updateMemberHistory(m)));
+          setMembers(prev => updatedMembers.map(m => updateMemberHistory(m)));
           setSisterGroups(prev => prev.map(sg => {
-              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
+              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
+                  return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
+              }
               return sg;
           }));
       }
 
       setMoney(prev => prev + revenue);
-      addNotification({ type: 'success', message: `RELEASED: "${songData.songName}"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFans.toLocaleString()}` });
+      
+      const releaseMessage = `RELEASED: "${songData.songName}"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFans.toLocaleString()}`;
+      
+      addNotification({ type: 'success', message: releaseMessage });
+      
+      // Return the message string
+      return releaseMessage;
     };
     
     // --- Performance Management Logic ---
@@ -1521,7 +1543,8 @@ const getMemberGroupStatus = (member) => {
       if (activeTour) return progressTour();
       
       const scandalRoll = Math.random();
-      const scandalTypes = [        {
+      const scandalTypes = [
+        {
           type: 'ปาปารัสซี่แฉ! เดตลับกลางวันแสก ๆ',
           description: 'ชาวเน็ตตาไวจับภาพสมาชิกคนหนึ่งขณะนั่งใกล้ชิดกับบุคคลปริศนานอกคาเฟ่ชื่อดัง แม้จะพยายามปิดบังตัวตน แต่บรรยากาศที่ดูสนิทสนมเกินเพื่อนทำให้เกิดกระแสตั้งคำถามถึงความสัมพันธ์ที่แท้จริง จนแฟน ๆ แห่ถกเถียงสนั่นโซเชียล'
         },
@@ -1715,40 +1738,39 @@ const getMemberGroupStatus = (member) => {
       },
               
       ];
-
       if (scandalRoll < 0.05 && members.length > 0) { 
           const target = members[Math.floor(Math.random() * members.length)];
           const scandal = scandalTypes[Math.floor(Math.random() * scandalTypes.length)];
           
-          setModalData({ 
-            member: target, 
-            type: scandal.type, 
-            description: scandal.description 
-          });
+          setModalData({ member: target, type: scandal.type, description: scandal.description });
           setShowModal('scandal');
           return;
       }
 
-      // --- All weekly logic happens before the final setWeek call to avoid double execution ---
       const newWeek = week + 1;
+      let priorityMessage = ''; // This will hold the most important message of the week
 
-      // New: Scheduled Single Events Logic
+      // Handle scheduled single events
       const remainingSingles = [];
       scheduledSingles.forEach(single => {
           const eventForThisWeek = single.timeline.find(e => e.week === newWeek);
-          if (eventForThisWeek) {
+          if (eventForThisWeek && !eventForThisWeek.message.startsWith('RELEASE')) {
               addNotification({ type: 'event', message: eventForThisWeek.message });
+              priorityMessage = eventForThisWeek.message; // A production event is a priority
           }
 
           if (single.releaseWeek === newWeek) {
-              executeSongRelease(single);
+              const releaseMsg = executeSongRelease(single);
+              if (releaseMsg) {
+                  priorityMessage = releaseMsg; // A release is ALWAYS the highest priority
+              }
           } else {
               remainingSingles.push(single);
           }
       });
       setScheduledSingles(remainingSingles);
 
-      // Existing Weekly Logic for Income, Fans, and Stats
+      // Handle weekly income and stats
       const baseIncome = Math.floor((totalFans || 0) * 2);
       const sisterIncome = (sisterGroups || []).reduce((s, g) => s + (g.income || 0), 0);
       const varietyIncome = (varietyShows || []).reduce((s, v) => s + (v.income || 0), 0);
@@ -1761,12 +1783,26 @@ const getMemberGroupStatus = (member) => {
       if (activeTrainingCamp) {
           if (activeTrainingCamp.weeksLeft <= 1) {
               campMessage = handleTrainingCampReturn();
+              if (campMessage) priorityMessage = campMessage; // Camp return is also a priority
           } else {
               setActiveTrainingCamp(prev => ({ ...prev, weeksLeft: prev.weeksLeft - 1 }));
-              campMessage = `Training camp for ${getMemberById(activeTrainingCamp.memberId)?.name || 'a member'} continues for ${activeTrainingCamp.weeksLeft - 1} more week(s).`;
+              campMessage = `Training camp continues for ${activeTrainingCamp.weeksLeft - 1} more week(s).`;
           }
       }
       
+      // **THE FIX: Set the blue box message based on priority**
+      if (priorityMessage) {
+          setMessage(priorityMessage);
+      } else {
+          setMessage(`Week ${newWeek}: +¥${income.toLocaleString()}. ${campMessage}`); 
+      }
+      
+      // Always add income to the notification log for history
+      addNotification({ type: 'info', message: `+¥${income.toLocaleString()} income.` });
+      if (campMessage && !priorityMessage.includes('camp')) { // Only log if not already the main message
+          addNotification({ type: 'info', message: campMessage });
+      }
+
       setMembers(prev => (prev || []).map(m => m.isAvailable ? { 
           ...m, 
           stamina: Math.min(100, (m.stamina || 0) + 20), 
@@ -1783,16 +1819,7 @@ const getMemberGroupStatus = (member) => {
               yearsActive: Math.floor(newWeek / 52) 
           } : m)
       })));
-      
-      // **THIS IS THE FIX:** Restore the main message for the top bar (the "blue box")
-      setMessage(`Week ${newWeek}: +¥${income.toLocaleString()}. ${campMessage}`); 
-      
-      // Also add to the notification log for history
-      addNotification({ type: 'info', message: `+¥${income.toLocaleString()} income.` });
-      if (campMessage) {
-          addNotification({ type: 'info', message: campMessage });
-      }
-      // Finally, advance the week state once all logic is complete
+
       setWeek(newWeek);
     };
     
@@ -2051,104 +2078,93 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
         );
     };
     
-        const ScandalModal = () => {
-          const { member, type, description } = modalData;
-          if (!member) return null;
-    
-          const handleChoice = (choice) => {
-              let messageText = '';
-              let fanChange = 0;
-              let groupFanChange = 0;
-              let moraleChange = 0;
-              
-              const roll = Math.random(); // A single dice roll for the outcome
+    const ScandalModal = () => {
+      const { member, type, description } = modalData;
+      if (!member) return null;
 
-              if (choice === 'apologize') {
-                  fanChange = -Math.floor(member.fans * 0.1); // Lose 10% of fans
-                  moraleChange = -20;
-                  groupFanChange = -Math.floor(totalFans * 0.01);
-                  messageText = `${member.name} publicly apologizes. The situation stabilizes, but her reputation is damaged.`;
-                  // Member goes on hiatus
-                  setMembers(prev => prev.map(m => m.id === member.id ? { ...m, isAvailable: false, returningWeek: week + 4 } : m));
-              } else if (choice === 'deny') {
-                  if (roll > 0.5) { // 50% Success
-                      fanChange = Math.floor(member.fans * 0.05); // Gain 5% fans
-                      moraleChange = 10;
-                      groupFanChange = Math.floor(totalFans * 0.02);
-                      messageText = `Success! The public believes the denial. ${member.name}'s image is strengthened.`;
-                  } else { // 50% Failure
-                      fanChange = -Math.floor(member.fans * 0.3); // Lose 30% of fans
-                      moraleChange = -50;
-                      groupFanChange = -Math.floor(totalFans * 0.05);
-                      messageText = `Disaster! The denial was proven false. ${member.name} is seen as a liar, causing massive backlash.`;
-                  }
-              } else { // 'ignore'
-                  if (roll > 0.8) { // 20% Success
-                      messageText = `Surprisingly, the scandal blew over with no major impact.`;
-                  } else { // 80% Failure
-                      fanChange = -Math.floor(member.fans * 0.15); // Lose 15% of fans
-                      moraleChange = -30;
-                      groupFanChange = -Math.floor(totalFans * 0.02);
-                      messageText = `Ignoring it was a mistake. The scandal festered, damaging ${member.name}'s and the group's reputation.`;
-                  }
-              }
-
-              // Update member stats
-              setMembers(prev => prev.map(m => {
-                  if (m.id === member.id) {
-                      return {
-                          ...m,
-                          fans: Math.max(0, m.fans + fanChange),
-                          morale: Math.max(0, Math.min(100, m.morale + moraleChange))
-                      };
-                  }
-                  return m;
-              }));
-
-              // Update group stats
-              setTotalFans(prev => Math.max(0, prev + groupFanChange));
-              
-              // This is the FIX: specifying type: 'scandal'
-              addNotification({ type: 'scandal', message: messageText });
-              setShowModal(null);
-          };
+      const handleChoice = (choice) => {
+          let messageText = '';
+          let fanChange = 0;
+          let groupFanChange = 0;
+          let moraleChange = 0;
           
-          return (
-              <ModalWrapper title="SCANDAL ALERT!" maxWidth="max-w-2xl">
-                  <div className="p-1">
-                      <p className="mb-2"><strong>Member:</strong> {member.name}</p>
-                      <div className="p-3 bg-red-50 dark:bg-gray-800 border-l-4 border-red-500 rounded-r-lg mb-4">
-                          <h4 className="font-bold text-red-800 dark:text-red-300">{type}</h4>
-                          <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{description}</p>
-                      </div>
-                      <p className="mb-4 text-gray-700 dark:text-gray-300">This requires immediate management action. Your decision will affect her fans and morale, and the group's reputation.</p>
-                  
-                      <h5 className="font-semibold mb-2">Choose your action:</h5>
-                      <div className="grid grid-cols-1 gap-3">
-                          <button 
-                              onClick={() => handleChoice('apologize')} 
-                              className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors"
-                          >
-                              1. Public Apology & Punishment
-                          </button>
-                          <button 
-                              onClick={() => handleChoice('deny')} 
-                              className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors"
-                          >
-                              2. Strong Denial (High Risk)
-                          </button>
-                          <button 
-                              onClick={() => handleChoice('ignore')} 
-                              className="p-3 bg-gray-200 text-gray-800 rounded font-bold border-l-4 border-gray-500 hover:bg-gray-300 transition-colors"
-                          >
-                              3. Ignore It
-                          </button>
-                      </div>
-                      <p className="text-xs text-center mt-4 text-gray-500">The game will resume after you make a decision.</p>
+          const roll = Math.random();
+
+          if (choice === 'apologize') {
+              fanChange = -Math.floor(member.fans * 0.1);
+              moraleChange = -20;
+              groupFanChange = -Math.floor(totalFans * 0.01);
+              messageText = `${member.name} publicly apologizes. The situation stabilizes, but her reputation is damaged.`;
+              setMembers(prev => prev.map(m => m.id === member.id ? { ...m, isAvailable: false, returningWeek: week + 4 } : m));
+          } else if (choice === 'deny') {
+              if (roll > 0.5) {
+                  fanChange = Math.floor(member.fans * 0.05);
+                  moraleChange = 10;
+                  groupFanChange = Math.floor(totalFans * 0.02);
+                  messageText = `Success! The public believes the denial. ${member.name}'s image is strengthened.`;
+              } else {
+                  fanChange = -Math.floor(member.fans * 0.3);
+                  moraleChange = -50;
+                  groupFanChange = -Math.floor(totalFans * 0.05);
+                  messageText = `Disaster! The denial was proven false. ${member.name} is seen as a liar, causing massive backlash.`;
+              }
+          } else { // 'ignore'
+              if (roll > 0.8) {
+                  messageText = `Surprisingly, the scandal blew over with no major impact.`;
+              } else {
+                  fanChange = -Math.floor(member.fans * 0.15);
+                  moraleChange = -30;
+                  groupFanChange = -Math.floor(totalFans * 0.02);
+                  messageText = `Ignoring it was a mistake. The scandal festered, damaging ${member.name}'s and the group's reputation.`;
+              }
+          }
+
+          setMembers(prev => prev.map(m => {
+              if (m.id === member.id) {
+                  return { ...m, fans: Math.max(0, m.fans + fanChange), morale: Math.max(0, Math.min(100, m.morale + moraleChange)) };
+              }
+              return m;
+          }));
+
+          setTotalFans(prev => Math.max(0, prev + groupFanChange));
+          
+          // **THE FIX: Build a detailed message with gains and losses**
+          let details = [];
+          if (fanChange !== 0) details.push(`Fans: ${fanChange > 0 ? '+' : ''}${fanChange.toLocaleString()}`);
+          if (moraleChange !== 0) details.push(`Morale: ${moraleChange > 0 ? '+' : ''}${moraleChange}`);
+          if (groupFanChange !== 0) details.push(`Group Fans: ${groupFanChange > 0 ? '+' : ''}${groupFanChange.toLocaleString()}`);
+
+          let finalMessage = messageText;
+          if (details.length > 0) {
+              finalMessage += ` (${details.join(', ')})`;
+          }
+          
+          addNotification({ type: 'scandal', message: finalMessage });
+          setMessage(finalMessage);
+          setShowModal(null);
+      };
+      
+      return (
+          <ModalWrapper title="SCANDAL ALERT!" maxWidth="max-w-2xl">
+              <div className="p-1">
+                  <p className="mb-2"><strong>Member:</strong> {member.name}</p>
+                  <div className="p-3 bg-red-50 dark:bg-gray-800 border-l-4 border-red-500 rounded-r-lg mb-4">
+                      <h4 className="font-bold text-red-800 dark:text-red-300">{type}</h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{description}</p>
                   </div>
-              </ModalWrapper>
-          );
-        };
+                  <p className="mb-4 text-gray-700 dark:text-gray-300">This requires immediate management action. Your decision will affect her fans and morale, and the group's reputation.</p>
+              
+                  <h5 className="font-semibold mb-2">Choose your action:</h5>
+                  <div className="grid grid-cols-1 gap-3">
+                      <button onClick={() => handleChoice('apologize')} className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors">1. Public Apology & Punishment</button>
+                      <button onClick={() => handleChoice('deny')} className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors">2. Strong Denial (High Risk)</button>
+                      <button onClick={() => handleChoice('ignore')} className="p-3 bg-gray-200 text-gray-800 rounded font-bold border-l-4 border-gray-500 hover:bg-gray-300 transition-colors">3. Ignore It</button>
+                  </div>
+                  <p className="text-xs text-center mt-4 text-gray-500">The game will resume after you make a decision.</p>
+              </div>
+          </ModalWrapper>
+      );
+    };
 
     const CreateSongModal = () => {
         // --- Basic Song State ---
