@@ -105,11 +105,54 @@ const useIdolManager = () => {
     const [songs, setSongs] = useState([]);
     const [teams, setTeams] = useState([]);
     const [allSetlists, setAllSetlists] = useState([
-        { id: 1, name: "A1 'Party ga Hajimaru yo'", theme: 'classic', difficulty: 100 },
-        { id: 2, name: "K2 'Aitakatta'", theme: 'classic', difficulty: 120 },
-        { id: 3, name: "H3 'Mokugekisha'", theme: 'dance', difficulty: 150 },
-        { id: 4, name: "B4 'Idol no Yoake'", theme: 'vocal', difficulty: 140 },
-    ]);
+// --- AKB48 Team A ---
+{ id: 1, name: "A1 'PARTY ga Hajimaru yo'", theme: 'classic', difficulty: 100 },
+{ id: 2, name: "A2 'Aitakatta'", theme: 'classic', difficulty: 110 },
+{ id: 3, name: "A3 'Dareka no Tame ni'", theme: 'vocal', difficulty: 130 },
+{ id: 4, name: "A4 'Tadaima Renaichuu'", theme: 'idol', difficulty: 140 },
+{ id: 5, name: "A5 'Renai Kinshi Jourei'", theme: 'vocal', difficulty: 170 },
+{ id: 6, name: "A6 'Mokugekisha'", theme: 'theatrical', difficulty: 220 },
+{ id: 7, name: "A7 'M.T. ni Sasagu'", theme: 'vocal', difficulty: 250 },
+
+// --- AKB48 Team K ---
+{ id: 8, name: "K2 'Seishun Girls'", theme: 'energy', difficulty: 120 },
+{ id: 9, name: "K3 'Nounai Paradise'", theme: 'dance', difficulty: 150 },
+{ id: 10, name: "K4 'Saishuu Bell ga Naru'", theme: 'dance', difficulty: 190 },
+{ id: 11, name: "K5 'Saka Agari'", theme: 'dance', difficulty: 200 },
+{ id: 12, name: "K6 'RESET'", theme: 'dance', difficulty: 230 },
+
+// --- AKB48 Team B ---
+{ id: 13, name: "B3 'Pajama Drive'", theme: 'idol', difficulty: 140 },
+{ id: 14, name: "B4 'Idol no Yoake'", theme: 'idol', difficulty: 160 },
+{ id: 15, name: "B5 'Theater no Megami'", theme: 'idol', difficulty: 180 },
+
+// --- AKB48 Others & Current ---
+{ id: 16, name: "H1 'Boku no Taiyou'", theme: 'classic', difficulty: 130 },
+{ id: 17, name: "H2 'Yume wo Shinaseru Wake ni Ikanai'", theme: 'energy', difficulty: 180 },
+{ id: 18, name: "AKB1 'Koko Kara da'", theme: 'theatrical', difficulty: 350 },
+
+// --- SKE48 ---
+{ id: 19, name: "S2 'Te wo Tsunaginagara'", theme: 'energy', difficulty: 160 },
+{ id: 20, name: "S3 'Seifuku no Me'", theme: 'dance', difficulty: 210 },
+{ id: 21, name: "KII3 'Ramune no Nomikata'", theme: 'vocal', difficulty: 190 },
+{ id: 22, name: "S7 'Ai wo Kimi ni, Ai wo Boku ni'", theme: 'classic', difficulty: 280 },
+{ id: 23, name: "KII4 'Jikan ga Nai'", theme: 'dance', difficulty: 300 },
+
+// --- NMB48 ---
+{ id: 24, name: "N3 'Koko ni Datte Tenshi wa Iru'", theme: 'idol', difficulty: 220 },
+{ id: 25, name: "N4 'Tenshi no Utopia'", theme: 'vocal', difficulty: 290 },
+
+// --- HKT48 ---
+{ id: 26, name: "H2 'Hakata Legend'", theme: 'classic', difficulty: 150 },
+
+// --- NGT48 & STU48 ---
+{ id: 27, name: "N1 'Hokori no Oka'", theme: 'theatrical', difficulty: 200 },
+{ id: 28, name: "STU1 'GO! GO! little SEABIRDS!!'", theme: 'energy', difficulty: 210 },
+{ id: 29, name: "STU2 'Hana wa Dare no Mono?'", theme: 'vocal', difficulty: 240 },
+
+// --- Overseas (JKT & BNK) ---
+{ id: 30, name: "JKT1 'Pertaruhan Cinta'", theme: 'energy', difficulty: 310 },
+{ id: 31, name: "BNK1 'WHISPER ROAR'", theme: 'theatrical', difficulty: 320 }    ]);
     const [buildings, setBuildings] = useState({ theater: false, practiceRooms: { vocal: 0, dance: 0, variety: 0 } });
     const [sisterGroups, setSisterGroups] = useState([]); 
     const [rivalGroups, setRivalGroups] = useState([]);
@@ -141,10 +184,41 @@ const useIdolManager = () => {
     const [activeTrainingCamp, setActiveTrainingCamp] = useState(null); 
     const [venues, setVenues] = useState([
         { id: 1, name: 'Local Theater (Own)', capacity: 250, cost: 0, maintenance: 5000 },
-        { id: 2, name: 'Small Hall (1K)', capacity: 1000, cost: 50000, maintenance: 10000 },
-        { id: 3, name: 'City Arena (5K)', capacity: 5000, cost: 250000, maintenance: 30000 },
-        { id: 4, name: 'Dome (50K)', capacity: 50000, cost: 5000000, maintenance: 100000 },
-    ]);
+          // --- LEVEL 1: THEATER & LIVE HOUSE (Capacity 250 - 500) ---
+          { id: 2, name: 'Dedicated Idol Theater', capacity: 250, cost: 0, maintenance: 5000 }, // General name for the 48G HQ
+          { id: 3, name: 'Akihabara Cultures Theater', capacity: 300, cost: 15000, maintenance: 6000 },
+          { id: 4, name: 'Shibuya Eggman', capacity: 350, cost: 20000, maintenance: 7000 },
+          { id: 5, name: 'Shinjuku Loft', capacity: 400, cost: 25000, maintenance: 7500 },
+          { id: 6, name: 'Aoyama RizM', capacity: 500, cost: 30000, maintenance: 8000 },
+      
+          // --- LEVEL 2: MAJOR HALLS & ZEPPS (Capacity 1K - 3K) ---
+          { id: 7, name: 'Spotify O-EAST', capacity: 1300, cost: 80000, maintenance: 15000 },
+          { id: 8, name: 'Zepp Haneda', capacity: 2900, cost: 120000, maintenance: 20000 },
+          { id: 9, name: 'LINE CUBE SHIBUYA', capacity: 2000, cost: 150000, maintenance: 25000 },
+          { id: 10, name: 'NHK Hall', capacity: 3000, cost: 180000, maintenance: 30000 },
+          { id: 11, name: 'TDC Hall (Tokyo Dome City)', capacity: 3000, cost: 200000, maintenance: 35000 },
+      
+          // --- LEVEL 3: PRESTIGE ARENAS (Capacity 5K - 15K) ---
+          { id: 12, name: 'Pacifico Yokohama', capacity: 5000, cost: 500000, maintenance: 60000 },
+          { id: 13, name: 'Tokyo International Forum', capacity: 5000, cost: 650000, maintenance: 70000 },
+          { id: 14, name: 'Ariake Arena', capacity: 12000, cost: 800000, maintenance: 85000 },
+          { id: 15, name: 'Yoyogi National Gymnasium', capacity: 13000, cost: 1000000, maintenance: 95000 },
+          { id: 16, name: 'Nippon Budokan', capacity: 14500, cost: 1500000, maintenance: 110000 },
+      
+          // --- LEVEL 4: STADIUMS & GRAND ARENAS (Capacity 17K - 37K) ---
+          { id: 17, name: 'Yokohama Arena', capacity: 17000, cost: 2500000, maintenance: 150000 },
+          { id: 18, name: 'Osaka-jo Hall', capacity: 16000, cost: 2200000, maintenance: 140000 },
+          { id: 19, name: 'K-Arena Yokohama', capacity: 20000, cost: 3000000, maintenance: 180000 },
+          { id: 20, name: 'Saitama Super Arena', capacity: 37000, cost: 4500000, maintenance: 300000 },
+          { id: 21, name: 'Belluna Dome (Seibu Dome)', capacity: 33000, cost: 4000000, maintenance: 280000 },
+      
+          // --- LEVEL 5: THE FIVE DOMES & NATIONAL STADIUM (Capacity 40K - 75K) ---
+          { id: 22, name: 'Vantelin Dome Nagoya', capacity: 40000, cost: 6000000, maintenance: 450000 },
+          { id: 23, name: 'Kyocera Dome Osaka', capacity: 45000, cost: 6500000, maintenance: 480000 },
+          { id: 24, name: 'Mizuho PayPay Dome Fukuoka', capacity: 40000, cost: 6000000, maintenance: 450000 },
+          { id: 25, name: 'Tokyo Dome', capacity: 55000, cost: 10000000, maintenance: 600000 },
+          { id: 26, name: 'Japan National Stadium', capacity: 75000, cost: 20000000, maintenance: 1200000 }
+]);
     const [performanceHistory, setPerformanceHistory] = useState([]);
 
     // Performance Types Data
@@ -286,7 +360,6 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setTotalFans(data.totalFans || 0);
       setSongs(JSON.parse(data.songs || "[]"));
       setTeams(JSON.parse(data.teams || "[]"));
-      setAllSetlists(JSON.parse(data.allSetlists || "[]"));
       setBuildings(JSON.parse(data.buildings || "[]"));
 
       // 🔴 This is the one you are missing
@@ -311,7 +384,6 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setStatistics(JSON.parse(data.statistics || "{}"));
       setMerchInventory(JSON.parse(data.merchInventory || "{}"));
       setActiveTrainingCamp(JSON.parse(data.activeTrainingCamp || "null"));
-      setVenues(JSON.parse(data.venues || "[]"));
       setPerformanceHistory(JSON.parse(data.performanceHistory || "[]"));
       setGameStarted(true);
       setMessage(`🎮 Game loaded for ${data.username || gameUsername}!`);
@@ -1009,8 +1081,8 @@ const getMemberGroupStatus = (member) => {
     
     // --- Performance Management Logic ---
 
-    const holdMajorConcert = (venue, setlist, selectedMemberIds) => {
-        if (!setlist) return setMessage("Must select a setlist.");
+    const holdMajorConcert = (venue, setlist, selectedMemberIds, targetGroup, details) => {
+        if (!setlist) return setMessage("A setlist is required.");
         if (selectedMemberIds.length === 0) return setMessage("Must select at least one member to perform.");
         
         const performingMembers = selectedMemberIds.map(getMemberById).filter(m => m && m.isAvailable);
@@ -1021,28 +1093,22 @@ const getMemberGroupStatus = (member) => {
 
         const avgSkill = performingMembers.reduce((sum, m) => m.singing + m.dancing, 0) / (performingMembers.length * 200);
         
-        // Calculate Ticket Sales (Capped by Capacity)
         const ticketPrice = 5000 + (venue.capacity / 100); 
         const demandRatio = Math.min(1.0, (totalFans / 5) / venue.capacity); 
         const ticketsSold = Math.floor(venue.capacity * demandRatio * (1 + avgSkill * 0.5));
         const ticketRevenue = ticketsSold * ticketPrice;
         
-        // Calculate Fan & Skill Impact
         const fanGain = Math.floor(ticketsSold * (0.01 + avgSkill * 0.05));
         const skillImprovement = 10 + Math.floor(avgSkill * 10);
         const staminaDrain = 60;
         
-        // Final Revenue
         const profit = ticketRevenue - baseCost;
 
-        // 1. Update State
         setMoney(prev => prev + profit);
         setTotalFans(prev => (prev || 0) + fanGain);
         setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + ticketRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
-        // 2. Update Members
         const performingMemberIds = performingMembers.map(m => m.id);
-        
         const applyMemberUpdate = (m) => {
             if (performingMemberIds.some(id => String(id) === String(m.id))) {
                 return {
@@ -1058,27 +1124,25 @@ const getMemberGroupStatus = (member) => {
         };
         
         setMembers(prev => prev.map(applyMemberUpdate));
-        setSisterGroups(prev => prev.map(sg => ({
-            ...sg,
-            members: sg.members.map(m => applyMemberUpdate(m))
-        })));
+        setSisterGroups(prev => prev.map(sg => ({ ...sg, members: sg.members.map(m => applyMemberUpdate(m)) })));
 
-
-        // 3. Record History
+        // Create the rich history entry with all the new details
         const newEntry = {
             id: Date.now(),
-            name: `${venue.name} Concert`,
+            name: details.name || `${venue.name} Concert`,
             category: "Major Concert",
             week,
             cost: baseCost,
             revenue: ticketRevenue,
             members: performingMembers.map(m => m.name),
-            tracks: [setlist.name]
+            tracks: setlist, // The full setlist structure
+            targetGroup: targetGroup,
+            kageAna: details.kageAna,
+            shimeAna: details.shimeAna,
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
 
-        // 4. Message
-        setMessage(`Major Concert at ${venue.name} successful! Sold ${ticketsSold.toLocaleString()} tickets. Profit: ¥${profit.toLocaleString()}. +${fanGain.toLocaleString()} fans!`);
+        setMessage(`Concert "${newEntry.name}" was a success! Profit: ¥${profit.toLocaleString()}.`);
         setShowModal(null);
     };
 
@@ -1802,28 +1866,75 @@ const App = () => {
 
     // --- MODAL COMPONENTS (Remain in App for clean state access) ---
 
-    const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = false }) => (
-      <div className="max-h-40 overflow-y-auto border p-2 rounded bg-gray-50">
-        {(members || []).map(member => (
-          <div 
-            key={member.id} 
-            className={`p-1 text-sm flex justify-between items-center cursor-pointer rounded 
-            bg-white dark:bg-gray-800 
-            text-gray-800 dark:text-gray-100 
-            hover:bg-gray-100 dark:hover:bg-gray-700 
-            ${selectedIds.map(String).includes(String(member.id)) 
-                ? 'bg-blue-100 dark:bg-blue-900' 
-                : ''} 
-            ${member.isSister ? 'italic text-gray-700 dark:text-gray-300' : ''}`}
- 
-            onClick={() => !disabled && toggleMember(member.id)}
-          >
-            <span>{member.name} {member.isSister && !member.isKennin ? `(${member.homeGroup})` : ''} {member.isKennin ? '(Kennin)' : ''}</span>
-            {selectedIds.map(String).includes(String(member.id)) ? <Check size={16} className="text-blue-600" /> : <Plus size={16} className="text-gray-400" />}
-          </div>
-        ))}
-      </div>
+const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = false, teams, sisterGroups, groupName }) => {
+    const [activeTab, setActiveTab] = useState('all');
+
+    const TABS = [
+        { id: 'all', name: 'All' },
+        { id: 'main', name: groupName },
+        ...(teams || []).map(t => ({ id: `team-${t.id}`, name: `Team ${t.name}` })),
+        ...(sisterGroups || []).map(sg => ({ id: `sg-${sg.id}`, name: sg.name }))
+    ].filter(tab => {
+        if (tab.id.startsWith('sg-')) return (sisterGroups.find(sg => sg.id === parseInt(tab.id.split('-')[1]))?.members || []).length > 0;
+        return true;
+    });
+
+    const getFilteredMembers = () => {
+        const memberList = members || [];
+        if (activeTab === 'all') return memberList;
+        if (activeTab === 'main') return memberList.filter(m => !m.isSister || (m.kenninGroups || []).includes('main'));
+        if (activeTab.startsWith('team-')) {
+            const teamId = activeTab.split('-')[1];
+            const team = (teams || []).find(t => String(t.id) === teamId);
+            const teamMemberIds = (team?.members || []).map(String);
+            return memberList.filter(m => teamMemberIds.includes(String(m.id)));
+        }
+        if (activeTab.startsWith('sg-')) {
+            const sgId = activeTab.split('-')[1];
+            return memberList.filter(m => String(m.groupId) === sgId);
+        }
+        return [];
+    };
+    
+    const filteredMembers = getFilteredMembers();
+
+    return (
+        <div>
+            <div className="flex flex-wrap gap-1 border-b mb-2 pb-2">
+                {TABS.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-2 py-1 text-xs rounded-full transition-colors ${activeTab === tab.id ? 'bg-blue-600 text-white font-semibold' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                        {tab.name}
+                    </button>
+                ))}
+            </div>
+            <div className="max-h-40 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-900">
+                {(filteredMembers).map(member => (
+                  <div
+                    key={member.id}
+                    className={`p-1 text-sm flex justify-between items-center cursor-pointer rounded
+                    bg-white dark:bg-gray-800
+                    text-gray-800 dark:text-gray-100
+                    hover:bg-gray-100 dark:hover:bg-gray-700
+                    ${selectedIds.map(String).includes(String(member.id))
+                        ? 'bg-blue-100 dark:bg-blue-900'
+                        : ''}
+                    ${member.isSister ? 'italic text-gray-700 dark:text-gray-300' : ''}`}
+
+                    onClick={() => !disabled && toggleMember(member.id)}
+                  >
+                    <span>{member.name} {member.isSister && !member.isKennin ? `(${member.homeGroup})` : ''} {member.isKennin ? '(Kennin)' : ''}</span>
+                    {selectedIds.map(String).includes(String(member.id)) ? <Check size={16} className="text-blue-600" /> : <Plus size={16} className="text-gray-400" />}
+                  </div>
+                ))}
+                 {filteredMembers.length === 0 && <p className="text-center text-gray-500 p-2">No members in this category.</p>}
+            </div>
+        </div>
     );
+};
 
     const ModalWrapper = ({ title, children, maxWidth = 'max-w-md' }) => (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -2214,10 +2325,13 @@ const CreateSongModal = () => {
                     </button>
                 </div>
                 <MemberSelectionList 
-                    members={selectableMembers} 
-                    selectedIds={currentTrack?.members || []} 
-                    toggleMember={toggleMember} 
-                />
+    members={selectableMembers} 
+    selectedIds={currentTrack?.members || []} 
+    toggleMember={toggleMember} 
+    teams={teams}
+    sisterGroups={sisterGroups}
+    groupName={groupName}
+/>
 
                 <div className="mt-4">
                     <h5 className="font-semibold text-md mb-2">Center Selection</h5>
@@ -2246,7 +2360,71 @@ const CreateSongModal = () => {
       </ModalWrapper>
     );
 };
-    
+    const PerformanceDetailsModal = () => {
+      const performance = modalData;
+      if (!performance) return null;
+
+      // --- RENDER LOGIC ---
+      let mainSongCount = 0;
+      let encoreSongCount = 0;
+      let inEncore = false;
+      
+      return (
+          <ModalWrapper title={performance.name || 'Performance Details'} maxWidth="max-w-3xl">
+              <div className="text-sm text-gray-600 mb-2">
+                <p>Category: {performance.category || 'N/A'} | Week: {performance.week || 'N/A'}</p>
+                <p>Revenue: ¥{(performance.revenue || 0).toLocaleString()} | Cost: ¥{(performance.cost || 0).toLocaleString()}</p>
+                {performance.kageAna && <p>Kage-ana: <span className="font-semibold">{performance.kageAna}</span></p>}
+                {performance.shimeAna && <p>Shime-ana: <span className="font-semibold">{performance.shimeAna}</span></p>}
+              </div>
+
+              <h4 className="font-semibold text-lg mb-2 border-t pt-3 flex items-center"><Music size={18} className="mr-2"/> Final Setlist ({(performance.tracks || []).length} items)</h4>
+              <div className="space-y-1 max-h-64 overflow-y-auto p-2 border rounded bg-gray-50">
+                  {(performance.tracks || []).map((item, index) => {
+                      let label, labelColor, content;
+                      if (item.type === 'encore') inEncore = true;
+
+                      if (item.type === 'song') {
+                          if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
+                          content = item.item.name;
+                          labelColor = 'text-blue-600';
+                      } else if (item.type === 'mc') {
+                          label = 'MC';
+                          content = item.name;
+                          if (item.hasAnnouncement) content += " (Announcement)";
+                          labelColor = 'text-green-600';
+                      } else if (item.type === 'encore') {
+                          label = '---';
+                          content = 'ENCORE BREAK';
+                          labelColor = 'text-yellow-600 font-black';
+                      } else { // Fallback for old data
+                          label = `M.${index + 1}`;
+                          content = item;
+                          labelColor = 'text-gray-500';
+                      }
+                      
+                      return (
+                        <div key={index} className="p-1.5 border-b flex items-center">
+                            <span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
+                            <span className="font-medium text-sm">{content}</span>
+                        </div>
+                      );
+                  })}
+                   {(!performance.tracks || performance.tracks.length === 0) && <p className="text-gray-500 italic p-1">No tracks recorded.</p>}
+              </div>
+
+              <h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
+              <div className="text-sm p-2 border rounded max-h-24 overflow-y-auto bg-gray-50">
+                  {(performance.members && performance.members.length > 0) ? (performance.members || []).join(', ') : <p className="text-gray-500 italic">No members recorded.</p>}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
+              </div>
+          </ModalWrapper>
+      );
+    };
+
     const SingleDetailsModal = () => { 
       const single = modalData;
       if (!single) return null;
@@ -2318,273 +2496,302 @@ const CreateSongModal = () => {
     
     // NEW: Performance Selection Modal (Consolidates large concerts/tours)
 const PerformanceModal = () => {
+    // --- STATE ---
     const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
-    const [selectedTracks, setSelectedTracks] = useState([]);
+    const [setlist, setSetlist] = useState([]);
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [filterCategory, setFilterCategory] = useState('All');
-
-    const allTracks = songs.flatMap(s => (s.tracks || []).map(t => ({
-        id: `${s.id}-${t.name}-${s.targetGroup}`, // Unique ID based on single ID, track name, and group
-        name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
-        singleName: s.name,
-        group: s.targetGroup,
-        isTitle: t.type === 'title',
-    })));
+    
+    // --- DERIVED DATA ---
+    const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
+    const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
+        .flatMap(s => (s.tracks || []).map(t => ({
+            id: `${s.id}-${t.name}-${s.targetGroup}`,
+            name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
+        })));
     
     const availableMembers = getAllAvailableMembers(true); 
     const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
-    const filteredTypes = filterCategory === 'All'
-        ? performanceTypes
-        : performanceTypes.filter(p => p.category === filterCategory);
-        
-    const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
-    
-    const toggleTrack = (trackId) => {
-        setSelectedTracks(prev => {
-            const isSelected = prev.some(t => t.id === trackId);
-            const track = allTracks.find(t => t.id === trackId);
-            if (!track) return prev;
-            
-            return isSelected 
-                ? prev.filter(t => t.id !== trackId) 
-                : [...prev, track];
+    const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
+
+    // --- SETLIST MANIPULATION ---
+    const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
+    const addSpecialItemToSetlist = (itemType) => {
+        if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
+        let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
+        setSetlist(prev => [...prev, newItem]);
+    };
+    const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
+    const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
+    const moveSetlistItem = (index, direction) => {
+        if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
+        setSetlist(prev => {
+            const newList = [...prev];
+            const item = newList.splice(index, 1)[0];
+            newList.splice(index + direction, 0, item);
+            return newList;
         });
     };
-    
-    const toggleMember = (memberId) => {
-        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-            ? prev.filter(id => String(id) !== String(memberId))
-            : [...prev, memberId]
-        );
-    };
 
-    const selectAllMembers = () => {
-        setSelectedMembers(availableMembers.map(m => m.id));
-    };
-
-    const deselectAllMembers = () => {
-        setSelectedMembers([]);
-    };
-
+    // --- MEMBER & EXECUTION ---
+    const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+    const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
+    const deselectAllMembers = () => setSelectedMembers([]);
     const executePerformance = () => {
         if (!selectedTypeData) return setMessage("Please select a performance type.");
-        if (selectedTracks.length === 0) return setMessage("Must select at least one song to perform.");
-        if (selectedMembers.length === 0) return setMessage("Must select at least one performing member.");
-
-        recordPerformance(selectedTypeData, selectedTracks, selectedMembers);
+        recordPerformance(selectedTypeData, setlist, selectedMembers);
     };
 
+    // --- RENDER LOGIC ---
+    let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
+
     return (
-        <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-4xl">
-            <div className="grid grid-cols-3 gap-6">
-                {/* Performance Type Selection */}
-                <div className="col-span-1 border-r pr-4">
-                    <h4 className="font-semibold mb-2 flex items-center"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {categories.map(cat => (
-                            <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                {cat}
-                            </button>
-                        ))}
+        <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
+            <div className="grid grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
+                {/* Col 1-3: Performance Type */}
+                <div className="col-span-3 space-y-3 border-r pr-3">
+                    <h4 className="font-semibold flex items-center dark:text-gray-100"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full font-semibold ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}>{cat}</button>)}
                     </div>
-
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    <div className="h-[500px] overflow-y-auto space-y-2">
                         {filteredTypes.map(type => (
-                            <div 
-                                key={type.label} 
-                                onClick={() => setSelectedTypeLabel(type.label)}
-                                className={`p-3 border rounded cursor-pointer transition-all duration-100 
-        ${selectedTypeLabel === type.label 
-          ? 'bg-indigo-100 dark:bg-indigo-900 border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-700' 
-          : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'} 
-        text-gray-800 dark:text-gray-100`}
-                                title={type.desc}
-                            >
-                                <span className="font-bold block">{type.label}</span>
-                                <span className="text-xs text-gray-600 block">Category: {type.category} | Cost: ¥{type.cost.toLocaleString()}</span>
+                            <div key={type.label} onClick={() => setSelectedTypeLabel(type.label)} className={`p-3 border rounded cursor-pointer ${selectedTypeLabel === type.label ? 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-300 dark:bg-indigo-900 dark:border-indigo-600' : 'bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'}`} title={type.desc}>
+                                <span className="font-bold block dark:text-gray-100">{type.label}</span>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">Cost: ¥{type.cost.toLocaleString()}</span>
                             </div>
                         ))}
-                        <div className="p-3 bg-gray-200 rounded text-sm text-center italic text-gray-500">
-                            + Add Custom Performance (Not Yet Implemented)
-                        </div>
-                    </div>
-                    {selectedTypeData && (
-                        <div className='mt-3 p-3 bg-green-50 rounded text-sm'>
-                            <p className='font-semibold'>{selectedTypeData.label} selected.</p>
-                            <p className='text-xs text-gray-700'>Cost: **¥{selectedTypeData.cost.toLocaleString()}**</p>
-                        </div>
-                    )}
-                </div>
-                
-                {/* Track Selection */}
-                <div className="col-span-1 border-r pr-4">
-                    <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className='mr-1'/> 2. Select Tracks ({selectedTracks.length})</h4>
-                    <div className="max-h-96 overflow-y-auto space-y-2 border p-2 rounded">
-                        {allTracks.map(track => (
-                            <div 
-                                key={track.id} 
-                                onClick={() => toggleTrack(track.id)}
-                                className={`p-2 border rounded text-sm cursor-pointer ${selectedTracks.some(t => t.id === track.id) ? 'bg-blue-200' : 'hover:bg-gray-100'}`}
-                            >
-                                <span className='font-medium'>{track.name}</span>
-                                <span className='text-xs text-gray-500 block'>({track.group} | {track.isTitle ? 'Title' : 'B-Side'})</span>
-                            </div>
-                        ))}
-                        {allTracks.length === 0 && <p className='text-gray-500 italic'>No songs released yet!</p>}
                     </div>
                 </div>
 
-                {/* Member Selection */}
-                <div className="col-span-1">
-                    <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
-                    <div className="flex gap-2 mb-2">
-                        <button
-                            onClick={selectAllMembers}
-                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                        >
-                            Select All
-                        </button>
-                        <button
-                            onClick={deselectAllMembers}
-                            className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                        >
-                            Deselect All
-                        </button>
+                {/* Col 4-6: Available Tracks */}
+                <div className="col-span-3 border-r pr-3">
+                    <h4 className="font-semibold mb-2 dark:text-gray-100">2. Available Tracks</h4>
+                     <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
+                        {allTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
+                        {allTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs released yet!</p>}
                     </div>
-                    <MemberSelectionList 
-                        members={availableMembers} 
-                        selectedIds={selectedMembers} 
-                        toggleMember={toggleMember} 
-                    />
-                    <div className="mt-4 pt-4 border-t">
-                        <button 
-                            onClick={executePerformance} 
-                            disabled={!selectedTypeData || selectedTracks.length === 0 || selectedMembers.length === 0 || money < selectedTypeData.cost}
-                            className="w-full p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400"
-                        >
-                            Execute Performance (¥{selectedTypeData?.cost.toLocaleString() || '---'})
-                        </button>
+                </div>
+
+                {/* Col 7-9: Setlist Builder */}
+                <div className="col-span-3 border-r pr-3">
+                    <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>3. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
+                    <div className="flex gap-2 mb-2"><button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
+                    <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
+                        {setlist.map((item, index) => {
+                            let label, labelColor;
+                            if (item.type === 'encore') inEncore = true;
+                            if (item.type === 'song') {
+                                if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
+                                labelColor = 'text-blue-600 dark:text-blue-400';
+                            } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
+                            
+                            return (
+                                <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
+                                    <div className="flex items-center overflow-hidden flex-1"><span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
+                                        {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
+                                        {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200" />}
+                                        {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE ---</span>}
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-2">
+                                        {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Ann?</label>}
+                                        <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
+                                        <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
+                                        <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+                </div>
+
+                {/* Col 10-12: Member Selection */}
+                <div className="col-span-3">
+                    <h4 className="font-semibold mb-2 dark:text-gray-100">4. Select Members ({selectedMembers.length})</h4>
+                    <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button></div>
+                    <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                <div>
+                  {selectedTypeData && <p className="font-bold text-lg dark:text-gray-100">Cost: ¥{selectedTypeData.cost.toLocaleString()}</p>}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={executePerformance} disabled={!selectedTypeData || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length === 0 || money < (selectedTypeData?.cost || 0)} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                        Execute Performance
+                    </button>
                 </div>
             </div>
         </ModalWrapper>
     );
 };
     
-    // NEW: Major Concert Modal
-const MajorConcertModal = () => {
-    const [selectedVenueId, setSelectedVenueId] = useState(venues[1]?.id || '');
-    const [selectedSetlistId, setSelectedSetlistId] = useState('');
-    const [selectedMembers, setSelectedMembers] = useState([]);
+    const MajorConcertModal = () => {
+        // --- STATE ---
+        const [concertName, setConcertName] = useState('');
+        const [kageAna, setKageAna] = useState('');
+        const [shimeAna, setShimeAna] = useState('');
+        const [selectedVenueId, setSelectedVenueId] = useState('');
+        const [setlist, setSetlist] = useState([]);
+        const [selectedMembers, setSelectedMembers] = useState([]);
+        const [targetGroup, setTargetGroup] = useState('main');
     
-    const selectedVenue = venues.find(v => v.id === selectedVenueId);
-    const selectedSetlist = allSetlists.find(sl => sl.id === selectedSetlistId);
-    const availableMembers = getAllAvailableMembers(true); 
+        // --- DERIVED DATA ---
+        const selectedVenue = venues.find(v => v.id === parseInt(selectedVenueId));
+        const allSongs = [...songs, ...sisterGroups.flatMap(sg => (sg.songs || []))];
+        const allGroupTracks = allSongs
+            .filter(s => targetGroup === 'main' ? s.targetGroup === 'main' || s.targetGroup === groupName : s.targetGroup === targetGroup)
+            .flatMap(s => (s.tracks || []).map(t => ({ id: `${s.id}-${t.name}-${s.targetGroup}`, name: `${t.name} (Single: ${s.name})` })));
     
-    const toggleMember = (memberId) => {
-        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-            ? prev.filter(id => String(id) !== String(memberId))
-            : [...prev, memberId]
+        const availableMembers = getAllAvailableMembers(true).filter(member => {
+            if (targetGroup === 'main') return member.homeGroup === 'main' || (member.kenninGroups || []).includes('main');
+            const sg = sisterGroups.find(g => g.name === targetGroup);
+            return sg ? String(member.groupId) === String(sg.id) : false;
+        });
+    
+        useEffect(() => {
+            setSelectedMembers([]);
+            setSetlist([]);
+            setKageAna('');
+            setShimeAna('');
+        }, [targetGroup]);
+    
+        // --- SETLIST MANIPULATION ---
+        const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
+        const addSpecialItemToSetlist = (itemType) => {
+            if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
+            let newItem;
+            if (itemType === 'mc') newItem = { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false };
+            else newItem = { type: itemType };
+            setSetlist(prev => [...prev, newItem]);
+        };
+        const updateSetlistItem = (index, newProps) => {
+            setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
+        };
+        const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
+        const moveSetlistItem = (index, direction) => {
+            if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
+            setSetlist(prev => {
+                const newList = [...prev];
+                const item = newList.splice(index, 1)[0];
+                newList.splice(index + direction, 0, item);
+                return newList;
+            });
+        };
+    
+        // --- MEMBER SELECTION & CONFIRMATION ---
+        const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+        const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
+        const deselectAllMembers = () => setSelectedMembers([]);
+        const handleConfirm = () => {
+            const concertDetails = {
+                name: concertName.trim(),
+                kageAna: getMemberById(kageAna)?.name,
+                shimeAna: getMemberById(shimeAna)?.name,
+            };
+            if (!selectedVenue || setlist.filter(i => i.type === 'song').length === 0) return setMessage("Must select a venue and at least one song.");
+            if (selectedMembers.length < 5) return setMessage("Need at least 5 members for a major concert.");
+            
+            holdMajorConcert(selectedVenue, setlist, selectedMembers, targetGroup, concertDetails);
+        };
+        const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
+        
+        // --- RENDER LOGIC ---
+        let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
+    
+        return (
+            <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-7xl">
+                <div className="grid grid-cols-12 gap-4" style={{ minHeight: '70vh' }}>
+                    {/* Col 1-3: Controls & Available Tracks */}
+                    <div className="col-span-3 space-y-3 border-r pr-3">
+                        <div>
+                            <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
+                            <input type="text" value={concertName} onChange={e => setConcertName(e.target.value)} placeholder="e.g., Spring Tour Final" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <h4 className="font-semibold mb-1 text-xs dark:text-gray-100">Kage-ana</h4>
+                                <select value={kageAna} onChange={e => setKageAna(e.target.value)} className="w-full p-2 border rounded text-xs bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Announcer --</option>{availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold mb-1 text-xs dark:text-gray-100">Shime-ana</h4>
+                                <select value={shimeAna} onChange={e => setShimeAna(e.target.value)} className="w-full p-2 border rounded text-xs bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Announcer --</option>{availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-1 dark:text-gray-100">Venue & Group</h4>
+                            <select value={selectedVenueId} onChange={(e) => setSelectedVenueId(e.target.value)} className="w-full p-2 border rounded mb-1 bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Select Venue --</option>{venues.map(v => (<option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>))}</select>
+                            <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="main">{groupName} (Main)</option>{(sisterGroups || []).map(sg => (<option key={sg.id} value={sg.name}>{sg.name}</option>))}</select>
+                             {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2 dark:text-gray-100">Available Tracks</h4>
+                            <div className="h-64 overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
+                                {allGroupTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
+                                {allGroupTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs for {targetGroup}.</p>}
+                            </div>
+                        </div>
+                    </div>
+    
+                    {/* Col 4-8: Setlist Builder */}
+                    <div className="col-span-5 border-r pr-3">
+                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
+                        <div className="flex gap-2 mb-2">
+                            <button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button>
+                            <button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button>
+                        </div>
+                        <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
+                            {setlist.length === 0 && <p className="text-center text-gray-500 p-10">Build your setlist here.</p>}
+                            {setlist.map((item, index) => {
+                                let label, labelColor;
+                                if (item.type === 'encore') inEncore = true;
+                                if (item.type === 'song') {
+                                    if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
+                                    labelColor = 'text-blue-600 dark:text-blue-400';
+                                } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
+                                
+                                return (
+                                    <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
+                                        <div className="flex items-center overflow-hidden flex-1">
+                                            <span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
+                                            {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
+                                            {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200 border-gray-500" />}
+                                            {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE BREAK ---</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Announce?</label>}
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 ml-2">
+                                                <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
+                                                <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
+                                                <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+    
+                    {/* Col 9-12: Member Selection */}
+                    <div className="col-span-4">
+                        <h4 className="font-semibold mb-2 dark:text-gray-100">Members ({selectedMembers.length})</h4>
+                        <p className="text-xs text-gray-500 mb-2">Min 5 members required.</p>
+                        <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Deselect All</button></div>
+                        <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+                    </div>
+                </div>
+    
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={handleConfirm} disabled={!selectedVenue || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length < 5 || money < cost} className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400">
+                        Book Concert (¥{cost.toLocaleString()})
+                    </button>
+                </div>
+            </ModalWrapper>
         );
     };
-
-    const selectAllMembers = () => {
-        setSelectedMembers(availableMembers.map(m => m.id));
-    };
-
-    const deselectAllMembers = () => {
-        setSelectedMembers([]);
-    };
-    
-    const handleConfirm = () => {
-        if (!selectedVenue || !selectedSetlist) return setMessage("Must select a venue and a setlist.");
-        if (selectedMembers.length < 5) return setMessage("Need at least 5 members for a major concert.");
-        
-        holdMajorConcert(selectedVenue, selectedSetlist, selectedMembers);
-    };
-    
-    const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
-
-    return (
-        <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-4xl">
-            <p className="text-sm text-gray-600 mb-4">Book a major venue using a full setlist. This has a high cost but massive potential for fan and revenue growth.</p>
-            
-            <div className="grid grid-cols-2 gap-4">
-                {/* Venue & Setlist Selection */}
-                <div className="col-span-1 space-y-3">
-                    <h4 className="font-semibold mb-1">1. Select Venue (Capacity)</h4>
-                    <select 
-                        value={selectedVenueId}
-                        onChange={(e) => setSelectedVenueId(parseInt(e.target.value))}
-                        className="w-full p-2 border rounded"
-                    >
-                        <option value="">-- Select Venue --</option>
-                        {venues.filter(v => v.id > 1).map(v => ( // Exclude theater here
-                            <option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>
-                        ))}
-                    </select>
-                    
-                    {selectedVenue && (
-                        <div className='p-3 bg-yellow-50 rounded text-sm'>
-                            <p className='font-semibold'>Venue Cost:</p>
-                            <p className='text-xs text-gray-700'>Booking Fee: ¥{selectedVenue.cost.toLocaleString()}</p>
-                            <p className='text-xs text-gray-700'>Maintenance/Ops: ¥{selectedVenue.maintenance.toLocaleString()}</p>
-                            <p className='text-red-600 font-bold'>TOTAL INITIAL COST: ¥{(selectedVenue.cost + selectedVenue.maintenance).toLocaleString()}</p>
-                        </div>
-                    )}
-                    
-                    <h4 className="font-semibold mb-1 pt-2">2. Select Setlist</h4>
-                    <select 
-                        value={selectedSetlistId}
-                        onChange={(e) => setSelectedSetlistId(parseInt(e.target.value))}
-                        className="w-full p-2 border rounded"
-                    >
-                        <option value="">-- Select Setlist --</option>
-                        {(allSetlists || []).map(sl => (
-                            <option key={sl.id} value={sl.id}>{sl.name} (Difficulty: {sl.difficulty})</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Member Selection */}
-                <div className="col-span-1">
-                    <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className='mr-1'/> 3. Select Members ({selectedMembers.length})</h4>
-                    <p className="text-xs text-gray-500 mb-2">Min 5 members required. Stamina will be heavily drained!</p>
-                    <div className="flex gap-2 mb-2">
-                        <button
-                            onClick={selectAllMembers}
-                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                        >
-                            Select All
-                        </button>
-                        <button
-                            onClick={deselectAllMembers}
-                            className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                        >
-                            Deselect All
-                        </button>
-                    </div>
-                    <MemberSelectionList 
-                        members={availableMembers} 
-                        selectedIds={selectedMembers} 
-                        toggleMember={toggleMember} 
-                    />
-                </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                <button 
-                    onClick={handleConfirm} 
-                    disabled={!selectedVenue || !selectedSetlist || selectedMembers.length < 5 || money < cost} 
-                    className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400"
-                >
-                    Book Concert (¥{cost.toLocaleString()})
-                </button>
-            </div>
-        </ModalWrapper>
-    );
-};
 
     const SaveGameModal = () => {
         const [saveUsername, setSaveUsername] = useState(username);
@@ -2780,10 +2987,13 @@ const CreateTeamModal = () => {
                 </button>
             </div>
             <MemberSelectionList 
-                members={availableMembers} 
-                selectedIds={selectedMembers} 
-                toggleMember={toggleMember} 
-            />
+    members={availableMembers} 
+    selectedIds={selectedMembers} 
+    toggleMember={toggleMember} 
+    teams={teams}
+    sisterGroups={sisterGroups}
+    groupName={groupName}
+/>
 
             <div className="flex justify-end gap-2 mt-4">
                 <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
@@ -2877,10 +3087,13 @@ const CreateTeamModal = () => {
                     </button>
                 </div>
                 <MemberSelectionList 
-                    members={availableMembers} 
-                    selectedIds={selectedMembers} 
-                    toggleMember={toggleMember} 
-                />
+    members={availableMembers} 
+    selectedIds={selectedMembers} 
+    toggleMember={toggleMember} 
+    teams={teams}
+    sisterGroups={sisterGroups}
+    groupName={groupName}
+/>
 
                 <div className="flex justify-between gap-2 mt-4 pt-4 border-t">
                     <button onClick={handleDelete} className="p-2 bg-red-500 text-white rounded flex items-center gap-1">
@@ -3312,12 +3525,14 @@ const MoveMemberModal = () => {
       const memberPerformances = performanceHistory.filter(p => p.members.includes(member.name));
       const titleTrackHistory = songHistory.filter(s => s.type === 'title');
 
+      const majorConcertHistory = memberPerformances.filter(p => p.category === "Major Concert");
+      const otherPerformanceHistory = memberPerformances.filter(p => p.category !== "Major Concert");
 
       return (
           <div className="mt-4 border-t pt-4">
               <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className="mr-2"/> Participation History</h4>
               
-              {/* Title Track History (NEW) */}
+              {/* Title Track History */}
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
               <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50">
                   {titleTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No title track senbatsu positions.</p>}
@@ -3349,6 +3564,30 @@ const MoveMemberModal = () => {
                       <div key={index} className="p-1 rounded bg-yellow-100 border border-yellow-300">
                           <p className="font-bold text-yellow-800">{entry.songName}</p>
                           <p className="text-gray-600">Single: {entry.singleName} (Group: {entry.group})</p> 
+                      </div>
+                  ))}
+              </div>
+
+              {/* Major Concert History */}
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Trophy size={14} className='mr-1 text-purple-500'/> Major Concerts ({majorConcertHistory.length}):</p>
+              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-purple-50">
+                  {majorConcertHistory.length === 0 && <p className="text-gray-500 italic p-1">No major concerts attended.</p>}
+                  {majorConcertHistory.slice(-5).reverse().map((entry, index) => (
+                      <div key={index} className="p-1 rounded bg-purple-100 border border-purple-300">
+                          <p className="font-bold text-purple-800">{entry.name}</p>
+                          <p className="text-gray-600">Week: {entry.week}</p> 
+                      </div>
+                  ))}
+              </div>
+
+              {/* Other Performance History */}
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><ClipboardCheck size={14} className='mr-1 text-indigo-500'/> Performances ({otherPerformanceHistory.length}):</p>
+              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-indigo-50">
+                  {otherPerformanceHistory.length === 0 && <p className="text-gray-500 italic p-1">No other performances recorded.</p>}
+                  {otherPerformanceHistory.slice(-5).reverse().map((entry, index) => (
+                      <div key={index} className="p-1 rounded bg-indigo-100 border border-indigo-300">
+                          <p className="font-bold text-indigo-800">{entry.name}</p>
+                          <p className="text-gray-600">Week: {entry.week} | Category: {entry.category}</p> 
                       </div>
                   ))}
               </div>
@@ -3921,6 +4160,37 @@ if (!gameStarted) {
     </div>
   </div>
 )}
+           {/* ----- HISTORY ----- */}
+{currentTab === 'history' && (
+  <div>
+      <h2 className="text-xl font-semibold mb-3">Performance History</h2>
+      <div className="space-y-3">
+          {(performanceHistory || []).map(p => (
+              <div
+                  key={p.id}
+                  className="p-4 rounded-md shadow-md flex justify-between items-center bg-white dark:bg-gray-800"
+              >
+                  <div>
+                      <h3 className="font-bold">{p.name} (Wk {p.week})</h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                          Category: {p.category || 'N/A'} | Revenue: ¥{(p.revenue || 0).toLocaleString()}
+                      </p>
+                  </div>
+                  <button
+                      onClick={() => {
+                          setModalData(p);
+                          setShowModal('performanceDetails');
+                      }}
+                      className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                  >
+                      Details
+                  </button>
+              </div>
+          ))}
+          {(!performanceHistory || performanceHistory.length === 0) && <p className="text-gray-500 p-4">No performances recorded yet.</p>}
+      </div>
+  </div>
+)}
 
             {/* ----- ACTIVITIES TAB ----- */}
             {currentTab === 'activities' && (
@@ -3992,6 +4262,7 @@ if (!gameStarted) {
             <TabButton id="members" label="Members" icon={Users} />
             <TabButton id="discography" label="Songs" icon={Music} />
             <TabButton id="management" label="Manage" icon={Building} />
+            <TabButton id="history" label="History" icon={Clipboard} />
             <TabButton id="sisterGroup" label="SG" icon={Globe} />
             <TabButton id="activities" label="Activities" icon={Zap} />
           </nav>
@@ -4130,6 +4401,7 @@ if (!gameStarted) {
       { id: 'management', label: 'Manage' },
       { id: 'activities', label: 'Activities' },
       { id: 'discography', label: 'Songs' },
+      { id: 'history', label: 'History' },
       { id: 'sisterGroup', label: 'SG' }
     ].map(tab => (
       <button
@@ -4194,7 +4466,7 @@ if (!gameStarted) {
         {showModal === 'sisterGroupDisband' && modalData && <SisterGroupDisbandModal />}
         {showModal === 'performancePrep' && <PerformanceModal />}
         {showModal === 'majorConcert' && <MajorConcertModal />}
-        
+        {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
       </div>
     );
 };
