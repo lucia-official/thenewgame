@@ -11,7 +11,7 @@ import {
   Film, Plane, GraduationCap, Shirt, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
-  ClipboardCheck, Clock, Layers, Clipboard
+  ClipboardCheck, Clock, Moon, Layers, Clipboard
 } from 'lucide-react';
 
 import { getApps, initializeApp } from "firebase/app";;
@@ -1126,16 +1126,20 @@ const getMemberGroupStatus = (member) => {
         setMembers(prev => prev.map(applyMemberUpdate));
         setSisterGroups(prev => prev.map(sg => ({ ...sg, members: sg.members.map(m => applyMemberUpdate(m)) })));
 
-        // Create the rich history entry with all the new details
         const newEntry = {
             id: Date.now(),
             name: details.name || `${venue.name} Concert`,
             category: "Major Concert",
+            venueName: venue.name,
             week,
             cost: baseCost,
             revenue: ticketRevenue,
+            profit: profit,
+            fansGained: fanGain,
+            attendance: ticketsSold,
+            capacity: venue.capacity,
             members: performingMembers.map(m => m.name),
-            tracks: setlist, // The full setlist structure
+            tracks: setlist,
             targetGroup: targetGroup,
             kageAna: details.kageAna,
             shimeAna: details.shimeAna,
@@ -1195,6 +1199,8 @@ const getMemberGroupStatus = (member) => {
             week,
             cost: typeData.cost,
             revenue: totalRevenue,
+            profit: profit,
+            fansGained: fanGain,
             members: performingMembers.map(m => m.name),
             tracks: setlist,
         };
@@ -1830,7 +1836,23 @@ const App = () => {
     // Local state for start screen inputs (not part of the main game state in the hook)
     const [startUsername, setStartUsername] = useState('');
     const [startGroupName, setStartGroupName] = useState('');
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        // Initialize state based on the class on the <html> element
+        return document.documentElement.classList.contains('dark');
+    });
 
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (isDarkMode) {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+    }, [isDarkMode]);
+
+    const toggleDarkMode = () => {
+        setIsDarkMode(!isDarkMode);
+    };
     // Utility function to generate a random name for the startup screen
     const generateRandomGroupName = () => {
     const prefixes = ['Hoshi','Sakura','Tsuki','Ame','Yume','Hana','Aoi','Hikari','Mizu','Kumo','Kaze','Yuki','Kokoro','Akari','Nozomi','Kiseki','Seika','Ameiro','Momoiro','Aozora','Hoshimi','Hanabi','Miyabi','Tokimeki','Ariake','Kouyou','Asahi','Kouka','Suiren','Kurenai','Starlit','Moonlite','Petalix','Blossia','KiraKira','Sparkleon','Dreamia','Twinkia','Glowin','Lumina','Aurasia','MiraiX','Flawra','Cherrix','Fantasia','Hoshira','Sakurive','Prismia','Melodia','Radiant','Hanaria','Yumelia','Akuria','Sakurune','Hoshika','Tsukira','Fuwaria','Kirafine','Mizura','Aozelle','Momoria','Nijika','Haruline','Kokolia','Amelune','Lunaria','Miraiya','Shinoria','Tokira','Asteria'];
@@ -2354,16 +2376,36 @@ const CreateSongModal = () => {
       let inEncore = false;
       
       return (
-          <ModalWrapper title={performance.name || 'Performance Details'} maxWidth="max-w-3xl">
-              <div className="text-sm text-gray-600 mb-2">
-                <p>Category: {performance.category || 'N/A'} | Week: {performance.week || 'N/A'}</p>
-                <p>Revenue: ¥{(performance.revenue || 0).toLocaleString()} | Cost: ¥{(performance.cost || 0).toLocaleString()}</p>
-                {performance.kageAna && <p>Kage-ana: <span className="font-semibold">{performance.kageAna}</span></p>}
-                {performance.shimeAna && <p>Shime-ana: <span className="font-semibold">{performance.shimeAna}</span></p>}
+<ModalWrapper title={performance.name || 'Performance Details'} maxWidth="max-w-full md:max-w-3xl">
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-3 space-y-1">
+                  <p>Category: <span className="font-semibold">{performance.category}</span> | Week: <span className="font-semibold">{performance.week}</span></p>
+                  
+                  {performance.targetGroup && <p>Group: <span className="font-semibold">{performance.targetGroup === 'main' ? groupName : performance.targetGroup}</span></p>}
+                  
+                  {performance.venueName && <p>Venue: <span className="font-semibold">{performance.venueName}</span></p>}
+              
+                  {performance.attendance != null && performance.capacity > 0 && 
+                      <p>Attendance: <span className="font-semibold">{performance.attendance.toLocaleString()} / {performance.capacity.toLocaleString()} ({Math.round((performance.attendance/performance.capacity)*100)}%)</span></p>
+                  }
+                  
+                  <div className="pt-2">
+                      <p>Revenue: <span className="font-semibold text-green-600 dark:text-green-400">¥{(performance.revenue || 0).toLocaleString()}</span></p>
+                      <p>Cost: <span className="font-semibold text-red-600 dark:text-red-400">¥{(performance.cost || 0).toLocaleString()}</span></p>
+                      {performance.profit != null &&
+                          <p className="border-t dark:border-gray-600 mt-1 pt-1">Profit: <span className={`font-bold ${performance.profit >= 0 ? 'text-green-700 dark:text-green-500' : 'text-red-700 dark:text-red-500'}`}>¥{performance.profit.toLocaleString()}</span></p>
+                      }
+                  </div>
+                  
+                  {performance.fansGained > 0 && <p className="pt-1">New Fans: <span className="font-semibold text-blue-600 dark:text-blue-400">+{performance.fansGained.toLocaleString()}</span></p>}
+              
+                  {(performance.kageAna || performance.shimeAna) && <div className="pt-2 mt-1 border-t dark:border-gray-600">
+                      {performance.kageAna && <p>Kage-ana: <span className="font-semibold">{performance.kageAna}</span></p>}
+                      {performance.shimeAna && <p>Shime-ana: <span className="font-semibold">{performance.shimeAna}</span></p>}
+                  </div>}
               </div>
 
-              <h4 className="font-semibold text-lg mb-2 border-t pt-3 flex items-center"><Music size={18} className="mr-2"/> Final Setlist ({(performance.tracks || []).length} items)</h4>
-              <div className="space-y-1 max-h-64 overflow-y-auto p-2 border rounded bg-gray-50">
+              <h4 className="font-semibold text-lg mb-2 border-t pt-3 flex items-center dark:text-gray-100"><Music size={18} className="mr-2"/> Final Setlist ({(performance.tracks || []).length} items)</h4>
+              <div className="space-y-1 max-h-64 overflow-y-auto p-2 border rounded bg-gray-50 dark:bg-gray-800">
                   {(performance.tracks || []).map((item, index) => {
                       let label, labelColor, content;
                       if (item.type === 'encore') inEncore = true;
@@ -2371,34 +2413,34 @@ const CreateSongModal = () => {
                       if (item.type === 'song') {
                           if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
                           content = item.item.name;
-                          labelColor = 'text-blue-600';
+                          labelColor = 'text-blue-600 dark:text-blue-400';
                       } else if (item.type === 'mc') {
                           label = 'MC';
                           content = item.name;
                           if (item.hasAnnouncement) content += " (Announcement)";
-                          labelColor = 'text-green-600';
+                          labelColor = 'text-green-600 dark:text-green-400';
                       } else if (item.type === 'encore') {
                           label = '---';
                           content = 'ENCORE BREAK';
-                          labelColor = 'text-yellow-600 font-black';
+                          labelColor = 'text-yellow-600 dark:text-yellow-400 font-black';
                       } else { // Fallback for old data
                           label = `M.${index + 1}`;
-                          content = item;
+                          content = typeof item === 'object' && item.name ? item.name : String(item);
                           labelColor = 'text-gray-500';
                       }
                       
                       return (
-                        <div key={index} className="p-1.5 border-b flex items-center">
+                        <div key={index} className="p-1.5 border-b dark:border-gray-700 flex items-center">
                             <span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
-                            <span className="font-medium text-sm">{content}</span>
+                            <span className="font-medium text-sm dark:text-gray-200">{content}</span>
                         </div>
                       );
                   })}
                    {(!performance.tracks || performance.tracks.length === 0) && <p className="text-gray-500 italic p-1">No tracks recorded.</p>}
               </div>
 
-              <h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
-              <div className="text-sm p-2 border rounded max-h-24 overflow-y-auto bg-gray-50">
+              <h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center dark:text-gray-100"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
+              <div className="text-sm p-2 border rounded max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-800 dark:text-gray-300">
                   {(performance.members && performance.members.length > 0) ? (performance.members || []).join(', ') : <p className="text-gray-500 italic">No members recorded.</p>}
               </div>
 
@@ -2532,9 +2574,9 @@ const CreateSongModal = () => {
     
         return (
             <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
-                <div className="grid grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
                     {/* Col 1-3: Performance Type */}
-                    <div className="col-span-3 space-y-3 border-r pr-3">
+                    <div className="col-span-12 lg:col-span-3 space-y-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
                         <div>
                             <h4 className="font-semibold mb-1 dark:text-gray-100">Performance Name (Optional)</h4>
                             <input type="text" value={performanceName} onChange={e => setPerformanceName(e.target.value)} placeholder="e.g., Weekly Showcase" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
@@ -2555,7 +2597,7 @@ const CreateSongModal = () => {
                     </div>
     
                     {/* Col 4-6: Available Tracks */}
-                    <div className="col-span-3 border-r pr-3">
+                    <div className="col-span-12 lg:col-span-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
                         <h4 className="font-semibold mb-2 dark:text-gray-100">2. Available Tracks</h4>
                          <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
                             {allTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
@@ -2564,7 +2606,7 @@ const CreateSongModal = () => {
                     </div>
     
                     {/* Col 7-9: Setlist Builder */}
-                    <div className="col-span-3 border-r pr-3">
+                    <div className="col-span-12 lg:col-span-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
                         <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>3. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
                         <div className="flex gap-2 mb-2"><button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
                         <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
@@ -2596,7 +2638,7 @@ const CreateSongModal = () => {
                     </div>
     
                     {/* Col 10-12: Member Selection */}
-                    <div className="col-span-3">
+                    <div className="col-span-12 lg:col-span-3">
                         <h4 className="font-semibold mb-2 dark:text-gray-100">4. Select Members ({selectedMembers.length})</h4>
                         <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button></div>
                         <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
@@ -2693,9 +2735,9 @@ const CreateSongModal = () => {
     
         return (
             <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-7xl">
-                <div className="grid grid-cols-12 gap-4" style={{ minHeight: '70vh' }}>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ minHeight: '70vh' }}>
                     {/* Col 1-3: Controls & Available Tracks */}
-                    <div className="col-span-3 space-y-3 border-r pr-3">
+                    <div className="col-span-12 lg:col-span-3 space-y-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
                         <div>
                             <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
                             <input type="text" value={concertName} onChange={e => setConcertName(e.target.value)} placeholder="e.g., Spring Tour Final" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
@@ -2726,7 +2768,7 @@ const CreateSongModal = () => {
                     </div>
     
                     {/* Col 4-8: Setlist Builder */}
-                    <div className="col-span-5 border-r pr-3">
+                    <div className="col-span-12 lg:col-span-5 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
                         <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
                         <div className="flex gap-2 mb-2">
                             <button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button>
@@ -2765,7 +2807,7 @@ const CreateSongModal = () => {
                     </div>
     
                     {/* Col 9-12: Member Selection */}
-                    <div className="col-span-4">
+                    <div className="col-span-12 lg:col-span-4">
                         <h4 className="font-semibold mb-2 dark:text-gray-100">Members ({selectedMembers.length})</h4>
                         <p className="text-xs text-gray-500 mb-2">Min 5 members required.</p>
                         <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Deselect All</button></div>
@@ -3794,18 +3836,18 @@ const MoveMemberModal = () => {
       </div>
     );
 
-    const TabButton = ({ id, label, icon: Icon }) => (
-      <button
+const TabButton = ({ id, label, icon: Icon }) => (
+    <button
         onClick={() => {
-          setCurrentTab(id);
-          setSelectedMember(null); 
+            setCurrentTab(id);
+            setSelectedMember(null);
         }}
-        className={`flex-1 p-3 text-sm font-medium flex flex-col items-center gap-1 ${currentTab === id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-      >
-        <Icon size={20} />
-        <span>{label}</span>
-      </button>
-    );
+        className={`flex-1 py-1 text-xs font-medium flex flex-col items-center justify-center gap-0.5 !bg-gray-50 dark:!bg-gray-800 ${currentTab === id ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+    >
+        <Icon size={16} />
+        <span className="text-[10px]">{label}</span>
+    </button>
+);
 
     // --- MAIN UI ---
 if (!gameStarted) {
@@ -3868,14 +3910,14 @@ if (!gameStarted) {
 }
 
     return (
-      <div className="flex flex-col md:flex-row h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-300">
+      <div className="flex flex-col lg:flex-row h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-300">
         {/* --- Left Column (Main Content) --- */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top Header & Message Bar */}
-          <header className="shadow-md p-4 flex justify-between items-center bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <header className="shadow-md p-2 lg:p-4 flex justify-between items-center bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">{groupName}</h1>
-              <p className="text-sm text-gray-500">Producer ID: {userId}</p>
+<h1 className="text-lg lg:text-2xl font-bold text-gray-800">{groupName}</h1>
+<p className="text-xs text-gray-500">Producer ID: {userId}</p>
             </div>
             <div className="flex items-center gap-4">
               <button onClick={() => setShowModal('saveGame')} disabled={!isAuthReady} className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 disabled:bg-gray-300 disabled:text-gray-500" title="Save Game (via Username)"><Save size={20} /></button>
@@ -3886,65 +3928,65 @@ if (!gameStarted) {
               </button>
             </div>
           </header>
-          {message && <div className="p-3 bg-blue-100 text-blue-800 text-center text-sm">{message}</div>}
+          {message && <div className="p-1 bg-blue-100 text-blue-800 text-center text-sm">{message}</div>}
           {activeTour && <div className="p-2 bg-red-100 text-red-800 text-center text-sm font-bold flex items-center justify-center"><Plane size={16} className='mr-2'/> Active Tour: {activeTour.name} ({activeTour.weeksLeft} weeks left)</div>}
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6">
             {/* ----- MEMBERS TAB ----- */}
-            {currentTab === 'members' && (
-              <div>
-                <div className="flex justify-between items-center mb-4 border-b pb-2">
-                  <h2 className="text-xl font-semibold">Members ({getMainGroupRoster().length})</h2>
-                  <div className='flex gap-2'>
-                      <button onClick={() => setMemberView('list')} className={`px-3 py-1 text-sm rounded-md shadow-sm ${memberView === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                          <Users size={16} className='inline mr-1'/> List
-                      </button>
-                      <button onClick={() => setMemberView('ranking')} className={`px-3 py-1 text-sm rounded-md shadow-sm ${memberView === 'ranking' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                          <Award size={16} className='inline mr-1'/> Ranking
-                      </button>
-                  </div>
-                </div>
-                
-                {memberView === 'list' ? (
-                  <>
-                  <div className="flex justify-end items-center mb-4">
-                    <button onClick={restAllTired} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md shadow-sm mr-2">Rest Tired</button>
-                    <button onClick={recruitMember} className="px-3 py-1 bg-green-500 text-white text-sm rounded-md shadow-sm">Recruit Main (¥20k)</button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {getMainGroupRoster().map(m => (
-                        <div key={m.id} 
-                             className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer transition-colors duration-300 
-                                 ${!m.isAvailable ? 'opacity-60' : ''}
-                                 ${m.isKennin ? 'border-2 border-yellow-500' : ''}
-                                 ${selectedMember && String(selectedMember.id) === String(m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
-                             onClick={() => setSelectedMember(m)}>
-                          <div className="p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <h3 className="text-lg font-bold">{m.name}</h3>
-                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.position === 'center' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
-                                #{getMainGroupRoster().findIndex(r => r.id === m.id) + 1} {m.position === 'center' ? 'Center' : m.position === 'front' ? 'Front Row' : m.position === 'middle' ? 'Middle Row' : m.position === 'back' ? 'Back Row' : 'Under Girl'}
-                              </span>
+                {currentTab === 'members' && (
+                  <div>
+                    <div className="flex justify-between items-center mb-2 border-b pb-1">
+                      <h2 className="text-base font-bold">Members ({getMainGroupRoster().length})</h2>
+                      <div className='flex gap-1'>
+                          <button onClick={() => setMemberView('list')} className={`px-2 py-1 text-xs rounded-md shadow-sm ${memberView === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                              <Users size={14} className='inline mr-1'/> List
+                          </button>
+                          <button onClick={() => setMemberView('ranking')} className={`px-2 py-1 text-xs rounded-md shadow-sm ${memberView === 'ranking' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                              <Award size={14} className='inline mr-1'/> Ranking
+                          </button>
+                      </div>
+                    </div>
+                    
+                    {memberView === 'list' ? (
+                      <>
+                      <div className="flex justify-end items-center mb-2">
+                        <button onClick={restAllTired} className="px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-md shadow-sm mr-2">Rest Tired</button>
+                        <button onClick={recruitMember} className="px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded-md shadow-sm">Recruit Main (¥20k)</button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {getMainGroupRoster().map(m => (
+                            <div key={m.id} 
+                                 className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer transition-colors duration-300 
+                                     ${!m.isAvailable ? 'opacity-60' : ''}
+                                     ${m.isKennin ? 'border-2 border-yellow-500' : ''}
+                                     ${selectedMember && String(selectedMember.id) === String(m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
+                                 onClick={() => setSelectedMember(m)}>
+                              <div className="p-2">
+                                <div className="flex justify-between items-start mb-1">
+                                  <h3 className="text-base font-bold">{m.name}</h3>
+                                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${m.position === 'center' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
+                                    #{getMainGroupRoster().findIndex(r => r.id === m.id) + 1} {m.position === 'center' ? 'Center' : m.position === 'front' ? 'Front' : m.position === 'middle' ? 'Mid' : m.position === 'back' ? 'Back' : 'UG'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mb-0.5">{getMemberGroupStatus(m)}</p>
+                                <p className="text-xs text-gray-500 mb-1.5">{m.age} y.o. | Fans: {(m.fans || 0).toLocaleString()}</p>
+                                
+                                <StatBar label="Singing" value={m.singing} color="bg-blue-500" />
+                                <StatBar label="Dancing" value={m.dancing} color="bg-green-500" />
+                                <StatBar label="Variety" value={m.variety} color="bg-pink-500" />
+                                <StatBar label="Stamina" value={m.stamina} color={m.stamina < 30 ? "bg-red-500" : "bg-gray-400"} />
+                                <StatBar label="Morale" value={m.morale} color="bg-purple-500" />
+                              </div>
                             </div>
-                            <p className="text-xs text-gray-500 mb-1">{getMemberGroupStatus(m)}</p>
-                            <p className="text-sm text-gray-500 mb-3">{m.age} y.o. | Fans: {(m.fans || 0).toLocaleString()}</p>
-                            
-                            <StatBar label="Singing" value={m.singing} color="bg-blue-500" />
-                            <StatBar label="Dancing" value={m.dancing} color="bg-green-500" />
-                            <StatBar label="Variety" value={m.variety} color="bg-pink-500" />
-                            <StatBar label="Stamina" value={m.stamina} color={m.stamina < 30 ? "bg-red-500" : "bg-gray-400"} />
-                            <StatBar label="Morale" value={m.morale} color="bg-purple-500" />
-                          </div>
-                        </div>
-                      ))}
+                          ))}
+                      </div>
+                      </>
+                    ) : (
+                      <PyramidRanking />
+                    )}
                   </div>
-                  </>
-                ) : (
-                  <PyramidRanking />
                 )}
-              </div>
-            )}
 
             {/* ----- SISTER GROUP TAB ----- */}
             {currentTab === 'sisterGroup' && (
@@ -3952,144 +3994,150 @@ if (!gameStarted) {
             )}
 
             {/* ----- MANAGEMENT TAB ----- */}
-            {currentTab === 'management' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Performance & Elections */}
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Star size={20} className="mr-2"/> Performance & Elections</h3>
-                  <div className="flex flex-col gap-2">
-                    <h4 className='font-bold text-gray-700 mt-2 mb-1 flex items-center'><Home size={16} className='mr-1 text-red-500'/> Theater Shows:</h4>
-                    <div className="flex items-center gap-2 mb-2">
-                      <select 
-                        value={selectedTheaterTeam || ''}
-                        onChange={(e) => setSelectedTheaterTeam(e.target.value ? parseInt(e.target.value) : null)}
-                        className="flex-1 p-2 border rounded"
-                        disabled={!buildings.theater}
-                      >
-                        <option value="">All Available Members</option>
-                        {(teams || []).map(team => (
-                          <option key={team.id} value={team.id}>{team.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <button onClick={startTheaterShowPrep} className="w-full px-4 py-2 bg-green-500 text-white rounded disabled:bg-gray-400 font-bold" disabled={!buildings.theater || !!activeTour}>
-                      <Users size={18} className='inline mr-1'/> Hold Theater Show
-                    </button>
-                    
-                    {/* NEW: General Performance Button (Consolidated Concerts) */}
-                    <button onClick={startPerformancePrep} className="w-full p-2 bg-indigo-500 text-white rounded font-bold" disabled={!!activeTour || songs.length === 0}>
-                        <ClipboardCheck size={18} className='inline mr-1'/> Schedule Performance
-                    </button>
-                    
-                    {/* NEW: Major Concert Button */}
-                    <button onClick={() => setShowModal('majorConcert')} className="w-full p-2 bg-red-600 text-white rounded font-bold" disabled={!!activeTour || songs.length === 0}>
-                        <Trophy size={18} className='inline mr-1'/> Book Major Concert
-                    </button>
-
-                    {/* Major Concerts Button DEPRECATED/REMOVED */}
-                    
-                    <h4 className='font-bold text-gray-700 mt-4 mb-1'>Strategic Actions:</h4>
-                    <button onClick={holdElection} className="w-full p-2 bg-purple-500 text-white rounded font-bold">Hold Election (¥5k)</button>
-                    <button onClick={startTour} className="w-full p-2 bg-red-800 text-white rounded" disabled={!!activeTour}>Start Tour (¥30k)</button>
-                  </div>
-                </div>
-
-                {/* Facilities */}
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Building size={20} className="mr-2"/> Facilities</h3>
-                  <div className="flex flex-col gap-2">
-                    <button onClick={buildTheater} disabled={buildings.theater} className="w-full p-2 bg-gray-700 text-white rounded disabled:bg-gray-400">
-                      {buildings.theater ? 'Theater Built' : 'Build Theater (¥100k)'}
-                    </button>
-                    <button onClick={() => upgradePracticeRoom('vocal')} className="w-full p-2 bg-blue-100 text-blue-700 rounded flex justify-between items-center">
-                      <span>Upgrade Vocal Room (Lvl {buildings.practiceRooms.vocal})</span>
-                      <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.vocal * 15000).toLocaleString()}</span>
-                    </button>
-                    <button onClick={() => upgradePracticeRoom('dance')} className="w-full p-2 bg-green-100 text-green-700 rounded flex justify-between items-center">
-                      <span>Upgrade Dance Room (Lvl {buildings.practiceRooms.dance})</span>
-                      <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.dance * 15000).toLocaleString()}</span>
-                    </button>
-                    <button onClick={() => upgradePracticeRoom('variety')} className="w-full p-2 bg-pink-100 text-pink-700 rounded flex justify-between items-center">
-                      <span>Upgrade Variety Room (Lvl {buildings.practiceRooms.variety})</span>
-                      <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.variety * 15000).toLocaleString()}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Teams & Setlists */}
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Users size={20} className="mr-2"/> Theater Teams & Setlists</h3>
-                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto mb-2">
+        {currentTab === 'management' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Performance & Elections */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-base font-bold mb-2 flex items-center"><Star size={18} className="mr-2"/> Performance & Elections</h3>
+              <div className="flex flex-col gap-1.5">
+                <h4 className='font-semibold text-sm mt-1 mb-0.5 flex items-center'><Home size={16} className='mr-1 text-red-500'/> Theater Shows:</h4>
+                <div className="flex items-center gap-2 mb-1">
+                  <select 
+                    value={selectedTheaterTeam || ''}
+                    onChange={(e) => setSelectedTheaterTeam(e.target.value ? parseInt(e.target.value) : null)}
+                    className="flex-1 p-1.5 text-sm border rounded"
+                    disabled={!buildings.theater}
+                  >
+                    <option value="">All Available Members</option>
                     {(teams || []).map(team => (
-                      <div key={team.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center">
-                        <div>
-                          <span className="font-bold">{team.name} ({team.members.length} members)</span>
-                          <p className="text-xs text-gray-500">
-                            Setlist: {(allSetlists || []).find(s => s.id === team.currentSetlistId)?.name || 'None'}
-                          </p>
-                        </div>
-                        <button onClick={() => editTeam(team.id)} className="p-1 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={16}/></button>
-                      </div>
+                      <option key={team.id} value={team.id}>{team.name}</option>
                     ))}
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                      <button onClick={createTeam} className="flex-1 p-2 bg-blue-500 text-white rounded" disabled={!buildings.theater}>
-                        Create New Team
-                      </button>
-                      <button onClick={createCustomSetlist} className="flex-1 p-2 bg-indigo-500 text-white rounded" disabled={!buildings.theater}>
-                        <Plus size={16} className='inline mr-1'/> Custom Setlist
-                      </button>
-                  </div>
+                  </select>
                 </div>
+                <button onClick={startTheaterShowPrep} className="w-full px-3 py-1.5 text-sm bg-green-500 text-white rounded disabled:bg-gray-400 font-semibold" disabled={!buildings.theater || !!activeTour}>
+                  <Users size={16} className='inline mr-1'/> Hold Theater Show
+                </button>
+                
+                <button onClick={startPerformancePrep} className="w-full p-1.5 text-sm bg-indigo-500 text-white rounded font-semibold" disabled={!!activeTour || songs.length === 0}>
+                    <ClipboardCheck size={16} className='inline mr-1'/> Schedule Performance
+                </button>
+                
+                <button onClick={() => setShowModal('majorConcert')} className="w-full p-1.5 text-sm bg-red-600 text-white rounded font-semibold" disabled={!!activeTour || songs.length === 0}>
+                    <Trophy size={16} className='inline mr-1'/> Book Major Concert
+                </button>
 
-                {/* Sister Groups */}
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Globe size={20} className="mr-2"/> Group Expansion ({sisterGroups.length})</h3>
-                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto mb-2">
-                      {(sisterGroups || []).map(sg => (
-                          <div key={sg.id} className="p-2 border rounded bg-gray-50">
-                              <span className="font-bold">{sg.name}</span>
-                              <p className="text-xs text-gray-500 flex items-center"><MapPin size={12} className='mr-1'/>{sg.location} | Members: {(sg.members || []).length}</p>
-                          </div>
-                      ))}
-                  </div>
-                  <button onClick={() => setShowModal('createSisterGroup')} className="w-full p-2 bg-red-500 text-white rounded mt-2">
-                    Establish Sister Group (¥250k)
-                  </button>
-                </div>
-
+                <h4 className='font-semibold text-sm mt-2 mb-0.5'>Strategic Actions:</h4>
+                <button onClick={holdElection} className="w-full p-1.5 text-sm bg-purple-500 text-white rounded font-semibold">Hold Election (¥5k)</button>
+                <button onClick={startTour} className="w-full p-1.5 text-sm bg-red-800 text-white rounded font-semibold" disabled={!!activeTour}>Start Tour (¥30k)</button>
               </div>
-            )}
+            </div>
+
+            {/* Facilities */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-base font-bold mb-2 flex items-center"><Building size={18} className="mr-2"/> Facilities</h3>
+              <div className="flex flex-col gap-1.5">
+                <button onClick={buildTheater} disabled={buildings.theater} className="w-full p-1.5 text-sm bg-gray-700 text-white rounded disabled:bg-gray-400 font-semibold">
+                  {buildings.theater ? 'Theater Built' : 'Build Theater (¥100k)'}
+                </button>
+                <button onClick={() => upgradePracticeRoom('vocal')} className="w-full p-1.5 text-sm bg-blue-100 text-blue-700 rounded flex justify-between items-center font-semibold">
+                  <span>Upgrade Vocal Room (Lvl {buildings.practiceRooms.vocal})</span>
+                  <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.vocal * 15000).toLocaleString()}</span>
+                </button>
+                <button onClick={() => upgradePracticeRoom('dance')} className="w-full p-1.5 text-sm bg-green-100 text-green-700 rounded flex justify-between items-center font-semibold">
+                  <span>Upgrade Dance Room (Lvl {buildings.practiceRooms.dance})</span>
+                  <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.dance * 15000).toLocaleString()}</span>
+                </button>
+                <button onClick={() => upgradePracticeRoom('variety')} className="w-full p-1.5 text-sm bg-pink-100 text-pink-700 rounded flex justify-between items-center font-semibold">
+                  <span>Upgrade Variety Room (Lvl {buildings.practiceRooms.variety})</span>
+                  <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.variety * 15000).toLocaleString()}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Teams & Setlists */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-base font-bold mb-2 flex items-center"><Users size={18} className="mr-2"/> Theater Teams & Setlists</h3>
+              <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
+                {(teams || []).map(team => (
+                  <div key={team.id} className="p-1.5 border rounded bg-gray-50 flex justify-between items-center">
+                    <div>
+                      <span className="font-semibold text-sm">{team.name} ({team.members.length} members)</span>
+                      <p className="text-xs text-gray-500">
+                        Setlist: {(allSetlists || []).find(s => s.id === team.currentSetlistId)?.name || 'None'}
+                      </p>
+                    </div>
+                    <button onClick={() => editTeam(team.id)} className="p-1 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={16}/></button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1.5 mt-1.5">
+                  <button onClick={createTeam} className="flex-1 p-1.5 text-sm bg-blue-500 text-white rounded font-semibold" disabled={!buildings.theater}>
+                    Create New Team
+                  </button>
+                  <button onClick={createCustomSetlist} className="flex-1 p-1.5 text-sm bg-indigo-500 text-white rounded font-semibold" disabled={!buildings.theater}>
+                    <Plus size={16} className='inline mr-1'/> Custom Setlist
+                  </button>
+              </div>
+            </div>
+
+            {/* Sister Groups */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-base font-bold mb-2 flex items-center"><Globe size={18} className="mr-2"/> Group Expansion ({sisterGroups.length})</h3>
+              <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
+                  {(sisterGroups || []).map(sg => (
+                      <div key={sg.id} className="p-1.5 border rounded bg-gray-50">
+                          <span className="font-semibold text-sm">{sg.name}</span>
+                          <p className="text-xs text-gray-500 flex items-center"><MapPin size={12} className='mr-1'/>{sg.location} | Members: {(sg.members || []).length}</p>
+                      </div>
+                  ))}
+              </div>
+              <button onClick={() => setShowModal('createSisterGroup')} className="w-full p-1.5 text-sm bg-red-500 text-white rounded mt-1.5 font-semibold">
+                Establish Sister Group (¥250k)
+              </button>
+            </div>
+            
+            {/* App Settings */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-base font-bold mb-2 flex items-center"><Sparkles size={18} className="mr-2"/> App Settings</h3>
+              <div className="flex flex-col gap-1.5">
+                <button onClick={toggleDarkMode} className="w-full p-1.5 text-sm bg-gray-700 text-white rounded flex justify-center items-center font-semibold">
+                  <Moon size={16} className="mr-2"/>
+                  <span>{isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
 {/* ----- DISCOGRAPHY TAB ----- */}
 {currentTab === 'discography' && (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
     <div className="md:col-span-2 lg:col-span-3">
-      <h2 className="text-xl font-semibold mb-3 text-gray-900 dark:text-gray-100">
+      <h2 className="text-base font-bold mb-2 text-gray-900 dark:text-gray-100">
         Discography ({groupName} - Main Group)
       </h2>
 
       <button
         onClick={createSong}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md mb-4 flex items-center transition-colors duration-200"
+        className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md mb-2 flex items-center transition-colors duration-200"
       >
-        <Plus size={18} className="mr-1" /> Produce New Single
+        <Plus size={16} className="mr-1" /> Produce New Single
       </button>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* Main Group Singles */}
         {(songs || []).map(song => (
           <div
             key={song.id}
-            className="p-4 rounded-md shadow-md flex justify-between items-center 
+            className="p-2 rounded-md shadow-md flex justify-between items-center 
                        bg-white dark:bg-gray-800 
                        text-gray-900 dark:text-gray-100 
                        border border-gray-200 dark:border-gray-700 
                        transition-colors duration-300"
           >
             <div>
-              <h3 className="font-bold">{song.name} (Wk {song.releaseWeek})</h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <h3 className="font-bold text-sm">{song.name} (Wk {song.releaseWeek})</h3>
+              <p className="text-xs text-gray-700 dark:text-gray-300">
                 Total Sales: {song.sales.toLocaleString()} | Tracks: {song.totalTracks}
               </p>
             </div>
@@ -4098,35 +4146,35 @@ if (!gameStarted) {
                 setModalData(song);
                 setShowModal('singleDetails');
               }}
-              className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm flex items-center transition-colors"
+              className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs flex items-center transition-colors"
             >
-              <ChevronDown size={16} /> Details
+              <ChevronDown size={14} /> Details
             </button>
           </div>
         ))}
 
         {/* Sister Group Singles */}
-        <h3 className="font-bold pt-4 border-t mt-4 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700">
+        <h3 className="font-bold pt-2 border-t mt-2 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700">
           Sister Group Singles
         </h3>
 
         {(sisterGroups || []).map(sg => (
           <div key={sg.id}>
-            <h4 className="font-semibold text-gray-800 dark:text-gray-200 mt-2">
+            <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mt-1">
               {sg.name} Singles:
             </h4>
 
             {(sg.songs || []).map(song => (
               <div
                 key={sg.id + '-' + song.id}
-                className="p-3 ml-4 rounded shadow-sm flex justify-between items-center my-1 
+                className="p-1.5 ml-2 rounded shadow-sm flex justify-between items-center my-1 
                            bg-gray-100 dark:bg-gray-800 
                            text-gray-900 dark:text-gray-100 
                            border border-gray-200 dark:border-gray-700 
                            transition-colors duration-200"
               >
                 <div>
-                  <h5 className="font-bold text-sm">
+                  <h5 className="font-bold text-xs">
                     {song.name} (Wk {song.releaseWeek})
                   </h5>
                   <p className="text-xs text-gray-700 dark:text-gray-300">
@@ -4150,70 +4198,69 @@ if (!gameStarted) {
     </div>
   </div>
 )}
-           {/* ----- HISTORY ----- */}
-{currentTab === 'history' && (
-  <div>
-      <h2 className="text-xl font-semibold mb-3">Performance History</h2>
-      <div className="space-y-3">
-          {(performanceHistory || []).map(p => (
-              <div
-                  key={p.id}
-                  className="p-4 rounded-md shadow-md flex justify-between items-center bg-white dark:bg-gray-800"
-              >
-                  <div>
-                      <h3 className="font-bold">{p.name} (Wk {p.week})</h3>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                          Category: {p.category || 'N/A'} | Revenue: ¥{(p.revenue || 0).toLocaleString()}
-                      </p>
-                  </div>
-                  <button
-                      onClick={() => {
-                          setModalData(p);
-                          setShowModal('performanceDetails');
-                      }}
-                      className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+    {currentTab === 'history' && (
+      <div>
+          <h2 className="text-base font-bold mb-2">Performance History</h2>
+          <div className="space-y-2">
+              {(performanceHistory || []).map(p => (
+                  <div
+                      key={p.id}
+                      className="p-2 rounded-md shadow-md flex justify-between items-center bg-white dark:bg-gray-800"
                   >
-                      Details
-                  </button>
-              </div>
-          ))}
-          {(!performanceHistory || performanceHistory.length === 0) && <p className="text-gray-500 p-4">No performances recorded yet.</p>}
+                      <div>
+                          <h3 className="font-bold text-sm">{p.name} (Wk {p.week})</h3>
+                          <p className="text-xs text-gray-700 dark:text-gray-300">
+                              Category: {p.category || 'N/A'} | Revenue: ¥{(p.revenue || 0).toLocaleString()}
+                          </p>
+                      </div>
+                      <button
+                          onClick={() => {
+                              setModalData(p);
+                              setShowModal('performanceDetails');
+                          }}
+                          className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs"
+                      >
+                          Details
+                      </button>
+                  </div>
+              ))}
+              {(!performanceHistory || performanceHistory.length === 0) && <p className="text-gray-500 p-2 text-sm">No performances recorded yet.</p>}
+          </div>
       </div>
-  </div>
-)}
+    )}
 
             {/* ----- ACTIVITIES TAB ----- */}
-            {currentTab === 'activities' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Hand size={20} className="mr-2"/> Fan Events</h3>
-                  <div className="flex flex-col gap-2">
-                    <button onClick={startHandshakeEvent} className="w-full p-3 bg-green-500 text-white rounded">
-                      <div className="flex justify-center items-center gap-2"><Hand size={20} /> Hold Handshake Event</div>
-                      <span className="text-xs">(¥50,000) - Boosts fans, drains all member stamina/morale.</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Zap size={20} className="mr-2"/> Media & Training</h3>
-                  <div className="flex flex-col gap-2">
-                    <button onClick={() => setShowModal('groupMediaJob')} className="w-full p-3 bg-red-500 text-white rounded">
-                      <div className="flex justify-center items-center gap-2"><Tv size={20} /> Group Media Appearance</div>
-                      <span className="text-xs">(¥20,000) - High impact, high member requirement.</span>
-                    </button>
-                    <button onClick={() => setShowModal('mediaJob')} className="w-full p-3 bg-blue-500 text-white rounded">
-                      <div className="flex justify-center items-center gap-2"><Mic size={20} /> Send Member to Media Job</div>
-                      <span className="text-xs">(¥1,000) - Gain followers based on variety skill & strategy.</span>
-                    </button>
-                    <button onClick={() => setShowModal('trainingCamp')} className="w-full p-3 bg-purple-500 text-white rounded">
-                      <div className="flex justify-center items-center gap-2"><Brain size={20} /> Special Training Camp</div>
-                      <span className="text-xs">(¥75,000) - Send member away for 2 weeks for +15 skill.</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+{currentTab === 'activities' && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+    <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+      <h3 className="text-base font-bold mb-2 flex items-center"><Hand size={18} className="mr-2"/> Fan Events</h3>
+      <div className="flex flex-col gap-1.5">
+        <button onClick={startHandshakeEvent} className="w-full p-2 text-sm bg-green-500 text-white rounded">
+          <div className="flex justify-center items-center gap-1 font-semibold"><Hand size={16} /> Hold Handshake Event</div>
+          <span className="text-xs font-normal">(¥50,000) - Boosts fans, drains all member stamina/morale.</span>
+        </button>
+      </div>
+    </div>
+    
+    <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+      <h3 className="text-base font-bold mb-2 flex items-center"><Zap size={18} className="mr-2"/> Media & Training</h3>
+      <div className="flex flex-col gap-1.5">
+        <button onClick={() => setShowModal('groupMediaJob')} className="w-full p-2 text-sm bg-red-500 text-white rounded">
+          <div className="flex justify-center items-center gap-1 font-semibold"><Tv size={16} /> Group Media Appearance</div>
+          <span className="text-xs font-normal">(¥20,000) - High impact, high member requirement.</span>
+        </button>
+        <button onClick={() => setShowModal('mediaJob')} className="w-full p-2 text-sm bg-blue-500 text-white rounded">
+          <div className="flex justify-center items-center gap-1 font-semibold"><Mic size={16} /> Send Member to Media Job</div>
+          <span className="text-xs font-normal">(¥1,000) - Gain followers based on variety skill & strategy.</span>
+        </button>
+        <button onClick={() => setShowModal('trainingCamp')} className="w-full p-2 text-sm bg-purple-500 text-white rounded">
+          <div className="flex justify-center items-center gap-1 font-semibold"><Brain size={16} /> Special Training Camp</div>
+          <span className="text-xs font-normal">(¥75,000) - Send member away for 2 weeks for +15 skill.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
             
             {/* ----- MERCHANDISE TAB ----- */}
             {currentTab === 'merch' && (
@@ -4248,7 +4295,7 @@ if (!gameStarted) {
           </main>
 
           {/* Bottom Nav (Mobile) */}
-          <nav className="md:hidden flex justify-around bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-inner border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <nav className="lg:hidden flex bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-inner border-t border-gray-200 dark:border-gray-700">
             <TabButton id="members" label="Members" icon={Users} />
             <TabButton id="discography" label="Songs" icon={Music} />
             <TabButton id="management" label="Manage" icon={Building} />
@@ -4259,26 +4306,26 @@ if (!gameStarted) {
         </div>
 
         {/* --- Right Column (Contextual) --- */}
-        <aside className="w-full md:w-1/3 lg:w-1/4 flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <aside className="w-full lg:w-96 flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300">
           {/* Main Stats */}
-          <div className="p-4 border-b">
-            <h3 className="font-semibold text-lg mb-3">Group Status</h3>
-            <div className="flex items-center mb-2">
-              <DollarSign className="text-green-500 mr-2" size={20} />
-              <span className="text-lg font-bold">¥{money.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center mb-2">
-              <Heart className="text-red-500 mr-2" size={20} />
-              <span className="text-lg">{(totalFans || 0).toLocaleString()} Fans</span>
-            </div>
-            <div className="flex items-center">
-              <Calendar className="text-blue-500 mr-2" size={20} />
-              <span className="text-lg">{formattedDate}</span>
-            </div>
-            <button 
-              onClick={activeTour ? progressTour : nextWeek} 
-              className="w-full p-2 bg-blue-600 text-white rounded font-bold mt-4 hover:bg-blue-700 disabled:bg-gray-400"
-            >
+              <div className="p-1 lg:p-4 border-b">
+                <h3 className="font-semibold text-sm mb-1">Group Status</h3>
+                <div className="flex items-center mb-0.5">
+                  <DollarSign className="text-green-500 mr-1.5" size={14} />
+                  <span className="text-xs lg:text-lg font-bold">¥{money.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center mb-0.5">
+                  <Heart className="text-red-500 mr-1.5" size={14} />
+                  <span className="text-xs lg:text-lg">{(totalFans || 0).toLocaleString()} Fans</span>
+                </div>
+                <div className="flex items-center">
+                  <Calendar className="text-blue-500 mr-1.5" size={14} />
+                  <span className="text-xs lg:text-lg">{formattedDate}</span>
+                </div>
+                <button
+                  onClick={activeTour ? progressTour : nextWeek}
+                  className="w-full p-1 bg-blue-600 text-white rounded font-bold mt-2 hover:bg-blue-700 disabled:bg-gray-400"
+                >
               {activeTour ? `Advance Tour (${activeTour.weeksLeft} Wk Left)` : 'Next Week'}
             </button>
           </div>
@@ -4384,7 +4431,7 @@ if (!gameStarted) {
 ) : (
 
 /* Side Panel Tabs (Desktop) */
-<div className="hidden md:flex flex-col flex-1">
+<div className="hidden lg:flex flex-col flex-1">
   <nav className="flex border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
     {[
       { id: 'members', label: 'Members' },
