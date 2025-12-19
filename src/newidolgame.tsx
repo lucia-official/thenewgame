@@ -92,12 +92,12 @@ const useIdolManager = () => {
     // --- GAME STATE ---
     const [gameStarted, setGameStarted] = useState(false);
     const [groupName, setGroupName] = useState('');
-    const [money, setMoney] = useState(50000);
+    const [money, setMoney] = useState(250000);
     const [week, setWeek] = useState(1);
     const [members, setMembers] = useState([]);
     const [selectedMember, setSelectedMember] = useState(null);
     const [message, setMessage] = useState('');
-    const [totalFans, setTotalFans] = useState(1000);
+    const [totalFans, setTotalFans] = useState(0);
     const [currentTab, setCurrentTab] = useState('members');
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -492,13 +492,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
     
     const startGame = (startUsername, startGroupName) => {
       if (startGroupName.trim() && startUsername.trim()) {
-        const newMembers = generateMembers();
-                const membersWithHistory = newMembers.map(m => ({
-          ...m,
-          teamHistory: [{ week: 1, event: `Joined ${startGroupName} as 1st Generation` }]
-        }));
-        setMembers(membersWithHistory);
-
+        setMembers([]); // Start with 0 members
         setGroupName(startGroupName);
         setUsername(startUsername);
         setRivalGroups([
@@ -506,14 +500,8 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
           { id: 2, name: 'Dream Girls', fans: 4000, power: 250 }
         ]);
         setGameStarted(true);
-        setMessage(`Welcome to ${startGroupName}, Producer ${startUsername}!`);
-        newMembers.forEach(m => {
-          newMembers.forEach(other => {
-            if (other.id !== m.id) {
-              m.relationships[other.id] = { level: 50 + Math.floor(Math.random() * 30), type: 'friend' };
-            }
-          });
-        });
+        // Updated message to guide the player
+        setMessage(`Welcome to ${startGroupName}, Producer ${startUsername}! จัดออดิชั่นเพื่อค้นหาไอดอลของคุณใน "Manage" จากนั้น "Hold Audition"`);
         setShowModal(null);
         if (sisterGroups.length > 0) {
           setSelectedSisterGroup(sisterGroups[0].id);
@@ -1404,54 +1392,6 @@ const getMemberGroupStatus = (member) => {
     // --- End Sister Group Transfer Logic ---
     
 
-      const recruitMember = () => {
-      if (money < 20000 || members.length >= 100) return setMessage('Cost ¥20K, max 100 members!');
-      const newId = Math.max(...members.map(m => m.id), 0) + 1;
-      const newName = generateRandomName(); 
-      const newMember = {
-        id: newId, 
-        name: newName, 
-        nickname: newName.split(' ')[0] + '-chan', 
-        singing: 20, dancing: 20, variety: 20, stamina: 100, morale: 90, stress: 0,
-        fans: 50, position: 'under', talent: 'vocal', personality: 'cheerful',
-        relationships: {}, birthday: { month: 1, day: 1 }, equippedOutfit: null,
-        socialFollowers: 500, scandals: 0, age: 16, yearsActive: 0, graduated: false,
-        homeGroup: 'main', kenninGroups: [],
-        singlesParticipation: [], songsParticipation: [], centerHistory: [], isAvailable: true 
-      };
-      setMembers(prev => [...(prev || []), newMember]);
-      setMoney(prev => prev - 20000);
-      setMessage(`${newMember.name} recruited!`);
-    };
-    
-    const recruitSisterGroupMember = (sgId) => {
-      const cost = 10000;
-      const sg = sisterGroups.find(g => g.id === sgId);
-      if (money < cost) return setMessage(`Cost ¥10K, not enough money!`);
-      if (!sg) return setMessage('Sister Group not found.');
-      if (sg.members.length >= 30) return setMessage(`${sg.name} roster is full (max 30).`);
-
-      // FIX: Ensure new ID is calculated safely, starting from 1 if no members exist
-      const newId = Math.max(0, ...(sg.members || []).map(m => m.id)) + 1;
-      const newName = generateRandomName(); 
-      const newMember = {
-          id: newId, name: newName, nickname: newName.split(' ')[0] + '-chan', 
-          singing: Math.floor(Math.random() * 15) + 10, dancing: Math.floor(Math.random() * 15) + 10, 
-          variety: Math.floor(Math.random() * 10) + 5, stamina: 100, morale: 90,
-          fans: 50, position: 'back', talent: 'vocal', personality: 'cheerful',
-          relationships: {}, birthday: { month: 1, day: 1 }, equippedOutfit: null,
-          socialFollowers: 500, scandals: 0, age: 16, yearsActive: 0, graduated: false,
-          homeGroup: sg.name, 
-          kenninGroups: [],
-          singlesParticipation: [], songsParticipation: [], centerHistory: [], isAvailable: true 
-      };
-      
-      setSisterGroups(prev => prev.map(group => 
-          group.id === sgId ? { ...group, members: [...(group.members || []), newMember] } : group
-      ));
-      setMoney(prev => prev - cost);
-      setMessage(`${newMember.name} recruited into ${sg.name} for ¥${cost.toLocaleString()}.`);
-    };
     
     const handleDisbandSisterGroup = (sgId, independent = false) => {
       const sg = sisterGroups.find(g => g.id === sgId);
@@ -1475,7 +1415,49 @@ const getMemberGroupStatus = (member) => {
       if (selectedSisterGroup === sgId) setSelectedSisterGroup(null);
       setShowModal(null);
     };
+    const handleConfirmEditGroupName = (groupToEdit, newName) => {
+        const oldName = groupToEdit.name;
 
+        if (groupToEdit.id === 'main') {
+            // --- Renaming the Main Group ---
+            setGroupName(newName);
+            // Update any Kennin references in sister groups
+            setSisterGroups(prevSGs => prevSGs.map(sg => ({
+                ...sg,
+                members: (sg.members || []).map(m => ({
+                    ...m,
+                    kenninGroups: (m.kenninGroups || []).map(kName => kName === oldName ? newName : kName)
+                }))
+            })));
+        } else {
+            // --- Renaming a Sister Group ---
+            setSisterGroups(prevSGs => prevSGs.map(sg => {
+                let currentSg = { ...sg };
+                // Update the group's own name and its members' homeGroup
+                if (currentSg.id === groupToEdit.id) {
+                    currentSg.name = newName;
+                    currentSg.members = (currentSg.members || []).map(m => ({ ...m, homeGroup: newName }));
+                }
+                
+                // Update any Kennin references this group's members might have to the old name
+                currentSg.members = (currentSg.members || []).map(m => ({
+                    ...m,
+                    kenninGroups: (m.kenninGroups || []).map(kName => kName === oldName ? newName : kName)
+                }));
+                
+                return currentSg;
+            }));
+
+            // Update Kennin references from the main group
+            setMembers(prevMembers => prevMembers.map(m => ({
+                ...m,
+                kenninGroups: (m.kenninGroups || []).map(kName => kName === oldName ? newName : kName)
+            })));
+        }
+
+        setMessage(`Group "${oldName}" has been renamed to "${newName}".`);
+        setShowModal(null);
+    };
 
     const produceMerch = (item, amount) => {
       const cost = merchProdCost[item] * amount;
@@ -1867,7 +1849,6 @@ const getMemberGroupStatus = (member) => {
       const income = baseIncome + sisterIncome + varietyIncome;
       
       setMoney(prev => (prev || 0) + income);
-      setTotalFans(prev => Math.floor((prev || 0) * 1.02));
 
       let campMessage = '';
       if (activeTrainingCamp) {
@@ -1894,13 +1875,23 @@ const getMemberGroupStatus = (member) => {
       }
 
       const updateMemberWeekly = (m, isSister = false) => {
-        if (!m.isAvailable) {
-            return { ...m, yearsActive: Math.floor(newWeek / 52) };
+        let memberToUpdate = { ...m };
+
+        // --- FIX: Check if member should return from assignment ---
+        if (!memberToUpdate.isAvailable && memberToUpdate.returningWeek && newWeek >= memberToUpdate.returningWeek) {
+            memberToUpdate.isAvailable = true;
+            memberToUpdate.returningWeek = undefined; // Clear the property now that they've returned
+            addNotification({ type: 'info', message: `${memberToUpdate.name} has returned from their assignment and is available again.` });
+        }
+        // --- END FIX ---
+
+        if (!memberToUpdate.isAvailable) {
+            return { ...memberToUpdate, yearsActive: Math.floor(newWeek / 52) };
         }
 
-        let newStamina = m.stamina || 100;
-        let newStress = m.stress || 0;
-        let newMorale = m.morale || 80;
+        let newStamina = memberToUpdate.stamina || 100;
+        let newStress = memberToUpdate.stress || 0;
+        let newMorale = memberToUpdate.morale || 80;
 
         // Passive recovery for all available members
         newStamina = Math.min(100, newStamina + 20);
@@ -1908,18 +1899,18 @@ const getMemberGroupStatus = (member) => {
 
         // Consequence Checks
         if (newStress >= 100) {
-            addNotification({ type: 'alert', message: `${m.name} is Burned Out! Their morale has plummeted.` });
+            addNotification({ type: 'alert', message: `${memberToUpdate.name} is Burned Out! Their morale has plummeted.` });
             newMorale = Math.max(0, newMorale - 40); // Huge morale hit
             newStress = 70; // Partially reset stress
         }
         if (newStamina <= 0) {
-            addNotification({ type: 'alert', message: `${m.name} is Exhausted! They are being forced to rest.` });
+            addNotification({ type: 'alert', message: `${memberToUpdate.name} is Exhausted! They are being forced to rest.` });
             newStamina = 60; // Force rest, recover to 60
             newStress = Math.max(0, newStress - 20); // Resting also helps stress
         }
 
         return {
-            ...m,
+            ...memberToUpdate,
             stamina: newStamina,
             stress: newStress,
             morale: newMorale,
@@ -1942,52 +1933,20 @@ const getMemberGroupStatus = (member) => {
 
       const newId = Math.max(0, ...(sisterGroups || []).map(sg => sg.id || 0)) + 1;
       
-      const initialMembers = Array.from({ length: 5 }, (_, i) => {
-          const name = generateRandomName();
-          return {
-              id: i + 1,
-              name: name,
-              nickname: name.split(' ')[0],
-              singing: Math.floor(Math.random() * 25) + 10,
-              dancing: Math.floor(Math.random() * 25) + 10,
-              variety: Math.floor(Math.random() * 20) + 10,
-              stamina: 100, 
-              morale: 80, 
-              stress: 0,
-              fans: 50, 
-              position: i === 0 ? 'center' : 'back',
-              generation: '1st Generation',
-              homeGroup: groupData.groupName,
-              isAvailable: true,
-              songsParticipation: [], 
-              singlesParticipation: [],
-              centerHistory: [],
-              kenninGroups: [],
-              teamHistory: [],
-              age: 10 + i,
-              yearsActive: 0,
-              socialFollowers: 300
-          };
-      });
-
       const newSisterGroup = {
           id: newId,
           name: groupData.groupName,
           location: groupData.location,
-          fans: 500, 
-          power: 50, 
-                    members: initialMembers.map(m => ({
-            ...m,
-            teamHistory: [{ week: week, event: `Joined ${groupData.groupName} as 1st Generation` }]
-          })),
-
+          type: groupData.type,
+          fans: 100, // Reduced initial fans as there are no members
+          members: [], // Start with 0 members
           songs: [],
-          income: 1000, 
+          income: 0, // No income without members
       };
       
       setSisterGroups(prev => [...(prev || []), newSisterGroup]);
       setMoney(prev => prev - cost);
-      setMessage(`Successfully established ${groupData.groupName} in ${groupData.location}!`);
+      setMessage(`Successfully established ${groupData.groupName} in ${groupData.location}! Hold an audition to recruit members for them.`);
       setShowModal(null);
       setSelectedSisterGroup(newId);
     };
@@ -2061,9 +2020,9 @@ const getMemberGroupStatus = (member) => {
                 dancing: candidate.dance,
                 variety: Math.floor((candidate.vocal + candidate.dance) / 2),
                 stamina: 100,
-                morale: 80,
+                morale: 100,
                 stress: 0,
-                fans: 50,
+                fans: 0,
                 potential: candidate.potential,
                 personality: candidate.personality,
                 position: 'under',
@@ -2121,7 +2080,7 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
         // Utilities
         startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment
     };
 };
 
@@ -2135,7 +2094,7 @@ const App = () => {
         // Utilities
         startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates
     } = useIdolManager();
 
     // Local state for start screen inputs (not part of the main game state in the hook)
@@ -2158,6 +2117,14 @@ const App = () => {
     const toggleDarkMode = () => {
         setIsDarkMode(!isDarkMode);
     };
+
+    useEffect(() => {
+    const mainFans = (members || []).reduce((sum, m) => sum + (m.fans || 0), 0);
+    const sisterFans = (sisterGroups || []).flatMap(sg => sg.members || []).reduce((sum, m) => sum + (m.fans || 0), 0);
+    setTotalFans(mainFans + sisterFans);
+}, [members, sisterGroups]);
+
+
     // Utility function to generate a random name for the startup screen
     const generateRandomGroupName = () => {
       const prefixes = ['Hoshi','Sakura','Tsuki','Ame','Yume','Hana','Aoi','Hikari','Mizu','Kumo','Kaze','Yuki','Kokoro','Akari','Nozomi','Kiseki','Seika','Ameiro','Momoiro','Aozora','Hoshimi','Hanabi','Miyabi','Tokimeki','Ariake','Kouyou','Asahi','Kouka','Suiren','Kurenai','Starlit','Moonlite','Petalix','Blossia','KiraKira','Sparkleon','Dreamia','Twinkia','Glowin','Lumina','Aurasia','MiraiX','Flawra','Cherrix','Fantasia','Hoshira','Sakurive','Prismia','Melodia','Radiant','Hanaria','Yumelia','Akuria','Sakurune','Hoshika','Tsukira','Fuwaria','Kirafine','Mizura','Aozelle','Momoria','Nijika','Haruline','Kokolia','Amelune','Lunaria','Miraiya','Shinoria','Tokira','Asteria','Celestia','Vividia','Eterneo','Luvia','Rhythmex','Purella','Zellia','Xylia','Novelle','Harmonix','Bellaria','Chocola','Sweetia','Angellic','Seraphia','Galaxia','Nebulla','Stellaris','Orion','Eclipsa','Solaria','Lyra','Vespera','Aethel','Nyx','Aura','Lyrica','Sonnet','Fable','Mythia','Legendia','FuwaFuwa','MeroMero','PikaPika','MochiMochi','KyunKyun','PuruPuru','Ribbon','Hearty','Lovely','Berry','Peachia','Milky','Parfait','Soufflé','Sugar','Candy','Bonbon','Chiffon','Marshmo','Lace','Frill','Tiara','Jewelly','Shiny','Pastel','PopStep','Beatly','Melty','Honey','Bunny','Kitty','Puppy','Pony','Cookie','Creamy','Dreamy','Wishy','Magic','Magica','Wand','Starry','Twinkle','Sparkle','Dazzle','Glimmer','Plume','Petit','Belle','Mignon','Ange','Chouchou','Lulu','Mimi','Nana','Coco','Ruru','Kiki','Lala','Nono'];
@@ -2344,38 +2311,45 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
   
       return (
           <ModalWrapper title={<span className="flex items-center"><User size={20} className="mr-2"/> Hold Audition</span>} maxWidth="max-w-xl">
-              <p className="text-sm text-gray-600 mb-4">Choose the scale and target for your recruitment drive.</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose the scale and target for your recruitment drive.</p>
               
-              <h4 className="font-semibold mb-1">Target Group</h4>
-              <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded mb-3">
+              <h4 className="font-semibold mb-1 text-gray-800 dark:text-gray-200">Target Group</h4>
+              <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                   <option value="main">{groupName} (Main Group)</option>
                   {(sisterGroups || []).map(sg => <option key={sg.id} value={sg.id}>{sg.name}</option>)}
               </select>
               
-              <h4 className="font-semibold mb-1">Generation Name</h4>
+              <h4 className="font-semibold mb-1 text-gray-800 dark:text-gray-200">Generation Name</h4>
               <input 
                   type="text" 
                   value={generationName} 
                   onChange={(e) => setGenerationName(e.target.value)}
-                  className="w-full p-2 border rounded mb-3"
+                  className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                   placeholder="e.g., 17th Generation"
               />
   
-              <h4 className="font-semibold mb-2">Audition Scale</h4>
-              <div className="space-y-2">
+              <h4 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">Audition Scale</h4>
+              <div className="space-y-3">
                   {tiers.map(t => (
-                      <label key={t.id} className="flex items-start p-3 rounded-lg border has-[:checked]:bg-blue-100 has-[:checked]:border-blue-400 cursor-pointer text-sm">
-                          <input type="radio" name="tier" value={t.id} checked={tier === t.id} onChange={() => setTier(t.id)} className="form-radio h-4 w-4 text-blue-600 mt-0.5"/>
-                          <div className="ml-3 flex-1 flex justify-between">
-                              <p className="font-semibold">{t.name}</p>
-                              <p className="font-bold text-red-600">¥{t.cost.toLocaleString()}</p>
-                          </div>
+                      <label key={t.id} className={`p-3 border rounded-lg flex justify-between items-center cursor-pointer transition-colors duration-200 ${
+                          tier === t.id ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-200 dark:bg-gray-900 dark:border-blue-400' : 'bg-white dark:bg-gray-700 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}>
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">{t.name}</span>
+                          <span className="font-bold text-red-500 dark:text-red-400">¥{t.cost.toLocaleString()}</span>
+                          <input
+                              type="radio"
+                              name="tier"
+                              value={t.id}
+                              checked={tier === t.id}
+                              onChange={() => setTier(t.id)}
+                              className="hidden"
+                          />
                       </label>
                   ))}
               </div>
   
-              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded px-4">Cancel</button>
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-t-gray-700">
+                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded px-4">Cancel</button>
                   <button onClick={handleConfirm} className="p-2 bg-green-500 text-white rounded px-4 font-bold">
                       Proceed to Draft
                   </button>
@@ -2383,7 +2357,6 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
           </ModalWrapper>
       );
   };
-  
   const TraineeDraftModal = ({ auditionCandidates, modalData, confirmRecruitment, setShowModal }) => {
       const [selected, setSelected] = useState([]);
       const [sortBy, setSortBy] = useState({ key: 'potential', asc: false });
@@ -2399,7 +2372,15 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
               return [...prev, candidateId];
           });
       };
-  
+        const selectAll = () => {
+          setSelected(auditionCandidates.map(c => c.id));
+      };
+
+      const deselectAll = () => {
+          setSelected([]);
+      };
+
+
       const handleSort = (key) => {
           setSortBy(prev => ({ key, asc: prev.key === key ? !prev.asc : false }));
       };
@@ -2462,7 +2443,10 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                       </tbody>
                   </table>
               </div>
-  
+                <div className="flex gap-2 mb-2">
+                    <button onClick={selectAll} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
+                    <button onClick={deselectAll} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All</button>
+                </div>
               <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
                   <div className="text-lg font-bold">
                       <span>{selected.length} Selected</span>
@@ -2692,75 +2676,75 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-3 space-y-4">
                         <div>
-                            <h4 className="font-semibold mb-1">Target Group</h4>
-                            <select value={targetGroup} onChange={(e) => { setTargetGroup(e.target.value); setTracks([{ name: 'Title Track', type: 'title', members: [], center: null, lineup: {} }, { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }]); }} className="w-full p-2 border rounded">
+                            <h4 className="font-semibold mb-1 dark:text-gray-200">Target Group</h4>
+                            <select value={targetGroup} onChange={(e) => { setTargetGroup(e.target.value); setTracks([{ name: 'Title Track', type: 'title', members: [], center: null, lineup: {} }, { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }]); }} className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                                 <option value="main">{groupName} (Main)</option>
                                 {(sisterGroups || []).map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <h4 className="font-semibold mb-1">Single Name</h4>
-                            <input type="text" value={songName} onChange={(e) => setSongName(e.target.value)} className="w-full p-2 border rounded text-lg" placeholder="e.g., Flying Get"/>
+                            <h4 className="font-semibold mb-1 dark:text-gray-200">Single Name</h4>
+                            <input type="text" value={songName} onChange={(e) => setSongName(e.target.value)} className="w-full p-2 border rounded text-lg bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" placeholder="e.g., Flying Get"/>
                         </div>
                         <div>
-                            <h4 className="font-semibold mb-2">Tracks ({tracks.length})</h4>
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">Tracks ({tracks.length})</h4>
                             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-2">
                                 {tracks.map((track, index) => (
-                                    <div key={index} className={`p-3 border rounded-lg cursor-pointer ${selectedTrackIndex === index ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-100 hover:bg-gray-200'}`} onClick={() => setSelectedTrackIndex(index)}>
+                                    <div key={index} className={`p-3 border rounded-lg cursor-pointer ${selectedTrackIndex === index ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700'}`} onClick={() => setSelectedTrackIndex(index)}>
                                         <div className='flex justify-between items-center mb-1'>
-                                            <span className="font-bold text-sm">{track.type === 'title' ? 'Title' : `B-Side ${index + 1}`}</span>
+                                            <span className={`font-bold text-sm ${selectedTrackIndex === index ? 'text-white' : 'dark:text-gray-200'}`}>{track.type === 'title' ? 'Title' : `B-Side ${index + 1}`}</span>
                                             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type.toUpperCase()}</span>
                                         </div>
-                                        <input type="text" value={track.name} onChange={(e) => updateTrackName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-full p-1 border rounded text-sm mt-1 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-100 text-gray-800' : 'bg-white'}`} placeholder="Track Name"/>
+                                        <input type="text" value={track.name} onChange={(e) => updateTrackName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-full p-1 border rounded text-sm mt-1 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-100 text-gray-800' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Track Name"/>
                                     </div>
                                 ))}
                             </div>
-                            <button onClick={addTrack} className="w-full mt-2 p-2 bg-gray-200 text-gray-700 rounded text-sm flex items-center justify-center font-semibold hover:bg-gray-300">
+                            <button onClick={addTrack} className="w-full mt-2 p-2 bg-gray-200 text-gray-700 rounded text-sm flex items-center justify-center font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
                                 <Plus size={16} className="mr-1"/> Add B-Side
                             </button>
                         </div>
                     </div>
                     <div className="lg:col-span-5 space-y-4">
                         <div>
-                            <h4 className="font-semibold mb-2">1. Senbatsu Selection for: <span className="text-blue-600 font-bold">{currentTrack?.name || 'Track'}</span></h4>
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">1. Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
                             <div className="flex gap-2 mb-2">
                                 <button onClick={selectAllMembersForTrack} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
-                                <button onClick={deselectAllMembersForTrack} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All</button>
+                                <button onClick={deselectAllMembersForTrack} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Deselect All</button>
                             </div>
                             <MemberSelectionList members={selectableMembers} selectedIds={currentTrack?.members || []} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
                         </div>
                         <div>
-                            <h4 className="font-semibold mb-2">2. Line-up & Center Assignment</h4>
-                            <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50">
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                            <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                                 <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-gray-100">
-                                        <tr className="text-left"><th className="p-2 font-bold">Member</th><th className="p-2 font-bold">Row</th><th className="p-2 text-center font-bold">Center</th></tr>
+                                    <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
+                                        <tr className="text-left"><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
                                     </thead>
                                     <tbody>
                                         {selectableSenbatsu.sort((a, b) => (b.fans || 0) - (a.fans || 0)).map(member => (
-                                            <tr key={member.id} className="border-t">
-                                                <td className="p-2 font-medium">{member.name}</td>
+                                            <tr key={member.id} className="border-t dark:border-gray-700">
+                                                <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
                                                 <td className="p-2">
-                                                    <select value={currentTrack?.lineup[String(member.id)] || '5th Row'} onChange={(e) => handleLineupChange(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white">
+                                                    <select value={currentTrack?.lineup[String(member.id)] || '5th Row'} onChange={(e) => handleLineupChange(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                                                         <option>1st Row</option><option>2nd Row</option><option>3rd Row</option><option>4th Row</option><option>5th Row</option>
                                                     </select>
                                                 </td>
-                                                <td className="p-2 text-center"><input type="radio" name={`center-radio-${selectedTrackIndex}`} checked={String(currentTrack?.center) === String(member.id)} onChange={() => setCenter(member.id)} className="form-radio h-4 w-4 text-blue-600"/></td>
+                                                <td className="p-2 text-center"><input type="radio" name={`center-radio-${selectedTrackIndex}`} checked={String(currentTrack?.center) === String(member.id)} onChange={() => setCenter(member.id)} className="form-radio h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"/></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                {selectableSenbatsu.length === 0 && <p className="text-center text-gray-500 p-4">Select members to assign positions.</p>}
+                                {selectableSenbatsu.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 p-4">Select members to assign positions.</p>}
                             </div>
                         </div>
                     </div>
                     <div className="lg:col-span-4">
-                         <h4 className="font-semibold mb-2 text-center lg:text-left">3. Formation Visualizer</h4>
+                         <h4 className="font-semibold mb-2 text-center lg:text-left dark:text-gray-200">3. Formation Visualizer</h4>
                          <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
                     </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded px-4">Cancel</button>
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-gray-700">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded px-4">Cancel</button>
                     <button onClick={() => setStep('production')} disabled={!songName.trim() || tracks.some(t => t.members.length === 0)} className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-400 px-4 font-bold">
                         Next: Production
                     </button>
@@ -2772,16 +2756,16 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
             <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Object.keys(productionTiers).map(category => (
-                        <div key={category} className="p-3 border rounded-lg bg-gray-50">
-                            <h4 className="font-bold text-md capitalize mb-3 border-b pb-2">{category}</h4>
+                        <div key={category} className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                            <h4 className="font-bold text-md capitalize mb-3 border-b pb-2 dark:text-gray-200 dark:border-gray-700">{category}</h4>
                             <div className="space-y-2">
                                 {Object.keys(productionTiers[category]).map(tier => (
-                                    <label key={tier} className="flex items-start p-2 rounded-lg border has-[:checked]:bg-blue-100 has-[:checked]:border-blue-400 cursor-pointer text-xs">
-                                        <input type="radio" name={category} value={tier} checked={productionChoices[category] === tier} onChange={() => handleProductionChange(category, tier)} className="form-radio h-4 w-4 text-blue-600 mt-0.5"/>
+                                    <label key={tier} className="flex items-start p-2 rounded-lg border bg-white dark:bg-gray-700 dark:border-gray-600 has-[:checked]:bg-blue-100 has-[:checked]:border-blue-400 dark:has-[:checked]:bg-gray-900 dark:has-[:checked]:border-blue-500 cursor-pointer text-xs">
+                                        <input type="radio" name={category} value={tier} checked={productionChoices[category] === tier} onChange={() => handleProductionChange(category, tier)} className="form-radio h-4 w-4 text-blue-600 mt-0.5 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"/>
                                         <div className="ml-2">
-                                            <p className="font-semibold">{productionTiers[category][tier].name}</p>
-                                            <p className="text-gray-600 text-xs">{productionTiers[category][tier].effect}</p>
-                                            <p className="font-bold text-blue-700 text-xs">¥{productionTiers[category][tier].cost.toLocaleString()}</p>
+                                            <p className="font-semibold dark:text-gray-200">{productionTiers[category][tier].name}</p>
+                                            <p className="text-gray-600 dark:text-gray-400 text-xs">{productionTiers[category][tier].effect}</p>
+                                            <p className="font-bold text-blue-700 dark:text-blue-400 text-xs">¥{productionTiers[category][tier].cost.toLocaleString()}</p>
                                         </div>
                                     </label>
                                 ))}
@@ -2789,21 +2773,21 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                         </div>
                     ))}
                 </div>
-                <div className="mt-6 pt-4 border-t space-y-4">
+                <div className="mt-6 pt-4 border-t dark:border-gray-700 space-y-4">
                     <div>
-                        <h4 className="font-bold text-lg text-center mb-2">Schedule Release Date</h4>
-                        <select value={releaseWeek} onChange={(e) => setReleaseWeek(Number(e.target.value))} className="w-full p-2 border rounded-lg bg-white">
+                        <h4 className="font-bold text-lg text-center mb-2 dark:text-gray-200">Schedule Release Date</h4>
+                        <select value={releaseWeek} onChange={(e) => setReleaseWeek(Number(e.target.value))} className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                             {Array.from({ length: 12 }, (_, i) => week + 4 + i).map(w => (
                                 <option key={w} value={w}>Week {w} ({getFormattedDateForWeek(w)})</option>
                             ))}
                         </select>
-                        <p className="text-center text-xs text-gray-500 mt-1">Single will be released on this week.</p>
+                        <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-1">Single will be released on this week.</p>
                     </div>
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 rounded-lg bg-gray-100">
-                        <button onClick={() => setStep('selection')} className="w-full md:w-auto p-2 bg-gray-300 rounded px-4 font-bold order-3 md:order-1">Back</button>
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-900">
+                        <button onClick={() => setStep('selection')} className="w-full md:w-auto p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded px-4 font-bold order-3 md:order-1">Back</button>
                         <div className="text-center md:text-right order-2">
-                            <p className="text-lg font-bold">Total Production Cost: <span className={totalProductionCost > money ? 'text-red-500' : 'text-green-500'}>¥{totalProductionCost.toLocaleString()}</span></p>
-                            <p className="text-sm text-gray-500">Your Balance: ¥{money.toLocaleString()}</p>
+                            <p className="text-lg font-bold dark:text-gray-200">Total Production Cost: <span className={totalProductionCost > money ? 'text-red-500' : 'text-green-500'}>¥{totalProductionCost.toLocaleString()}</span></p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Your Balance: ¥{money.toLocaleString()}</p>
                         </div>
                         <button onClick={handleSchedule} disabled={totalProductionCost > money} className="w-full md:w-auto p-2 bg-green-500 text-white rounded disabled:bg-gray-400 px-6 font-bold text-lg order-1 md:order-3">
                             Schedule Single
@@ -3798,7 +3782,7 @@ const CreateTeamModal = () => {
     const MediaJobModal = () => {
         // Need to filter members to exclude current Kennin members in the main roster to avoid redundancy 
         // in the list if the user selected a Kennin member in the roster view.
-        const availableMainMembers = members.filter(m => m.isAvailable && m.homeGroup === 'main');
+        const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
         
         return (
             <ModalWrapper title={<span className="flex items-center"><Mic size={20} className="mr-2"/> Send Member to Media Job</span>}>
@@ -3851,26 +3835,27 @@ const CreateTeamModal = () => {
         const jobs = [
             { id: 'music_show', name: 'Major Music Show', members: 7, multiplier: 1.5 },
             { id: 'awards_show', name: 'Year-End Awards Show', members: 16, multiplier: 3 },
-            { id: 'variety_program', name: 'Popular Variety Program', members: 5, multiplier: 1 },
+            { id: 'variety_show', name: 'Popular Variety Program', members: 5, multiplier: 1 },
+            { id: 'web_series', name: 'Sponsored Web Series', members: 4, multiplier: 1.2 }
         ];
-        
+
         return (
             <ModalWrapper title={<span className="flex items-center"><Tv size={20} className="mr-2"/> Group Media Appearance</span>}>
-                <p className="text-sm text-gray-600 mb-4">Send a sub-unit or the full group to a high-impact media job. Cost: ¥20,000.</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a sub-unit or the full group to a high-impact media job. Cost: ¥20,000.</p>
                 
-                <h4 className="font-semibold mb-2">Available Jobs:</h4>
+                <h4 className="font-semibold mb-2 dark:text-gray-200">Available Jobs:</h4>
                 <div className="space-y-3">
                     {jobs.map(job => (
-                        <div key={job.id} className="p-3 border rounded bg-gray-50 flex justify-between items-center">
+                        <div key={job.id} className="p-3 border rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex justify-between items-center">
                             <div>
-                                <span className="font-bold">{job.name}</span>
-                                <p className="text-xs text-gray-600">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
-                                <p className="text-xs text-red-500">Requires {job.members} available members.</p>
+                                <span className="font-bold dark:text-gray-100">{job.name}</span>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
+                                <p className={`text-xs ${members.filter(m => m.isAvailable).length < job.members ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>Requires {job.members} available members.</p>
                             </div>
                             <button 
                                 onClick={() => startGroupMediaJob(job.id)} 
                                 disabled={members.filter(m => m.isAvailable).length < job.members}
-                                className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400"
+                                className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-500"
                             >
                                 Take Job
                             </button>
@@ -3879,7 +3864,7 @@ const CreateTeamModal = () => {
                 </div>
                 
                 <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded">Close</button>
                 </div>
             </ModalWrapper>
         );
@@ -3889,8 +3874,7 @@ const CreateTeamModal = () => {
         const [campMemberId, setCampMemberId] = useState('');
         const [campSkill, setCampSkill] = useState('singing');
         
-        // Only allow main members who are not already on assignment
-        const availableMembers = members.filter(m => m.isAvailable && m.homeGroup === 'main');
+            const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
         
         const handleConfirm = () => {
             if (!campMemberId || !campSkill) return setMessage("Select a member and a skill.");
@@ -3936,6 +3920,7 @@ const CreateTeamModal = () => {
     
     const CreateSisterGroupModal = () => {
         const [sgName, setSgName] = useState('');
+        const [sgType, setSgType] = useState('domestic');
         const [sgLocation, setSgLocation] = useState('');
 
         const handleConfirm = () => {
@@ -3966,6 +3951,16 @@ const CreateTeamModal = () => {
                     className="w-full p-2 border rounded mb-3"
                     placeholder="e.g., Osaka"
                 />
+                            <h4 className="font-semibold mb-1">Group Type</h4>
+            <select 
+                value={sgType} 
+                onChange={(e) => setSgType(e.target.value)}
+                className="w-full p-2 border rounded mb-3"
+            >
+                <option value="domestic">Domestic</option>
+                <option value="overseas">Overseas</option>
+            </select>
+
 
                 <div className="flex justify-end gap-2 mt-4">
                     <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
@@ -4010,6 +4005,39 @@ const CreateTeamModal = () => {
         );
     };
 
+const EditGroupNameModal = () => {
+    const group = modalData;
+    const [newName, setNewName] = useState(group?.name || '');
+
+    const handleConfirm = () => {
+        if (!newName.trim() || newName.trim() === group.name) {
+            return setShowModal(null);
+        }
+        handleConfirmEditGroupName(group, newName.trim());
+    };
+
+    if (!group) return null;
+
+    return (
+        <ModalWrapper title={<span className="flex items-center"><Edit size={20} className="mr-2"/> Rename {group.name}</span>}>
+            <p className="text-sm text-gray-600 mb-4">Enter the new name for the group.</p>
+            <h4 className="font-semibold mb-1">Group Name</h4>
+            <input 
+                type="text" 
+                value={newName} 
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full p-2 border rounded mb-3"
+                placeholder="Enter new group name"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                <button onClick={handleConfirm} disabled={!newName.trim()} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
+                    Confirm Rename
+                </button>
+            </div>
+        </ModalWrapper>
+    );
+};
     // --- END NEW MODALS ---
 
        const MemberParticipationHistory = ({ member, getFormattedDateForWeek }) => { 
@@ -4443,14 +4471,44 @@ if (!gameStarted) {
               </div>
             </div>
 
-            {/* Sister Groups */}
+            {/* Groups Panel */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Globe size={18} className="mr-2"/> Group Expansion ({sisterGroups.length})</h3>
+              <h3 className="text-base font-bold mb-2 flex items-center"><Globe size={18} className="mr-2"/> Groups ({1 + sisterGroups.length})</h3>
               <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
+                  {/* Main Group Card */}
+                  <div className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
+                      <div>
+                        <span className="font-semibold text-sm">{groupName} (Main)</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Members: {members.length}</p>
+                      </div>
+                      <button 
+                        onClick={() => { setModalData({ id: 'main', name: groupName }); setShowModal('editGroupName'); }}
+                        className="p-1 bg-yellow-400 text-white rounded text-xs hover:bg-yellow-500">
+                          Edit
+                      </button>
+                  </div>
+
+                  {/* Sister Group Cards */}
                   {(sisterGroups || []).map(sg => (
-                      <div key={sg.id} className="p-1.5 border rounded bg-gray-50">
-                          <span className="font-semibold text-sm">{sg.name}</span>
-                          <p className="text-xs text-gray-500 flex items-center"><MapPin size={12} className='mr-1'/>{sg.location} | Members: {(sg.members || []).length}</p>
+                      <div key={sg.id} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
+                          <div>
+                            <span className="font-semibold text-sm">{sg.name}</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                <MapPin size={12} className='mr-1'/>{sg.location} | {(sg.members || []).length} Members | {sg.type === 'overseas' ? 'Overseas' : 'Domestic'}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button 
+                              onClick={() => { setModalData(sg); setShowModal('editGroupName'); }}
+                              className="p-1 bg-yellow-400 text-white rounded text-xs hover:bg-yellow-500">
+                                Edit
+                            </button>
+                            <button 
+                              onClick={() => { setModalData(sg); setShowModal('sisterGroupDisband'); }}
+                              className="p-1 bg-red-500 text-white rounded text-xs hover:bg-red-600">
+                                Disband
+                            </button>
+                          </div>
                       </div>
                   ))}
               </div>
@@ -4875,6 +4933,7 @@ if (!gameStarted) {
         {showModal === 'customSetlist' && <CustomSetlistModal />}
         {showModal === 'scandal' && modalData && <ScandalModal />}
         {showModal === 'sisterGroupDisband' && modalData && <SisterGroupDisbandModal />}
+        {showModal === 'editGroupName' && modalData && <EditGroupNameModal />}
         {showModal === 'performancePrep' && <PerformanceModal />}
         {showModal === 'majorConcert' && <MajorConcertModal />}
         {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
