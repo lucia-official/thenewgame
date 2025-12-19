@@ -43,3 +43,41 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Penlight Animation Styles */
+.penlight {
+    position: absolute;
+    bottom: 12px;
+    width: 8px;
+    transform-origin: bottom center;
+    animation: wave 1.9s ease-in-out infinite;
+}
+.penlight .handle {
+    position:absolute; bottom:0; left:50%; transform: translateX(-50%);
+    width: 8px; height: 32px; border-radius: 4px;
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 6px 16px rgba(0,0,0,.35);
+}
+.penlight .glow {
+    position:absolute; bottom: 28px; left:50%; transform: translateX(-50%);
+    width: 10px; height: 46px; border-radius: 999px;
+    box-shadow: 0 0 18px var(--c), 0 0 32px color-mix(in srgb, var(--c), transparent 35%), 0 0 60px color-mix(in srgb, var(--c), transparent 55%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c), white 22%), var(--c));
+    border: 1px solid color-mix(in srgb, var(--c), white 25%);
+}
+.crowd::before {
+    content:""; position:absolute; inset:-40px;
+    background: radial-gradient(220px 160px at 15% 30%, rgba(120,84,255,.28), transparent 60%),
+                radial-gradient(240px 160px at 80% 25%, rgba(0,255,198,.22), transparent 62%),
+                radial-gradient(300px 200px at 60% 65%, rgba(255,62,128,.18), transparent 65%);
+    filter: blur(10px); opacity: .9;
+}
+.sil {
+    position:absolute; bottom:0; left:0; right:0; height: 40px;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,.85));
+}
+@keyframes wave {
+    0% { transform: rotate(-8deg) translateY(0); }
+    50% { transform: rotate(10deg) translateY(-6px); }
+    100% { transform: rotate(-8deg) translateY(0); }
+}

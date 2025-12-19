@@ -4,7 +4,7 @@
 type AnyObject = any;
 
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Star, Music, Heart, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
   Upload, Building, Tv, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
@@ -917,14 +917,16 @@ const getMemberGroupStatus = (member) => {
     
     const holdTheaterShow = (concertTheme) => {
       setShowModal(null);
-      const availableMembers = members.filter(m => m.isAvailable);
+           // Get ALL available members from ALL groups (main, sister, kennin)
+      const allAvailableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
       
       const team = (teams || []).find(t => t.id === selectedTheaterTeam);
       const setlist = (allSetlists || []).find(s => s.id === team?.currentSetlistId);
       
-      const performingMembers = team 
-        ? availableMembers.filter(m => team.members.includes(m.id))
-        : availableMembers;
+      // If a team is selected, filter all available members. Otherwise, use all available members.
+      const performingMembers = team
+        ? allAvailableMembers.filter(m => team.members.includes(String(m.id)))
+        : allAvailableMembers;
 
       if (performingMembers.length === 0) {
         return setMessage(team ? `${team.name} has no available members!` : 'No available members in the group!');
@@ -979,7 +981,18 @@ const getMemberGroupStatus = (member) => {
       if (themeBonus > 1) concertMessage += " (Theme Bonus!)";
       if (themeBonus < 1) concertMessage += " (Theme Mismatch!)";
       concertMessage += ` +${newFans} fans. Tickets: ¥${ticketRevenue.toLocaleString()}. Merch: ¥${merchRevenue.toLocaleString()}.`;
-      setMessage(concertMessage);
+      const summaryMessage = `Theater Show: ${team ? team.name : 'All members'} gained +${newFans.toLocaleString()} fans and ¥${totalRevenue.toLocaleString()} in revenue.`;
+      setMessage(summaryMessage);
+      addNotification({ type: 'Performance', message: summaryMessage });
+
+
+      setModalData({
+        title: "Theater Show Result",
+        message: `The crowd loved the performance!`,
+        fansGained: newFans,
+        revenue: totalRevenue,
+      });
+      setShowModal('performanceResult');
     };
     
     const holdSisterGroupShow = (sgId) => {
@@ -1255,8 +1268,17 @@ const getMemberGroupStatus = (member) => {
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
 
-        setMessage(`Concert "${newEntry.name}" was a success! Profit: ¥${profit.toLocaleString()}.`);
-        setShowModal(null);
+        const summaryMessage = `Concert "${newEntry.name}": +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`;
+        setMessage(summaryMessage);
+        addNotification({ type: 'Performance', message: summaryMessage });
+
+      setModalData({
+        title: `Concert "${newEntry.name}" Results`,
+        message: `A smashing success at ${newEntry.venueName}!`,
+        fansGained: fanGain,
+        revenue: ticketRevenue,
+      });
+      setShowModal('performanceResult');
     };
 
 
@@ -1315,9 +1337,18 @@ const getMemberGroupStatus = (member) => {
             tracks: setlist,
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
+        const summaryMessage = `Performance "${newEntry.name}": +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`;
+        setMessage(summaryMessage);
+        addNotification({ type: 'Performance', message: summaryMessage });
 
-        setMessage(`Performance: "${newEntry.name}" successful! +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`);
-        setShowModal(null);
+
+      setModalData({
+        title: `Performance: "${newEntry.name}"`,
+        message: `The performance was a success!`,
+        fansGained: fanGain,
+        revenue: totalRevenue,
+      });
+      setShowModal('performanceResult');
     };
 
     const startPerformancePrep = () => {
@@ -3300,6 +3331,179 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
         );
     };
 
+    const TheaterShowPrepModal = () => {
+        const [theme, setTheme] = useState('classic');
+        const themes = ['classic', 'vocal', 'dance', 'idol', 'energy', 'theatrical', 'cool'];
+
+        const team = teams.find(t => t.id === selectedTheaterTeam);
+        const setlist = team ? allSetlists.find(s => s.id === team.currentSetlistId) : null;
+
+        // Automatically select the setlist's theme as default if available
+        useEffect(() => {
+            if (setlist && setlist.theme) {
+                setTheme(setlist.theme);
+            }
+        }, [setlist]);
+
+        return (
+            <ModalWrapper title="Theater Show Preparation">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Prepare for the upcoming theater show.</p>
+                
+                {team && setlist ? (
+                    <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border dark:border-gray-600">
+                        <p><strong>Team:</strong> <span className="font-semibold">{team.name}</span></p>
+                        <p><strong>Setlist:</strong> <span className="font-semibold">{setlist.name}</span></p>
+                        <p><strong>Recommended Theme:</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{setlist.theme}</span></p>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Performing with all available members.</p>
+                )}
+
+                <h4 className="font-semibold mb-1 dark:text-gray-200">Select Performance Theme</h4>
+                <select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700 dark:border-gray-600">
+                    {themes.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Matching the theme to the setlist's theme will provide a performance bonus.</p>
+                
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t dark:border-gray-600">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Cancel</button>
+                    <button onClick={() => holdTheaterShow(theme)} className="p-2 bg-green-500 text-white rounded px-4 font-bold">
+                        Start Show
+                    </button>
+                </div>
+            </ModalWrapper>
+        );
+    };
+    const PerformanceResultModal = () => {
+        const crowdRef = useRef(null);
+
+        useEffect(() => {
+            if (!modalData) return;
+
+            const COLORS = [
+                '#7C3AED', '#22C55E', '#06B6D4', '#3B82F6',
+                '#F97316', '#EF4444', '#EC4899', '#FACC15',
+                '#A3E635', '#FFFFFF'
+            ];
+
+            const rand = (min, max) => Math.random() * (max - min) + min;
+
+            const buildPenlights = (count = 22) => {
+                const crowd = crowdRef.current;
+                if (!crowd) return;
+
+                // Clear existing penlights before rebuilding
+                while (crowd.firstChild) {
+                    crowd.removeChild(crowd.firstChild);
+                }
+
+                const w = crowd.clientWidth;
+                for (let i = 0; i < count; i++) {
+                    const pl = document.createElement('div');
+                    pl.className = 'penlight';
+                    pl.style.setProperty('--c', COLORS[Math.floor(Math.random() * COLORS.length)]);
+                    pl.style.left = `${(i / (count - 1)) * (w - 40) + rand(-10, 10) + 20}px`;
+                    pl.style.height = `${rand(70, 115)}px`;
+                    pl.style.animationDelay = `${rand(-1.2, 0.6)}s`;
+                    pl.style.animationDuration = `${rand(1.3, 2.4)}s`;
+                    
+                    const glow = document.createElement('div');
+                    glow.className = 'glow';
+                    
+                    const handle = document.createElement('div');
+                    handle.className = 'handle';
+
+                    pl.appendChild(glow);
+                    pl.appendChild(handle);
+                    crowd.appendChild(pl);
+                }
+                const sil = document.createElement('div');
+                sil.className = 'sil';
+                crowd.appendChild(sil);
+            };
+
+            buildPenlights(24);
+            const handleResize = () => buildPenlights(24);
+            window.addEventListener('resize', handleResize);
+
+            return () => window.removeEventListener('resize', handleResize);
+        }, [modalData]); // Re-run when modal shows
+
+        if (!modalData) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+                <div className="w-full max-w-2xl rounded-2xl bg-gray-800 bg-opacity-70 border border-gray-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+                    <div className="p-4 flex justify-between items-center bg-white bg-opacity-10">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold uppercase tracking-wider bg-white bg-opacity-20 text-white py-1 px-3 rounded-full">Performance</span>
+                            <h3 className="font-bold text-lg text-white">{modalData.title}</h3>
+                        </div>
+                        <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="p-5 grid gap-4">
+                        <div className="grid grid-cols-2 gap-4 text-center p-4 rounded-lg bg-white bg-opacity-5">
+                            <div>
+                                <p className="text-3xl font-bold text-green-400">¥{modalData.revenue.toLocaleString()}</p>
+                                <p className="text-sm text-gray-400 font-semibold">Revenue</p>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-bold text-blue-400">+{modalData.fansGained.toLocaleString()}</p>
+                                <p className="text-sm text-gray-400 font-semibold">New Fans</p>
+                            </div>
+                        </div>
+                        <div ref={crowdRef} className="crowd h-52 rounded-lg relative overflow-hidden bg-gray-900 bg-opacity-50 border border-gray-700 shadow-inner">
+                            {/* Penlights are generated by useEffect */}
+                        </div>
+                         <button onClick={() => setShowModal(null)} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold text-base hover:bg-blue-700 transition-colors">
+                            Continue
+                        </button>
+                    </div>
+                </div>
+                <style jsx>{`
+                    .penlight {
+                        position: absolute;
+                        bottom: 12px;
+                        width: 8px;
+                        transform-origin: bottom center;
+                        animation: wave 1.9s ease-in-out infinite;
+                    }
+                    .penlight .handle {
+                        position:absolute; bottom:0; left:50%; transform: translateX(-50%);
+                        width: 8px; height: 32px; border-radius: 4px;
+                        background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.14);
+                        box-shadow: 0 6px 16px rgba(0,0,0,.35);
+                    }
+                    .penlight .glow {
+                        position:absolute; bottom: 28px; left:50%; transform: translateX(-50%);
+                        width: 10px; height: 46px; border-radius: 999px;
+                        box-shadow: 0 0 18px var(--c), 0 0 32px color-mix(in srgb, var(--c), transparent 35%), 0 0 60px color-mix(in srgb, var(--c), transparent 55%);
+                        background: linear-gradient(180deg, color-mix(in srgb, var(--c), white 22%), var(--c));
+                        border: 1px solid color-mix(in srgb, var(--c), white 25%);
+                    }
+                    .crowd::before {
+                        content:""; position:absolute; inset:-40px;
+                        background: radial-gradient(220px 160px at 15% 30%, rgba(120,84,255,.28), transparent 60%),
+                                    radial-gradient(240px 160px at 80% 25%, rgba(0,255,198,.22), transparent 62%),
+                                    radial-gradient(300px 200px at 60% 65%, rgba(255,62,128,.18), transparent 65%);
+                        filter: blur(10px); opacity: .9;
+                    }
+                    .sil {
+                        position:absolute; bottom:0; left:0; right:0; height: 40px;
+                        background: linear-gradient(180deg, transparent, rgba(0,0,0,.85));
+                    }
+                    @keyframes wave {
+                        0% { transform: rotate(-8deg) translateY(0); }
+                        50% { transform: rotate(10deg) translateY(-6px); }
+                        100% { transform: rotate(-8deg) translateY(0); }
+                    }
+                `}</style>
+            </div>
+        );
+    };
+
     const SaveGameModal = () => {
         const [saveUsername, setSaveUsername] = useState(username);
 
@@ -4450,10 +4654,10 @@ if (!gameStarted) {
               <h3 className="text-base font-bold mb-2 flex items-center"><Users size={18} className="mr-2"/> Theater Teams & Setlists</h3>
               <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
                 {(teams || []).map(team => (
-                  <div key={team.id} className="p-1.5 border rounded bg-gray-50 flex justify-between items-center">
+                  <div key={team.id} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 flex justify-between items-center">
                     <div>
                       <span className="font-semibold text-sm">{team.name} ({team.members.length} members)</span>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-300">
                         Setlist: {(allSetlists || []).find(s => s.id === team.currentSetlistId)?.name || 'None'}
                       </p>
                     </div>
@@ -4937,6 +5141,7 @@ if (!gameStarted) {
         {showModal === 'performancePrep' && <PerformanceModal />}
         {showModal === 'majorConcert' && <MajorConcertModal />}
         {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
+        {showModal === 'performanceResult' && <PerformanceResultModal />}
       </div>
     );
 };
