@@ -485,6 +485,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
           songsParticipation: [],
           centerHistory: [],
           teamHistory: [],
+          trainingFocus: 'none',
           isAvailable: true 
         };
       });
@@ -654,7 +655,38 @@ const getMemberGroupStatus = (member) => {
         // Add the new notification and cap the list at 50 to prevent performance issues
         setNotifications(prev => [newNotification, ...prev].slice(0, 50));
     };
-    
+
+    const handleSetTrainingFocus = (memberId, focus) => {
+      updateMemberState(memberId, m => ({ ...m, trainingFocus: focus }));
+    };
+
+    const assignRandomTraining = () => {
+      const skills = ['singing', 'dancing', 'variety'];
+      getAllAvailableMembers(true).forEach(member => {
+        const randomSkill = skills[Math.floor(Math.random() * skills.length)];
+        updateMemberState(member.id, m => ({ ...m, trainingFocus: randomSkill }));
+      });
+      setMessage('Assigned random training focus to all available members.');
+    };
+
+    const assignLowestSkillTraining = () => {
+      getAllAvailableMembers(true).forEach(member => {
+        let lowestSkill = 'singing';
+        let lowestValue = member.singing || 0;
+
+        if ((member.dancing || 0) < lowestValue) {
+          lowestSkill = 'dancing';
+          lowestValue = member.dancing || 0;
+        }
+        if ((member.variety || 0) < lowestValue) {
+          lowestSkill = 'variety';
+        }
+        
+        updateMemberState(member.id, m => ({ ...m, trainingFocus: lowestSkill }));
+      });
+      setMessage('Assigned training focus to lowest skill for all available members.');
+    };
+
     const trainMember = (memberId, skill) => {
       if (money < 500) return setMessage('Not enough money!');
       const member = getMemberById(memberId);
@@ -1939,6 +1971,46 @@ const getMemberGroupStatus = (member) => {
             newStamina = 60; // Force rest, recover to 60
             newStress = Math.max(0, newStress - 20); // Resting also helps stress
         }
+        // --- NEW: Handle Weekly Training Focus ---
+        let newSinging = memberToUpdate.singing || 0;
+        let newDancing = memberToUpdate.dancing || 0;
+        let newVariety = memberToUpdate.variety || 0;
+
+        const focusedGain = 0.2 + Math.random() * 0.3; // Random gain between 0.2 and 0.5
+        const passiveGain = 0.05; // Smaller passive gain
+
+        if (memberToUpdate.trainingFocus && memberToUpdate.trainingFocus !== 'none') {
+            const skill = memberToUpdate.trainingFocus;
+            let skillGained = 0;
+
+            if (skill === 'singing') {
+                skillGained = Math.min(100, newSinging + focusedGain) - newSinging;
+                newSinging += skillGained;
+            } else if (skill === 'dancing') {
+                skillGained = Math.min(100, newDancing + focusedGain) - newDancing;
+                newDancing += skillGained;
+            } else if (skill === 'variety') {
+                skillGained = Math.min(100, newVariety + focusedGain) - newVariety;
+                newVariety += skillGained;
+            }
+
+            // Optional: Add a notification for focused training
+            if (skillGained > 0) {
+                 addNotification({ type: 'Training', message: `${memberToUpdate.name} gained +${skillGained.toFixed(2)} ${skill} from training.` });
+            }
+
+        } else {
+            // Apply a smaller, general gain if no focus is set
+            newSinging += passiveGain;
+            newDancing += passiveGain;
+            newVariety += passiveGain;
+        }
+        
+        memberToUpdate.singing = Math.min(100, parseFloat(newSinging.toFixed(2)));
+        memberToUpdate.dancing = Math.min(100, parseFloat(newDancing.toFixed(2)));
+        memberToUpdate.variety = Math.min(100, parseFloat(newVariety.toFixed(2)));
+        // --- END NEW ---
+
 
         return {
             ...memberToUpdate,
@@ -2067,6 +2139,7 @@ const getMemberGroupStatus = (member) => {
                 graduated: false,
                 generation: generationName,
                 isAvailable: true,
+                trainingFocus: 'none',
                 singlesParticipation: [], 
                 songsParticipation: [], 
                 centerHistory: [],
@@ -2111,7 +2184,7 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
         // Utilities
         startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
     };
 };
 
@@ -2125,7 +2198,7 @@ const App = () => {
         // Utilities
         startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
     } = useIdolManager();
 
     // Local state for start screen inputs (not part of the main game state in the hook)
@@ -4578,6 +4651,55 @@ if (!gameStarted) {
                     )}
                   </div>
                 )}
+{/* ----- TRAINING TAB ----- */}
+{currentTab === 'training' && (
+  <div>
+    <h2 className="text-xl font-bold mb-4 flex items-center"><Brain size={22} className="mr-2"/> Weekly Training Focus</h2>
+    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+      Assign a training focus for each available member. Members will gain a small amount of experience in their chosen skill each week. This happens automatically during the "Next Week" cycle.
+    </p>
+        <div className="flex justify-center gap-2 my-4">
+      <button 
+        onClick={assignRandomTraining}
+        className="px-4 py-2 text-sm font-semibold bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors"
+      >
+        <Shuffle size={16} className="inline mr-2"/>
+        Assign Random
+      </button>
+      <button 
+        onClick={assignLowestSkillTraining}
+        className="px-4 py-2 text-sm font-semibold bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition-colors"
+      >
+        <TrendingUp size={16} className="inline mr-2"/>
+        Train Lowest Skill
+      </button>
+    </div>
+
+    <div className="space-y-2 max-w-2xl mx-auto">
+      {getAllAvailableMembers(true).map(member => (
+        <div key={member.rosterId || member.id} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex justify-between items-center border dark:border-gray-700">
+          <div>
+            <p className="font-bold">{member.name}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{getMemberGroupStatus(member)}</p>
+          </div>
+          <select
+            value={member.trainingFocus || 'none'}
+            onChange={(e) => handleSetTrainingFocus(member.id, e.target.value)}
+            className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="none">None</option>
+            <option value="singing">Vocal</option>
+            <option value="dancing">Dance</option>
+            <option value="variety">Variety</option>
+          </select>
+        </div>
+      ))}
+       {getAllAvailableMembers(true).length === 0 && (
+        <p className="text-center text-gray-500 p-8">No members available for training.</p>
+      )}
+    </div>
+  </div>
+)}
 
         {/* ----- MANAGEMENT TAB ----- */}
         {currentTab === 'management' && (
@@ -4926,6 +5048,7 @@ if (!gameStarted) {
             <TabButton id="management" label="Manage" icon={Building} />
             <TabButton id="history" label="History" icon={Clipboard} />
             <TabButton id="activities" label="Activities" icon={Zap} />
+            <TabButton id="training" label="Training" icon={Brain} />
           </nav>
         </div>
 
@@ -5062,6 +5185,7 @@ if (!gameStarted) {
       { id: 'members', label: 'Members' },
       { id: 'management', label: 'Manage' },
       { id: 'activities', label: 'Activities' },
+      { id: 'training', label: 'Training' },
       { id: 'discography', label: 'Songs' },
       { id: 'history', label: 'History' },
     ].map(tab => (
