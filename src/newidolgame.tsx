@@ -221,69 +221,71 @@ const useIdolManager = () => {
 ]);
     const [performanceHistory, setPerformanceHistory] = useState([]);
     const [scheduledSingles, setScheduledSingles] = useState([]);
+    const [auditionCandidates, setAuditionCandidates] = useState([]);
+
 
     // Performance Types Data
     const performanceTypes = [
       // ===== Official =====
-      { label: "Debut Stage", category: "Official", cost: 10000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 20, desc: "The official first performance to introduce the group." },
-      { label: "Comeback Stage", category: "Official", cost: 20000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, desc: "Performance for new album/single promotions." },
-      { label: "First Performance Stage", category: "Official", cost: 20000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, desc: "Performance for new album/single promotions." },
-      { label: "Music Show Performance", category: "Official", cost: 15000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 25, desc: "Weekly appearance on a major music program." },
-      { label: "Award Show Stage", category: "Official", cost: 50000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 40, desc: "A high-profile stage at a year-end award show." },
-      { label: "Special Stage", category: "Official", cost: 30000, fanImpact: 0.25, skillImpact: 0.15, staminaDrain: 35, desc: "One-off collaborative or unique concept stage." },
-      { label: "Anniversary Stage", category: "Official", cost: 40000, fanImpact: 0.25, skillImpact: 0.1, staminaDrain: 30, desc: "A celebratory performance marking an anniversary." },
+      { label: "Debut Stage", category: "Official", cost: 10000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 20, stressGain: 25, desc: "The official first performance to introduce the group." },
+      { label: "Comeback Stage", category: "Official", cost: 20000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, stressGain: 20, desc: "Performance for new album/single promotions." },
+      { label: "First Performance Stage", category: "Official", cost: 20000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, stressGain: 20, desc: "Performance for new album/single promotions." },
+      { label: "Music Show Performance", category: "Official", cost: 15000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 25, stressGain: 15, desc: "Weekly appearance on a major music program." },
+      { label: "Award Show Stage", category: "Official", cost: 50000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 40, stressGain: 30, desc: "A high-profile stage at a year-end award show." },
+      { label: "Special Stage", category: "Official", cost: 30000, fanImpact: 0.25, skillImpact: 0.15, staminaDrain: 35, stressGain: 20, desc: "One-off collaborative or unique concept stage." },
+      { label: "Anniversary Stage", category: "Official", cost: 40000, fanImpact: 0.25, skillImpact: 0.1, staminaDrain: 30, stressGain: 10, desc: "A celebratory performance marking an anniversary." },
     
       // Added Official
-      { label: "Collaboration Stage", category: "Official", cost: 35000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 35, desc: "Joint stage with another artist. Strong crossover potential." },
-      { label: "Opening Act Stage", category: "Official", cost: 20000, fanImpact: 0.18, skillImpact: 0.15, staminaDrain: 30, desc: "Opening performance for a senior artist or big show." },
-      { label: "Encore Stage", category: "Official", cost: 12000, fanImpact: 0.12, skillImpact: 0.05, staminaDrain: 12, desc: "Extra stage after strong demand or a win." },
-      { label: "Remix/Version Stage", category: "Official", cost: 18000, fanImpact: 0.14, skillImpact: 0.12, staminaDrain: 25, desc: "Special remix arrangement to refresh promotions." },
-      { label: "OST Live Stage", category: "Official", cost: 22000, fanImpact: 0.2, skillImpact: 0.1, staminaDrain: 25, desc: "Live stage for a drama/film OST; boosts general public reach." },
-      { label: "Radio Live Session", category: "Official", cost: 8000, fanImpact: 0.08, skillImpact: 0.12, staminaDrain: 12, desc: "Live vocal-focused session on radio or studio broadcast." },
+      { label: "Collaboration Stage", category: "Official", cost: 35000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 35, stressGain: 25, desc: "Joint stage with another artist. Strong crossover potential." },
+      { label: "Opening Act Stage", category: "Official", cost: 20000, fanImpact: 0.18, skillImpact: 0.15, staminaDrain: 30, stressGain: 15, desc: "Opening performance for a senior artist or big show." },
+      { label: "Encore Stage", category: "Official", cost: 12000, fanImpact: 0.12, skillImpact: 0.05, staminaDrain: 12, stressGain: 5, desc: "Extra stage after strong demand or a win." },
+      { label: "Remix/Version Stage", category: "Official", cost: 18000, fanImpact: 0.14, skillImpact: 0.12, staminaDrain: 25, stressGain: 10, desc: "Special remix arrangement to refresh promotions." },
+      { label: "OST Live Stage", category: "Official", cost: 22000, fanImpact: 0.2, skillImpact: 0.1, staminaDrain: 25, stressGain: 15, desc: "Live stage for a drama/film OST; boosts general public reach." },
+      { label: "Radio Live Session", category: "Official", cost: 8000, fanImpact: 0.08, skillImpact: 0.12, staminaDrain: 12, stressGain: 10, desc: "Live vocal-focused session on radio or studio broadcast." },
     
       // ===== Promotional =====
-      { label: "Road Show", category: "Promotional", cost: 5000, fanImpact: 0.05, skillImpact: 0.05, staminaDrain: 15, desc: "Outdoor public performance to attract local fans." },
-      { label: "Busking", category: "Promotional", cost: 2000, fanImpact: 0.02, skillImpact: 0.05, staminaDrain: 10, desc: "Street performance, low cost, small local gains." },
-      { label: "Fanmeeting Stage", category: "Promotional", cost: 15000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 20, desc: "Performance for official fan club members." },
-      { label: "Campus Festival", category: "Promotional", cost: 8000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 20, desc: "Performing at a university event, popular with youth." },
-      { label: "Corporate Event", category: "Promotional", cost: 25000, fanImpact: 0.05, skillImpact: 0.1, staminaDrain: 25, desc: "Paid performance for a private business event. High revenue, low fans." },
-      { label: "TV Appearance", category: "Promotional", cost: 12000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 20, desc: "Non-music TV guest slot with a short performance segment." },
+      { label: "Road Show", category: "Promotional", cost: 5000, fanImpact: 0.05, skillImpact: 0.05, staminaDrain: 15, stressGain: 10, desc: "Outdoor public performance to attract local fans." },
+      { label: "Busking", category: "Promotional", cost: 2000, fanImpact: 0.02, skillImpact: 0.05, staminaDrain: 10, stressGain: 5, desc: "Street performance, low cost, small local gains." },
+      { label: "Fanmeeting Stage", category: "Promotional", cost: 15000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 20, stressGain: -5, desc: "Performance for official fan club members." },
+      { label: "Campus Festival", category: "Promotional", cost: 8000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 20, stressGain: 10, desc: "Performing at a university event, popular with youth." },
+      { label: "Corporate Event", category: "Promotional", cost: 25000, fanImpact: 0.05, skillImpact: 0.1, staminaDrain: 25, stressGain: 15, desc: "Paid performance for a private business event. High revenue, low fans." },
+      { label: "TV Appearance", category: "Promotional", cost: 12000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 20, stressGain: 15, desc: "Non-music TV guest slot with a short performance segment." },
     
       // Added Promotional
-      { label: "Rookie Showcase", category: "Promotional", cost: 7000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 20, desc: "Small-scale stage to build early supporters and press." },
-      { label: "Local TV Stage", category: "Promotional", cost: 6000, fanImpact: 0.08, skillImpact: 0.05, staminaDrain: 15, desc: "Regional broadcast performance; steady local growth." },
-      { label: "Radio Showcase Stage", category: "Promotional", cost: 5000, fanImpact: 0.06, skillImpact: 0.08, staminaDrain: 12, desc: "Short performance + talk segment; boosts recognition." },
-      { label: "Brand Pop-Up Stage", category: "Promotional", cost: 18000, fanImpact: 0.12, skillImpact: 0.06, staminaDrain: 20, desc: "Brand event pop-up stage; good buzz, moderate fan gain." },
-      { label: "Mall Event Stage", category: "Promotional", cost: 4000, fanImpact: 0.05, skillImpact: 0.04, staminaDrain: 12, desc: "Mini-stage in a public venue; quick exposure." },
-      { label: "Press/Media Showcase", category: "Promotional", cost: 10000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 15, desc: "Media-facing performance for articles/clips and interviews." },
+      { label: "Rookie Showcase", category: "Promotional", cost: 7000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 20, stressGain: 15, desc: "Small-scale stage to build early supporters and press." },
+      { label: "Local TV Stage", category: "Promotional", cost: 6000, fanImpact: 0.08, skillImpact: 0.05, staminaDrain: 15, stressGain: 10, desc: "Regional broadcast performance; steady local growth." },
+      { label: "Radio Showcase Stage", category: "Promotional", cost: 5000, fanImpact: 0.06, skillImpact: 0.08, staminaDrain: 12, stressGain: 10, desc: "Short performance + talk segment; boosts recognition." },
+      { label: "Brand Pop-Up Stage", category: "Promotional", cost: 18000, fanImpact: 0.12, skillImpact: 0.06, staminaDrain: 20, stressGain: 15, desc: "Brand event pop-up stage; good buzz, moderate fan gain." },
+      { label: "Mall Event Stage", category: "Promotional", cost: 4000, fanImpact: 0.05, skillImpact: 0.04, staminaDrain: 12, stressGain: 5, desc: "Mini-stage in a public venue; quick exposure." },
+      { label: "Press/Media Showcase", category: "Promotional", cost: 10000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 15, stressGain: 20, desc: "Media-facing performance for articles/clips and interviews." },
     
       // ===== Touring =====
-      { label: "Concert Tour", category: "Touring", cost: 100000, fanImpact: 0.4, skillImpact: 0.3, staminaDrain: 50, desc: "A series of major performances across cities. High investment/high reward." },
-      { label: "Showcase", category: "Touring", cost: 30000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, desc: "Short series of performances focusing on album track B-sides." },
-      { label: "Music Festival", category: "Touring", cost: 35000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 45, desc: "Performing alongside other major artists at a festival." },
-      { label: "Overseas Promotion Stage", category: "Touring", cost: 60000, fanImpact: 0.35, skillImpact: 0.2, staminaDrain: 40, desc: "Targeting international markets." },
+      { label: "Concert Tour", category: "Touring", cost: 100000, fanImpact: 0.4, skillImpact: 0.3, staminaDrain: 50, stressGain: 35, desc: "A series of major performances across cities. High investment/high reward." },
+      { label: "Showcase", category: "Touring", cost: 30000, fanImpact: 0.2, skillImpact: 0.15, staminaDrain: 30, stressGain: 20, desc: "Short series of performances focusing on album track B-sides." },
+      { label: "Music Festival", category: "Touring", cost: 35000, fanImpact: 0.3, skillImpact: 0.2, staminaDrain: 45, stressGain: 30, desc: "Performing alongside other major artists at a festival." },
+      { label: "Overseas Promotion Stage", category: "Touring", cost: 60000, fanImpact: 0.35, skillImpact: 0.2, staminaDrain: 40, stressGain: 40, desc: "Targeting international markets." },
     
       // Added Touring
-      { label: "Arena Concert", category: "Touring", cost: 160000, fanImpact: 0.5, skillImpact: 0.25, staminaDrain: 60, desc: "Large-scale headline concert; massive attention, huge stamina drain." },
-      { label: "Global Livestream Concert", category: "Touring", cost: 40000, fanImpact: 0.35, skillImpact: 0.15, staminaDrain: 30, desc: "Online concert targeting international fans." },
-      { label: "Overseas Fanmeeting", category: "Touring", cost: 50000, fanImpact: 0.3, skillImpact: 0.1, staminaDrain: 35, desc: "Fan interaction event abroad; great loyalty boost." },
-      { label: "Convention Stage", category: "Touring", cost: 45000, fanImpact: 0.28, skillImpact: 0.12, staminaDrain: 35, desc: "Large pop-culture convention appearance; strong new audience exposure." },
-      { label: "Theater Tour", category: "Touring", cost: 75000, fanImpact: 0.32, skillImpact: 0.25, staminaDrain: 45, desc: "Smaller venues across cities; great for live skill growth." },
+      { label: "Arena Concert", category: "Touring", cost: 160000, fanImpact: 0.5, skillImpact: 0.25, staminaDrain: 60, stressGain: 40, desc: "Large-scale headline concert; massive attention, huge stamina drain." },
+      { label: "Global Livestream Concert", category: "Touring", cost: 40000, fanImpact: 0.35, skillImpact: 0.15, staminaDrain: 30, stressGain: 10, desc: "Online concert targeting international fans." },
+      { label: "Overseas Fanmeeting", category: "Touring", cost: 50000, fanImpact: 0.3, skillImpact: 0.1, staminaDrain: 35, stressGain: -10, desc: "Fan interaction event abroad; great loyalty boost." },
+      { label: "Convention Stage", category: "Touring", cost: 45000, fanImpact: 0.28, skillImpact: 0.12, staminaDrain: 35, stressGain: 25, desc: "Large pop-culture convention appearance; strong new audience exposure." },
+      { label: "Theater Tour", category: "Touring", cost: 75000, fanImpact: 0.32, skillImpact: 0.25, staminaDrain: 45, stressGain: 30, desc: "Smaller venues across cities; great for live skill growth." },
     
       // ===== Internal =====
-      { label: "Practice Room Performance", category: "Internal", cost: 500, fanImpact: 0.01, skillImpact: 0.05, staminaDrain: 5, desc: "Casual practice/upload for minor buzz." },
-      { label: "Company Evaluation Stage", category: "Internal", cost: 1000, fanImpact: 0, skillImpact: 0.15, staminaDrain: 10, desc: "Internal stage for skill feedback. No fan change, high skill gain." },
-      { label: "V-Live/YouTube Stage", category: "Internal", cost: 1500, fanImpact: 0.05, skillImpact: 0.05, staminaDrain: 10, desc: "Streaming performance online for immediate fan engagement." },
-      { label: "Charity Stage", category: "Internal", cost: 5000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 15, desc: "Goodwill event. Boosts group morale slightly." },
-      { label: "Surprise Performance", category: "Internal", cost: 10000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 20, desc: "Unexpected pop-up event for maximum hype." },
+      { label: "Practice Room Performance", category: "Internal", cost: 500, fanImpact: 0.01, skillImpact: 0.05, staminaDrain: 5, stressGain: 2, desc: "Casual practice/upload for minor buzz." },
+      { label: "Company Evaluation Stage", category: "Internal", cost: 1000, fanImpact: 0, skillImpact: 0.15, staminaDrain: 10, stressGain: 20, desc: "Internal stage for skill feedback. No fan change, high skill gain." },
+      { label: "V-Live/YouTube Stage", category: "Internal", cost: 1500, fanImpact: 0.05, skillImpact: 0.05, staminaDrain: 10, stressGain: 0, desc: "Streaming performance online for immediate fan engagement." },
+      { label: "Charity Stage", category: "Internal", cost: 5000, fanImpact: 0.1, skillImpact: 0.05, staminaDrain: 15, stressGain: -15, desc: "Goodwill event. Boosts group morale slightly." },
+      { label: "Surprise Performance", category: "Internal", cost: 10000, fanImpact: 0.15, skillImpact: 0.1, staminaDrain: 20, stressGain: 10, desc: "Unexpected pop-up event for maximum hype." },
     
       // Added Internal
-      { label: "One-Take Performance Video", category: "Internal", cost: 3000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 15, desc: "Single-shot performance emphasizing professionalism." },
-      { label: "Relay Dance Stage", category: "Internal", cost: 1000, fanImpact: 0.07, skillImpact: 0.03, staminaDrain: 5, desc: "Short-form relay content with viral potential." },
-      { label: "Dance Practice (Choreo Focus)", category: "Internal", cost: 800, fanImpact: 0.03, skillImpact: 0.08, staminaDrain: 10, desc: "Choreo-focused content; steady skill gain." },
-      { label: "Live Band Session", category: "Internal", cost: 12000, fanImpact: 0.12, skillImpact: 0.12, staminaDrain: 25, desc: "Band arrangement stage; boosts musical credibility." },
-      { label: "Acoustic Stage", category: "Internal", cost: 6000, fanImpact: 0.08, skillImpact: 0.1, staminaDrain: 15, desc: "Stripped-down vocals; improves stability and tone." },
-      { label: "Behind-the-Scenes Mini Stage", category: "Internal", cost: 2000, fanImpact: 0.06, skillImpact: 0.03, staminaDrain: 8, desc: "BTS content with a short performance; good engagement." },
+      { label: "One-Take Performance Video", category: "Internal", cost: 3000, fanImpact: 0.1, skillImpact: 0.1, staminaDrain: 15, stressGain: 15, desc: "Single-shot performance emphasizing professionalism." },
+      { label: "Relay Dance Stage", category: "Internal", cost: 1000, fanImpact: 0.07, skillImpact: 0.03, staminaDrain: 5, stressGain: 2, desc: "Short-form relay content with viral potential." },
+      { label: "Dance Practice (Choreo Focus)", category: "Internal", cost: 800, fanImpact: 0.03, skillImpact: 0.08, staminaDrain: 10, stressGain: 5, desc: "Choreo-focused content; steady skill gain." },
+      { label: "Live Band Session", category: "Internal", cost: 12000, fanImpact: 0.12, skillImpact: 0.12, staminaDrain: 25, stressGain: 20, desc: "Band arrangement stage; boosts musical credibility." },
+      { label: "Acoustic Stage", category: "Internal", cost: 6000, fanImpact: 0.08, skillImpact: 0.1, staminaDrain: 15, stressGain: 5, desc: "Stripped-down vocals; improves stability and tone." },
+      { label: "Behind-the-Scenes Mini Stage", category: "Internal", cost: 2000, fanImpact: 0.06, skillImpact: 0.03, staminaDrain: 8, stressGain: 2, desc: "BTS content with a short performance; good engagement." },
     ];
     
 
@@ -436,50 +438,67 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
     // --- MEMBER/GROUP UTILITIES ---
 
     const generateRandomName = () => {
-      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Mariya','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu'];
-      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Kojima','Asano','Fukumoto','Sakai'];
+      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu','Koharu','Rio','Fuka','Ruka','Hina','Sana','Mana','Kiri','Miki','Aira','Kiyomi','Satomi','Chisato','Miho','Yua','Meisa','Natsumi','Yuka','Sora','Riho','Ena','Kanon','Yuzuka','Moka','Himeka','Rika','Shio','Chiharu','Kumi','Aika','Natsue','Sae','Mikoto','Manami','Yoshino','Asumi','Sayo','Reika','Miyabi','Kaede'];
+      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Asano','Fukumoto','Sakai','Matsui','Iwasaki','Nakagawa','Haruna','Ueno','Fujiwara','Seki','Nojima','Hoshino','Chiba','Kikuchi','Tanimoto','Fukui','Ota','Umezu','Ohashi','Yano','Katayama','Maki','Kuroki','Hatta','Koike','Mogi','Inagaki','Mita','Sano','Yoshioka','Komatsu','Sogabe','Horii','Tsuchiya','Kurata','Sugawara','Tsuji','Ishizuka','Amano','Takeuchi','Nakata','Honma','Kitamura','Enomoto'];
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
       return `${firstName} ${lastName}`;
     };
 
     const generateMembers = () => {
-      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Mariya','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu'];
-      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Kojima','Asano','Fukumoto','Sakai'];
-      return Array.from({ length: 8 }, (_, i) => ({
-        id: i + 1,
-        name: `${firstNames[i]} ${lastNames[i % 4]}`,
-        nickname: firstNames[i] + '-chan',
-        singing: Math.floor(Math.random() * 30) + 20,
-        dancing: Math.floor(Math.random() * 30) + 20,
-        variety: Math.floor(Math.random() * 30) + 20,
-        stamina: 100,
-        morale: 80,
-        fans: Math.floor(Math.random() * 200) + 100,
-        position: i === 0 ? 'center' : i < 3 ? 'front' : 'back',
-        talent: ['vocal', 'dance', 'variety'][i % 3],
-        personality: ['cheerful', 'shy', 'confident'][i % 3],
-        relationships: {},
-        birthday: { month: (i % 12) + 1, day: (i * 3) + 1 },
-        equippedOutfit: null,
-        socialFollowers: Math.floor(Math.random() * 5000) + 1000,
-        scandals: 0,
-        age: 16 + i,
-        yearsActive: 0,
-        graduated: false,
-        homeGroup: 'main', 
-        kenninGroups: [], 
-        singlesParticipation: [],
-        songsParticipation: [],
-        centerHistory: [],
-        isAvailable: true 
-      }));
+      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu','Koharu','Rio','Fuka','Ruka','Hina','Sana','Mana','Kiri','Miki','Aira','Kiyomi','Satomi','Chisato','Miho','Yua','Meisa','Natsumi','Yuka','Sora','Riho','Ena','Kanon','Yuzuka','Moka','Himeka','Rika','Shio','Chiharu','Kumi','Aika','Natsue','Sae','Mikoto','Manami','Yoshino','Asumi','Sayo','Reika','Miyabi','Kaede'];
+      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Asano','Fukumoto','Sakai','Matsui','Iwasaki','Nakagawa','Haruna','Ueno','Fujiwara','Seki','Nojima','Hoshino','Chiba','Kikuchi','Tanimoto','Fukui','Ota','Umezu','Ohashi','Yano','Katayama','Maki','Kuroki','Hatta','Koike','Mogi','Inagaki','Mita','Sano','Yoshioka','Komatsu','Sogabe','Horii','Tsuchiya','Kurata','Sugawara','Tsuji','Ishizuka','Amano','Takeuchi','Nakata','Honma','Kitamura','Enomoto'];
+      
+      const availableFirstNames = [...firstNames];
+
+      return Array.from({ length: 8 }, (_, i) => {
+        const fNameIndex = Math.floor(Math.random() * availableFirstNames.length);
+        const firstName = availableFirstNames.splice(fNameIndex, 1)[0];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        
+        return {
+          id: i + 1,
+          name: `${firstName} ${lastName}`,
+          nickname: `${firstName}-chan`,
+          singing: Math.floor(Math.random() * 40) + 15,
+          dancing: Math.floor(Math.random() * 40) + 15,
+          variety: Math.floor(Math.random() * 35) + 10,
+          stamina: 100,
+          morale: 80,
+          stress: 0,
+          fans: Math.floor(Math.random() * 200) + 100,
+          position: i === 0 ? 'center' : i < 3 ? 'front' : 'back',
+          talent: ['vocal', 'dance', 'variety'][i % 3],
+          personality: ['cheerful', 'shy', 'confident'][i % 3],
+          relationships: {},
+          birthday: { month: (i % 12) + 1, day: (i * 3) + 1 },
+          equippedOutfit: null,
+          socialFollowers: Math.floor(Math.random() * 5000) + 1000,
+          scandals: 0,
+          age: 10 + i,
+          yearsActive: 0,
+          graduated: false,
+          generation: '1st Generation',
+          homeGroup: 'main', 
+          kenninGroups: [], 
+          singlesParticipation: [],
+          songsParticipation: [],
+          centerHistory: [],
+          teamHistory: [],
+          isAvailable: true 
+        };
+      });
     };
     
     const startGame = (startUsername, startGroupName) => {
       if (startGroupName.trim() && startUsername.trim()) {
         const newMembers = generateMembers();
-        setMembers(newMembers);
+                const membersWithHistory = newMembers.map(m => ({
+          ...m,
+          teamHistory: [{ week: 1, event: `Joined ${startGroupName} as 1st Generation` }]
+        }));
+        setMembers(membersWithHistory);
+
         setGroupName(startGroupName);
         setUsername(startUsername);
         setRivalGroups([
@@ -667,7 +686,8 @@ const getMemberGroupStatus = (member) => {
       updateMemberState(memberId, m => ({ 
           ...m, 
           [skill]: Math.min(100, (m[skill] || 0) + improvement), 
-          stamina: Math.max(0, (m.stamina || 0) - 15) 
+          stamina: Math.max(0, (m.stamina || 0) - 15),
+          stress: Math.min(100, (m.stress || 0) + 10)
       }));
       
       setMoney(prev => prev - 500);
@@ -680,7 +700,8 @@ const getMemberGroupStatus = (member) => {
       
       updateMemberState(memberId, m => ({ 
           ...m, 
-          stamina: Math.min(100, (m.stamina || 0) + 30), 
+          stamina: Math.min(100, (m.stamina || 0) + 40), 
+          stress: Math.max(0, (m.stress || 0) - 30),
           morale: Math.min(100, (m.morale || 0) + 10) 
       }));
       setMessage(`${member.name} is rested.`);
@@ -696,7 +717,9 @@ const getMemberGroupStatus = (member) => {
       if (money < cost) return setMessage('Need ¥100,000 to build the theater!');
       setMoney(prev => prev - cost);
       setBuildings(prev => ({ ...prev, theater: true }));
-      setMessage('Theater built! You can now create teams and hold theater shows.');
+            const successMessage = 'Theater built! You can now create teams and hold theater shows.';
+      setMessage(successMessage);
+      addNotification({ type: 'Facility', message: successMessage });
     };
 
     const upgradePracticeRoom = (type) => {
@@ -740,7 +763,8 @@ const getMemberGroupStatus = (member) => {
       
       setMembers(prev => prev.map(m => m.isAvailable ? { 
           ...m, 
-          stamina: Math.max(0, (m.stamina || 0) - 40), 
+          stamina: Math.max(0, (m.stamina || 100) - 40),
+          stress: Math.min(100, (m.stress || 0) + 25),
           morale: Math.max(0, (m.morale || 0) - 10) 
       } : m));
 
@@ -784,16 +808,50 @@ const getMemberGroupStatus = (member) => {
       setShowModal('editTeam');
     };
     
-    const confirmEditTeam = (teamData) => {
-        setTeams(prev => prev.map(t => t.id === teamData.id ? {
-            ...t,
-            name: teamData.name,
-            members: teamData.members.map(String),
-            currentSetlistId: teamData.setlistId,
-        } : t));
-        setMessage(`Team "${teamData.name}" updated!`);
-        setShowModal(null);
-    };
+        const confirmEditTeam = (teamData) => {
+            const newTeamName = teamData.name;
+            const newMemberIds = teamData.members.map(String);
+            
+            const oldTeam = teams.find(t => t.id === teamData.id);
+            if (!oldTeam) return;
+
+            const oldMemberIds = oldTeam.members.map(String);
+
+            // Update members state with history for promotions and shuffles
+            setMembers(prevMembers => prevMembers.map(m => {
+                const memberIdStr = String(m.id);
+                const wasInTeam = oldMemberIds.includes(memberIdStr);
+                const isNowInTeam = newMemberIds.includes(memberIdStr);
+
+                if (isNowInTeam && !wasInTeam) { // Member was ADDED to this team
+                    const oldTeamForEvent = teams.find(t => t.id === m.teamId);
+                    const eventText = oldTeamForEvent 
+                        ? `Shuffled from Team ${oldTeamForEvent.name} to Team ${newTeamName}`
+                        : `Promoted to Team ${newTeamName}`;
+                    const event = { week: week, event: eventText };
+                    return { ...m, teamId: teamData.id, teamHistory: [...(m.teamHistory || []), event] };
+                }
+                
+                if (!isNowInTeam && wasInTeam) { // Member was REMOVED from this team
+                    const event = { week: week, event: `Removed from Team ${oldTeam.name} (becomes trainee)` };
+                    return { ...m, teamId: null, teamHistory: [...(m.teamHistory || []), event] };
+                }
+                
+                return m;
+            }));
+
+            // Now, update the teams state itself
+            setTeams(prevTeams => prevTeams.map(t => 
+                t.id === teamData.id 
+                ? { ...t, name: newTeamName, members: newMemberIds, currentSetlistId: teamData.setlistId } 
+                : t
+            ));
+
+            const notifMessage = `Team "${newTeamName}" has been updated.`;
+            setMessage(notifMessage);
+            addNotification({type: "Management", message: notifMessage});
+            setShowModal(null);
+        };
 
 
     const deleteTeam = (teamId) => {
@@ -828,27 +886,43 @@ const getMemberGroupStatus = (member) => {
     };
     
     const graduateMember = (memberId) => {
-      const member = getMemberById(memberId);
-      if (!member) return;
+      let graduatedMember;
+      let memberName = 'A member';
+      let homeGroupName;
 
-      if (member.isSister) {
-          const parts = String(memberId).split('-');
-          const sgId = parseInt(parts[1]);
-          
-          setSisterGroups(prev => prev.map(sg => {
-              if (sg.id === sgId) {
-                  const mId = parseInt(String(memberId).split('-')[2]);
-                  return { ...sg, members: sg.members.filter(m => m.id !== mId) };
-              }
-              return sg;
-          }));
+      const mainMember = members.find(m => String(m.id) === String(memberId));
+      if (mainMember) {
+          homeGroupName = groupName;
+          graduatedMember = mainMember;
       } else {
-          setMembers(prev => prev.filter(m => String(m.id) !== String(memberId)));
+          for (const sg of sisterGroups) {
+              const foundMember = sg.members.find(m => String(m.id) === String(memberId));
+              if (foundMember) {
+                  homeGroupName = sg.name;
+                  graduatedMember = foundMember;
+                  break;
+              }
+          }
       }
 
-      setHallOfFame(prev => [...(prev || []), { name: member.name, years: member.yearsActive, group: member.homeGroup, week }]);
-      setMessage(`${member.name} has graduated!`);
-      setSelectedMember(null);
+      if (graduatedMember) {
+          memberName = graduatedMember.name;
+          const event = { week: week, event: `Graduated from ${homeGroupName}` };
+          graduatedMember.teamHistory = [...(graduatedMember.teamHistory || []), event];
+          graduatedMember.graduated = true;
+
+          setGraduatedMembers(prev => [...prev, graduatedMember]);
+          setMembers(prev => prev.filter(m => String(m.id) !== String(memberId)));
+          setSisterGroups(prev => prev.map(sg => ({
+              ...sg,
+              members: sg.members.filter(m => String(m.id) !== String(memberId))
+          })));
+
+          const gradMessage = `${memberName} has graduated from ${homeGroupName}.`;
+          addNotification({ type: 'Graduation', message: gradMessage });
+          setMessage(gradMessage);
+          setSelectedMember(null);
+      }
     };
     
     const holdTheaterShow = (concertTheme) => {
@@ -896,11 +970,17 @@ const getMemberGroupStatus = (member) => {
       }));
 
       const totalRevenue = ticketRevenue + merchRevenue;
-      setMembers(prev => prev.map(m => ({ 
-        ...m, 
-        stamina: performingMembers.find(pm => String(pm.id) === String(m.id)) ? Math.max(0, (m.stamina || 0) - 20) : (m.stamina || 0),
-        fans: performingMembers.find(pm => String(pm.id) === String(m.id)) ? (m.fans || 0) + Math.floor(newFans / performingMembers.length) : (m.fans || 0) 
-      })));
+      setMembers(prev => prev.map(m => {
+        if (performingMembers.find(pm => String(pm.id) === String(m.id))) {
+          return {
+            ...m,
+            stamina: Math.max(0, (m.stamina || 100) - 20),
+            stress: Math.min(100, (m.stress || 0) + 10),
+            fans: (m.fans || 0) + Math.floor(newFans / performingMembers.length)
+          };
+        }
+        return m;
+      }));
       setTotalFans(prev => (prev || 0) + newFans);
       setMoney(prev => (prev || 0) + totalRevenue);
       setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
@@ -943,9 +1023,11 @@ const getMemberGroupStatus = (member) => {
 
     const holdElection = () => {
       if (money < 5000) return setMessage('Elections cost ¥5,000!');
+      
       const sorted = getMainGroupRoster().filter(m => !m.isSister).sort((a, b) => (b.fans || 0) - (a.fans || 0));
+      
       setMembers(prev => prev.map(m => {
-          const rankIndex = sorted.findIndex(s => s.id === m.id);
+          const rankIndex = sorted.findIndex(s => String(s.id) === String(m.id));
           let newPosition;
           if (rankIndex === 0) newPosition = 'center';
           else if (rankIndex < 3) newPosition = 'front';
@@ -956,8 +1038,10 @@ const getMemberGroupStatus = (member) => {
       }));
       
       setMoney(prev => prev - 5000);
-      addNotification('Election', `New center: ${sorted[0]?.name || 'Unknown'}!`);
-      setMessage(`New center: ${sorted[0]?.name || 'Unknown'}!`);
+
+      const electionMessage = `Election held! New center: ${sorted[0]?.name || 'Unknown'}.`;
+      setMessage(electionMessage);
+      addNotification({ type: 'Election', message: electionMessage });
     };
 
     const createSong = () => {
@@ -1147,7 +1231,8 @@ const getMemberGroupStatus = (member) => {
             if (performingMemberIds.some(id => String(id) === String(m.id))) {
                 return {
                     ...m,
-                    stamina: Math.max(0, m.stamina - staminaDrain),
+                    stamina: Math.max(0, (m.stamina || 100) - staminaDrain),
+                    stress: Math.min(100, (m.stress || 0) + 40),
                     morale: Math.min(100, m.morale + 10), 
                     singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
                     dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
@@ -1212,14 +1297,15 @@ const getMemberGroupStatus = (member) => {
         const performingMemberIds = performingMembers.map(m => m.id);
         const applyMemberUpdate = (m) => {
             if (performingMemberIds.some(id => String(id) === String(m.id))) {
-                return {
-                    ...m,
-                    stamina: Math.max(0, m.stamina - typeData.staminaDrain),
-                    morale: Math.min(100, m.morale + (typeData.category === 'Charity Stage' ? 15 : 5)), 
-                    singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
-                    dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
-                    fans: m.fans + Math.floor(fanGain / performingMembers.length)
-                };
+                    return {
+                        ...m,
+                        stamina: Math.max(0, (m.stamina || 100) - typeData.staminaDrain),
+                        stress: Math.min(100, (m.stress || 0) + (typeData.stressGain || 0)),
+                        morale: Math.min(100, m.morale + (typeData.category === 'Charity Stage' ? 15 : 5)), 
+                        singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
+                        dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
+                        fans: m.fans + Math.floor(fanGain / performingMembers.length)
+                    };
             }
             return m;
         };
@@ -1324,7 +1410,7 @@ const getMemberGroupStatus = (member) => {
         id: newId, 
         name: newName, 
         nickname: newName.split(' ')[0] + '-chan', 
-        singing: 20, dancing: 20, variety: 20, stamina: 100, morale: 90,
+        singing: 20, dancing: 20, variety: 20, stamina: 100, morale: 90, stress: 0,
         fans: 50, position: 'under', talent: 'vocal', personality: 'cheerful',
         relationships: {}, birthday: { month: 1, day: 1 }, equippedOutfit: null,
         socialFollowers: 500, scandals: 0, age: 16, yearsActive: 0, graduated: false,
@@ -1411,8 +1497,9 @@ const getMemberGroupStatus = (member) => {
       
       setMembers(prev => (prev || []).map(m => m.isAvailable ? {
           ...m,
-          stamina: Math.max(0, (m.stamina || 0) - 40),
-          morale: Math.max(0, (m.morale || 0) - 25)
+          stamina: Math.max(0, (m.stamina || 100) - 50),
+          stress: Math.min(100, (m.stress || 0) + 25),
+          morale: Math.min(100, (m.morale || 0) + 5)
       } : m));
       
       setMessage(`Handshake event success! +${fanGain} fans, but members are exhausted.`);
@@ -1522,7 +1609,8 @@ const getMemberGroupStatus = (member) => {
 
       setMembers(prev => (prev || []).map(m => m.isAvailable ? {
           ...m,
-          stamina: Math.max(0, (m.stamina || 0) - 20),
+          stamina: Math.max(0, (m.stamina || 100) - 20),
+          stress: Math.min(100, (m.stress || 0) + 15),
           morale: Math.max(0, (m.morale || 0) - 15)
       } : m));
 
@@ -1803,21 +1891,44 @@ const getMemberGroupStatus = (member) => {
           addNotification({ type: 'info', message: campMessage });
       }
 
-      setMembers(prev => (prev || []).map(m => m.isAvailable ? { 
-          ...m, 
-          stamina: Math.min(100, (m.stamina || 0) + 20), 
-          morale: Math.min(100, (m.morale || 0) + 5), 
-          yearsActive: Math.floor(newWeek / 52) 
-      } : m));
+      const updateMemberWeekly = (m, isSister = false) => {
+        if (!m.isAvailable) {
+            return { ...m, yearsActive: Math.floor(newWeek / 52) };
+        }
 
+        let newStamina = m.stamina || 100;
+        let newStress = m.stress || 0;
+        let newMorale = m.morale || 80;
+
+        // Passive recovery for all available members
+        newStamina = Math.min(100, newStamina + 20);
+        newStress = Math.max(0, newStress - 15);
+
+        // Consequence Checks
+        if (newStress >= 100) {
+            addNotification({ type: 'alert', message: `${m.name} is Burned Out! Their morale has plummeted.` });
+            newMorale = Math.max(0, newMorale - 40); // Huge morale hit
+            newStress = 70; // Partially reset stress
+        }
+        if (newStamina <= 0) {
+            addNotification({ type: 'alert', message: `${m.name} is Exhausted! They are being forced to rest.` });
+            newStamina = 60; // Force rest, recover to 60
+            newStress = Math.max(0, newStress - 20); // Resting also helps stress
+        }
+
+        return {
+            ...m,
+            stamina: newStamina,
+            stress: newStress,
+            morale: newMorale,
+            yearsActive: Math.floor(newWeek / 52)
+        };
+      };
+
+      setMembers(prev => (prev || []).map(m => updateMemberWeekly(m, false)));
       setSisterGroups(prev => (prev || []).map(sg => ({
           ...sg,
-          members: (sg.members || []).map(m => m.isAvailable ? {
-              ...m,
-              stamina: Math.min(100, (m.stamina || 0) + 20), 
-              morale: Math.min(100, (m.morale || 0) + 5), 
-              yearsActive: Math.floor(newWeek / 52) 
-          } : m)
+          members: (sg.members || []).map(m => updateMemberWeekly(m, true))
       })));
 
       setWeek(newWeek);
@@ -1827,25 +1938,31 @@ const getMemberGroupStatus = (member) => {
       const cost = 250000;
       if (money < cost) return setMessage(`Need ¥${cost.toLocaleString()} to establish a new sister group.`);
 
-      // FIX: Use a safe calculation for new SG ID
       const newId = Math.max(0, ...(sisterGroups || []).map(sg => sg.id || 0)) + 1;
       
       const initialMembers = Array.from({ length: 5 }, (_, i) => {
           const name = generateRandomName();
           return {
-              // FIX: Ensure m.id is calculated safely starting from 1
               id: i + 1,
               name: name,
               nickname: name.split(' ')[0],
-              singing: 15, dancing: 15, variety: 10, stamina: 100, morale: 80,
-              fans: 50, position: i === 0 ? 'center' : 'back',
+              singing: Math.floor(Math.random() * 25) + 10,
+              dancing: Math.floor(Math.random() * 25) + 10,
+              variety: Math.floor(Math.random() * 20) + 10,
+              stamina: 100, 
+              morale: 80, 
+              stress: 0,
+              fans: 50, 
+              position: i === 0 ? 'center' : 'back',
+              generation: '1st Generation',
               homeGroup: groupData.groupName,
               isAvailable: true,
               songsParticipation: [], 
               singlesParticipation: [],
               centerHistory: [],
               kenninGroups: [],
-              age: 15 + i,
+              teamHistory: [],
+              age: 10 + i,
               yearsActive: 0,
               socialFollowers: 300
           };
@@ -1857,7 +1974,11 @@ const getMemberGroupStatus = (member) => {
           location: groupData.location,
           fans: 500, 
           power: 50, 
-          members: initialMembers,
+                    members: initialMembers.map(m => ({
+            ...m,
+            teamHistory: [{ week: week, event: `Joined ${groupData.groupName} as 1st Generation` }]
+          })),
+
           songs: [],
           income: 1000, 
       };
@@ -1869,15 +1990,136 @@ const getMemberGroupStatus = (member) => {
       setSelectedSisterGroup(newId);
     };
 
+      const startAudition = (targetGroup, tier, generationName) => {
+        const tiers = [
+            { id: 1, name: 'Local Casting', cost: 25000, poolSize: 20, contractFee: 5000, statMin: 10, statMax: 30, potentialMin: 20, potentialMax: 60 },
+            { id: 2, name: 'Regional Audition', cost: 100000, poolSize: 20, contractFee: 15000, statMin: 20, statMax: 50, potentialMin: 40, potentialMax: 80 },
+            { id: 3, name: 'National Audition', cost: 500000, poolSize: 20, contractFee: 50000, statMin: 40, statMax: 70, potentialMin: 60, potentialMax: 95 },
+            { id: 4, name: 'Elite Scouting', cost: 1500000, poolSize: 10, contractFee: 200000, statMin: 60, statMax: 85, potentialMin: 85, potentialMax: 100 },
+        ];
+        const selectedTier = tiers.find(t => t.id === tier);
+
+        if (money < selectedTier.cost) {
+            return setMessage(`Not enough money for a ${selectedTier.name}. Need ¥${selectedTier.cost.toLocaleString()}.`);
+        }
+
+        setMoney(prev => prev - selectedTier.cost);
+
+        const generateStat = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        const personalities = ['Cheerful', 'Shy', 'Confident', 'Ambitious', 'Easygoing', 'Tsundere', 'Energetic', 'Quiet'];
+
+        const candidates = Array.from({ length: selectedTier.poolSize }, (_, i) => ({
+            id: `candidate-${i}`,
+            name: generateRandomName(),
+            vocal: generateStat(selectedTier.statMin, selectedTier.statMax),
+            dance: generateStat(selectedTier.statMin, selectedTier.statMax),
+            visual: generateStat(selectedTier.statMin, selectedTier.statMax),
+            potential: generateStat(selectedTier.potentialMin, selectedTier.potentialMax),
+            personality: personalities[Math.floor(Math.random() * personalities.length)],
+        }));
+        
+        setAuditionCandidates(candidates);
+        setModalData({ 
+            targetGroup, 
+            generationName, 
+            contractFee: selectedTier.contractFee,
+        });
+        setShowModal('traineeDraft');
+    };
+
+    const confirmRecruitment = (selectedCandidates) => {
+        const { targetGroup, generationName, contractFee } = modalData;
+        const totalFee = selectedCandidates.length * contractFee;
+
+        if (money < totalFee) {
+            return setMessage(`Not enough money for contract fees. Need ¥${totalFee.toLocaleString()}.`);
+        }
+
+        setMoney(prev => prev - totalFee);
+
+        let startingId;
+        const isMainGroup = targetGroup === 'main';
+        // FIX: Convert string ID from form to number for lookup
+        const targetGroupId = isMainGroup ? 'main' : parseInt(targetGroup, 10);
+        const joinEvent = { week: week, event: `Joined ${isMainGroup ? groupName : (sisterGroups.find(g => g.id === targetGroupId)?.name || 'a group')} as ${generationName}` };
+
+        if (isMainGroup) {
+            startingId = members.length > 0 ? Math.max(...members.map(m => m.id)) : 0;
+        } else {
+            const sg = sisterGroups.find(g => g.id === targetGroupId);
+            startingId = (sg?.members && sg.members.length > 0) ? Math.max(...sg.members.map(m => m.id)) : 0;
+        }
+
+        const newMembers = selectedCandidates.map((candidate, index) => {
+            const newId = startingId + 1 + index;
+            const baseMember = {
+                name: candidate.name,
+                nickname: candidate.name.split(' ')[0] + '-chan',
+                singing: candidate.vocal,
+                dancing: candidate.dance,
+                variety: Math.floor((candidate.vocal + candidate.dance) / 2),
+                stamina: 100,
+                morale: 80,
+                stress: 0,
+                fans: 50,
+                potential: candidate.potential,
+                personality: candidate.personality,
+                position: 'under',
+                relationships: {},
+                birthday: { month: 1, day: 1 },
+                equippedOutfit: null,
+                socialFollowers: 500,
+                scandals: 0,
+                age: Math.floor(Math.random() * 5) + 14, // 14-18
+                yearsActive: 0,
+                graduated: false,
+                generation: generationName,
+                isAvailable: true,
+                singlesParticipation: [], 
+                songsParticipation: [], 
+                centerHistory: [],
+                teamHistory: [],
+            };
+
+            if (isMainGroup) {
+return { ...baseMember, id: newId, homeGroup: 'main', kenninGroups: [], teamHistory: [joinEvent] };
+            } else {
+                const sg = sisterGroups.find(g => g.id === targetGroupId);
+                // FIX: Added a safety check for the group name
+return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', kenninGroups: [], teamHistory: [joinEvent] };
+            }
+        });
+
+        if (isMainGroup) {
+            setMembers(prev => [...prev, ...newMembers]);
+        } else {
+            setSisterGroups(prev => prev.map(sg => 
+                sg.id === targetGroupId ? { ...sg, members: [...(sg.members || []), ...newMembers] } : sg
+            ));
+        }
+        
+        // FIX: Improved success message for clarity
+        const groupForMessage = isMainGroup 
+            ? groupName 
+            : (sisterGroups.find(g => g.id === targetGroupId)?.name || 'the group');
+        
+        const successMessage = `Successfully recruited ${newMembers.length} new member(s) to the ${generationName} of ${groupForMessage}!`;
+        setMessage(successMessage);
+        addNotification({ type: 'Recruitment', message: successMessage });
+        
+        setShowModal(null);
+        setAuditionCandidates([]);
+    };
+
     return {
         // State
-        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes,
+        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
         // Firebase/Persistence
         db, auth, userId, isAuthReady, saveGame, loadGame,
         // Utilities
         startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment
     };
 };
 
@@ -1891,7 +2133,7 @@ const App = () => {
         // Utilities
         startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, recruitMember, recruitSisterGroupMember, handleDisbandSisterGroup, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates
     } = useIdolManager();
 
     // Local state for start screen inputs (not part of the main game state in the hook)
@@ -1916,9 +2158,9 @@ const App = () => {
     };
     // Utility function to generate a random name for the startup screen
     const generateRandomGroupName = () => {
-    const prefixes = ['Hoshi','Sakura','Tsuki','Ame','Yume','Hana','Aoi','Hikari','Mizu','Kumo','Kaze','Yuki','Kokoro','Akari','Nozomi','Kiseki','Seika','Ameiro','Momoiro','Aozora','Hoshimi','Hanabi','Miyabi','Tokimeki','Ariake','Kouyou','Asahi','Kouka','Suiren','Kurenai','Starlit','Moonlite','Petalix','Blossia','KiraKira','Sparkleon','Dreamia','Twinkia','Glowin','Lumina','Aurasia','MiraiX','Flawra','Cherrix','Fantasia','Hoshira','Sakurive','Prismia','Melodia','Radiant','Hanaria','Yumelia','Akuria','Sakurune','Hoshika','Tsukira','Fuwaria','Kirafine','Mizura','Aozelle','Momoria','Nijika','Haruline','Kokolia','Amelune','Lunaria','Miraiya','Shinoria','Tokira','Asteria'];
-    const suffixes = ['48','N46','Key','Girls','Project','Idols','Stars','Z','Unit','Crew','X','Wave','Beat','Stage','Dream','Lite','Mode','Charm','Flow','Vision','Tone','Pop','Bloom','Rise','Edge','Link','Sphere','Note','Line','46','Team','Stage48','Factory','Palette','Branch','Station','Campus','Zaka','Slope','District','Section','Division','Area','Side','Point','Club','Chuu','Hearts','Notes','Melody','Rabbits','Dreamers','Angels','Spark','Fantasy','Rhythm','Harmony','Kyun','ChuChu','Piyo','Puff','Mochi','Luv','Nyan','Koko','Poko','Ruru'];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const prefixes = ['Hoshi','Sakura','Tsuki','Ame','Yume','Hana','Aoi','Hikari','Mizu','Kumo','Kaze','Yuki','Kokoro','Akari','Nozomi','Kiseki','Seika','Ameiro','Momoiro','Aozora','Hoshimi','Hanabi','Miyabi','Tokimeki','Ariake','Kouyou','Asahi','Kouka','Suiren','Kurenai','Starlit','Moonlite','Petalix','Blossia','KiraKira','Sparkleon','Dreamia','Twinkia','Glowin','Lumina','Aurasia','MiraiX','Flawra','Cherrix','Fantasia','Hoshira','Sakurive','Prismia','Melodia','Radiant','Hanaria','Yumelia','Akuria','Sakurune','Hoshika','Tsukira','Fuwaria','Kirafine','Mizura','Aozelle','Momoria','Nijika','Haruline','Kokolia','Amelune','Lunaria','Miraiya','Shinoria','Tokira','Asteria','Celestia','Vividia','Eterneo','Luvia','Rhythmex','Purella','Zellia','Xylia','Novelle','Harmonix','Bellaria','Chocola','Sweetia','Angellic','Seraphia','Galaxia','Nebulla','Stellaris','Orion','Eclipsa','Solaria','Lyra','Vespera','Aethel','Nyx','Aura','Lyrica','Sonnet','Fable','Mythia','Legendia','FuwaFuwa','MeroMero','PikaPika','MochiMochi','KyunKyun','PuruPuru','Ribbon','Hearty','Lovely','Berry','Peachia','Milky','Parfait','Soufflé','Sugar','Candy','Bonbon','Chiffon','Marshmo','Lace','Frill','Tiara','Jewelly','Shiny','Pastel','PopStep','Beatly','Melty','Honey','Bunny','Kitty','Puppy','Pony','Cookie','Creamy','Dreamy','Wishy','Magic','Magica','Wand','Starry','Twinkle','Sparkle','Dazzle','Glimmer','Plume','Petit','Belle','Mignon','Ange','Chouchou','Lulu','Mimi','Nana','Coco','Ruru','Kiki','Lala','Nono'];
+      const suffixes = ['48','46','Key','Girls','Project','Idols','Stars','Z','Unit','Crew','X','Wave','Beat','Stage','Dream','Lite','Mode','Charm','Flow','Vision','Tone','Pop','Bloom','Rise','Edge','Link','Sphere','Note','Line','46','Team','Stage48','Factory','Palette','Branch','Station','Campus','Zaka','Slope','District','Section','Division','Area','Side','Point','Club','Chuu','Hearts','Notes','Melody','Rabbits','Dreamers','Angels','Spark','Fantasy','Rhythm','Harmony','Kyun','ChuChu','Piyo','Puff','Mochi','Luv','Nyan','Koko','Poko','Ruru','Neo','Zero','01','Alpha','Beta','Omega','Type-A','Type-B','Type-X','Generation','Phase','System','Circuit','Signal','Protocol','Delta','Sigma','Infinity','Burst','Dive','Dash','Max','Hyper','Ultra','Sonic','Velocity','Drive','Force','Impact','Strike','Sparkle','Shine','Glitter','Flash','Flare','Glow','Beam','Blast','Boost','Aura','Spirit','Power','Energy','Soul','Passion','Kiss','Berry','Candy','Honey','Sweet','Sugar','Cookie','Parfait','Ribbon','Lace','Tiara','Princess','Queen','Doll','Bunny','Kitty','Puppy','Mouse','Bear','Panda','Choco','Mint','Lemon','Peach','Cherry','Apple','Bloom','Petal','Leaf','Garden','Forest','Island','World','Universe','Galaxy','Cosmos','Orbit','Planet','Moon','Sun','Sky','Cloud','Rain','Snow'];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
       const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
       setStartGroupName(`${prefix}${suffix}`);
     };
@@ -2077,7 +2319,165 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
             </ModalWrapper>
         );
     };
-    
+    const HoldAuditionModal = ({ startAudition, groupName, sisterGroups, setShowModal }) => {
+      const [targetGroup, setTargetGroup] = useState('main');
+      const [tier, setTier] = useState(2);
+      const [generationName, setGenerationName] = useState('');
+  
+      const handleConfirm = () => {
+          if (!generationName.trim()) {
+              // In a future step, we should show an error message here.
+              // For now, just prevent the audition.
+              return; 
+          }
+          startAudition(targetGroup, tier, generationName);
+      };
+  
+      const tiers = [
+          { id: 1, name: 'Local Casting', cost: 25000 },
+          { id: 2, name: 'Regional Audition', cost: 100000 },
+          { id: 3, name: 'National Audition', cost: 500000 },
+          { id: 4, name: 'Elite Scouting', cost: 1500000 },
+      ];
+  
+      return (
+          <ModalWrapper title={<span className="flex items-center"><User size={20} className="mr-2"/> Hold Audition</span>} maxWidth="max-w-xl">
+              <p className="text-sm text-gray-600 mb-4">Choose the scale and target for your recruitment drive.</p>
+              
+              <h4 className="font-semibold mb-1">Target Group</h4>
+              <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded mb-3">
+                  <option value="main">{groupName} (Main Group)</option>
+                  {(sisterGroups || []).map(sg => <option key={sg.id} value={sg.id}>{sg.name}</option>)}
+              </select>
+              
+              <h4 className="font-semibold mb-1">Generation Name</h4>
+              <input 
+                  type="text" 
+                  value={generationName} 
+                  onChange={(e) => setGenerationName(e.target.value)}
+                  className="w-full p-2 border rounded mb-3"
+                  placeholder="e.g., 17th Generation"
+              />
+  
+              <h4 className="font-semibold mb-2">Audition Scale</h4>
+              <div className="space-y-2">
+                  {tiers.map(t => (
+                      <label key={t.id} className="flex items-start p-3 rounded-lg border has-[:checked]:bg-blue-100 has-[:checked]:border-blue-400 cursor-pointer text-sm">
+                          <input type="radio" name="tier" value={t.id} checked={tier === t.id} onChange={() => setTier(t.id)} className="form-radio h-4 w-4 text-blue-600 mt-0.5"/>
+                          <div className="ml-3 flex-1 flex justify-between">
+                              <p className="font-semibold">{t.name}</p>
+                              <p className="font-bold text-red-600">¥{t.cost.toLocaleString()}</p>
+                          </div>
+                      </label>
+                  ))}
+              </div>
+  
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded px-4">Cancel</button>
+                  <button onClick={handleConfirm} className="p-2 bg-green-500 text-white rounded px-4 font-bold">
+                      Proceed to Draft
+                  </button>
+              </div>
+          </ModalWrapper>
+      );
+  };
+  
+  const TraineeDraftModal = ({ auditionCandidates, modalData, confirmRecruitment, setShowModal }) => {
+      const [selected, setSelected] = useState([]);
+      const [sortBy, setSortBy] = useState({ key: 'potential', asc: false });
+  
+      if (!modalData) return null;
+      const { contractFee } = modalData;
+  
+      const toggleSelection = (candidateId) => {
+          setSelected(prev => {
+              if (prev.includes(candidateId)) {
+                  return prev.filter(id => id !== candidateId);
+              }
+              return [...prev, candidateId];
+          });
+      };
+  
+      const handleSort = (key) => {
+          setSortBy(prev => ({ key, asc: prev.key === key ? !prev.asc : false }));
+      };
+  
+      const sortedCandidates = [...auditionCandidates].sort((a, b) => {
+          if (a[sortBy.key] < b[sortBy.key]) return sortBy.asc ? -1 : 1;
+          if (a[sortBy.key] > b[sortBy.key]) return sortBy.asc ? 1 : -1;
+          return 0;
+      });
+  
+      const handleConfirm = () => {
+          const selectedTrainees = auditionCandidates.filter(c => selected.includes(c.id));
+          confirmRecruitment(selectedTrainees);
+      };
+  
+      const SortableHeader = ({ label, sortKey }) => (
+          <th onClick={() => handleSort(sortKey)} className="p-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700">
+              {label} {sortBy.key === sortKey && (sortBy.asc ? '▲' : '▼')}
+          </th>
+      );
+  
+      return (
+          <ModalWrapper title="Trainee Draft" maxWidth="max-w-4xl">
+              <div className="mb-4 p-2 bg-blue-50 dark:bg-gray-700 rounded-lg text-sm">
+                  <p>Hiring for: <span className="font-bold">{modalData.generationName}</span></p>
+                  <p>Select candidates to sign. Each contract costs <span className="font-bold">¥{contractFee.toLocaleString()}</span>.</p>
+              </div>
+  
+              <div className="max-h-[60vh] overflow-y-auto border dark:border-gray-600">
+                  <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+                          <tr>
+                              <th className="p-2 w-10"></th>
+                              <SortableHeader label="Name" sortKey="name" />
+                              <SortableHeader label="Vo" sortKey="vocal" />
+                              <SortableHeader label="Da" sortKey="dance" />
+                              <SortableHeader label="Vi" sortKey="visual" />
+                              <SortableHeader label="Pot." sortKey="potential" />
+                              <SortableHeader label="Personality" sortKey="personality" />
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {sortedCandidates.map(c => (
+                              <tr key={c.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                  <td className="p-2 text-center">
+                                      <input 
+                                          type="checkbox" 
+                                          checked={selected.includes(c.id)} 
+                                          onChange={() => toggleSelection(c.id)}
+                                      />
+                                  </td>
+                                  <td className="p-2 font-medium">{c.name}</td>
+                                  <td className="p-2">{c.vocal}</td>
+                                  <td className="p-2">{c.dance}</td>
+                                  <td className="p-2">{c.visual}</td>
+                                  <td className="p-2 font-bold text-blue-600 dark:text-blue-400">{c.potential}</td>
+                                  <td className="p-2">{c.personality}</td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+  
+              <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
+                  <div className="text-lg font-bold">
+                      <span>{selected.length} Selected</span>
+                      <span className="ml-4">Total Fee: <span className={money < (selected.length * contractFee) ? 'text-red-500' : 'text-green-500'}>¥{(selected.length * contractFee).toLocaleString()}</span></span>
+                  </div>
+                  <div className="flex gap-2">
+                      <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Cancel</button>
+                      <button onClick={handleConfirm} disabled={selected.length === 0 || money < (selected.length * contractFee)} className="p-2 bg-green-500 text-white rounded px-4 font-bold disabled:bg-gray-400">
+                          Sign Selected Trainees
+                      </button>
+                  </div>
+              </div>
+          </ModalWrapper>
+      );
+  };
+  
+
     const ScandalModal = () => {
       const { member, type, description } = modalData;
       if (!member) return null;
@@ -3232,194 +3632,152 @@ const CreateTeamModal = () => {
     };
     
     // --- Existing modals with missing functions that will be added in future steps ---
-const MoveMemberModal = () => {
-    const member = modalData;
+    const MoveMemberModal = ({ member, setShowModal }) => {
+        // SAFETY CHECK: Prevents crash if the modal renders before data is ready.
+        if (!member) return null;
 
-    // SAFETY FIX: Prevent crash on first render
-    if (!member) return null;
+        const allGroups = [{ id: 'main', name: groupName }, ...(sisterGroups || [])];
+        
+        const getGroupIdFromName = (name) => {
+            if (name === groupName) return 'main';
+            const sg = (sisterGroups || []).find(g => g.name === name);
+            return sg ? sg.id : null;
+        };
 
-    const isSister = !!member.isSister;
+        const initialHomeGroupId = getGroupIdFromName(member.homeGroup);
+        const initialKenninIds = (member.kenninGroups || []).map(name => getGroupIdFromName(name)).filter(Boolean).map(String);
 
-    // ========== STATE FOR MAIN → SISTER =============
-    const [targetGroup, setTargetGroup] = useState(member.homeGroup || "");
+        const [newHomeGroup, setNewHomeGroup] = useState(String(initialHomeGroupId));
+        const [kenninStatus, setKenninStatus] = useState(initialKenninIds);
 
-    // ========== MAIN → SISTER LOGIC (your new one) ==========
-    const handleMainMemberTransfer = (member, action, targetGroupId) => {
-        const cost = 50000;
-
-        if (money < cost) {
-            setMessage("Not enough money!");
-            return;
-        }
-
-        const updatedMember = { ...member };
-
-        if (action === "transfer") {
-            updatedMember.homeGroup = targetGroupId;
-            updatedMember.isSister = true;
-            updatedMember.kenninGroups = [];
-        }
-
-        if (action === "kennin") {
-            updatedMember.kenninGroups = [
-                ...(member.kenninGroups || []),
-                targetGroupId
-            ];
-            updatedMember.isSister = true;
-        }
-
-        updateMember(updatedMember);
-        setMoney(money - cost);
-
-        setMessage(`Successfully updated ${member.name}'s group assignment.`);
-        setShowModal(null);
-    };
-
-    // ========== HANDLE CONFIRM (merged logic) ==========
-    const handleConfirm = (action) => {
-        if (!isSister) {
-            if (!targetGroup) {
-                setMessage("Please select a sister group!");
-                return;
+        const handleHomeChange = (e) => {
+            const selectedGroupId = e.target.value;
+            setNewHomeGroup(selectedGroupId);
+            if (kenninStatus.includes(selectedGroupId)) {
+                setKenninStatus(prev => prev.filter(id => id !== selectedGroupId));
             }
-            return handleMainMemberTransfer(member, action, targetGroup);
-        }
+        };
 
-        // Sister → Main (your old function)
-        handleSisterMemberTransfer(member, action);
-    };
+        const toggleKennin = (groupId) => {
+            const strGroupId = String(groupId);
+            setKenninStatus(prev =>
+                prev.includes(strGroupId)
+                    ? prev.filter(id => id !== strGroupId)
+                    : [...prev, strGroupId]
+            );
+        };
 
-    // ========== SISTER → MAIN (old UI, unchanged) ==========
-    if (member.isSister) {
+        const handleConfirmMove = () => {
+            let historyEvents = [];
+
+            const originalHomeGroup = allGroups.find(g => String(g.id) === String(initialHomeGroupId));
+            const finalNewHomeGroup = allGroups.find(g => String(g.id) === String(newHomeGroup));
+            
+            const originalKenninGroups = initialKenninIds.map(id => allGroups.find(g => String(g.id) === id)).filter(Boolean);
+            const newKenninGroups = kenninStatus.map(id => allGroups.find(g => String(g.id) === id)).filter(Boolean);
+
+            // Log transfer if home group changed
+            if (finalNewHomeGroup && originalHomeGroup && finalNewHomeGroup.id !== originalHomeGroup.id) {
+                historyEvents.push({ week: week, event: `Transferred from ${originalHomeGroup.name} to ${finalNewHomeGroup.name}` });
+            }
+
+            // Log added and removed kennin positions
+            const addedKennins = newKenninGroups.filter(g => !originalKenninGroups.some(og => og.id === g.id));
+            const removedKennins = originalKenninGroups.filter(g => !newKenninGroups.some(ng => ng.id === g.id));
+
+            addedKennins.forEach(g => historyEvents.push({ week: week, event: `Given a Concurrent Position in ${g.name}` }));
+            removedKennins.forEach(g => historyEvents.push({ week: week, event: `Concurrent Position in ${g.name} canceled` }));
+
+            if (historyEvents.length === 0) {
+                setMessage("No changes were made.");
+                return setShowModal(null);
+            }
+
+            const wasTransferred = finalNewHomeGroup && originalHomeGroup && finalNewHomeGroup.id !== originalHomeGroup.id;
+            const finalUpdatedMember = {
+                ...member,
+                homeGroup: finalNewHomeGroup.name,
+                kenninGroups: newKenninGroups.map(g => g.name),
+                teamHistory: [...(member.teamHistory || []), ...historyEvents],
+                teamId: wasTransferred ? null : member.teamId,
+            };
+            
+            let nextMembers = [...members];
+            let nextSisterGroups = [...sisterGroups];
+
+            // Remove member from their original group if they were transferred
+            if (wasTransferred) {
+                if (String(originalHomeGroup.id) === 'main') {
+                    nextMembers = nextMembers.filter(m => String(m.id) !== String(member.id));
+                } else {
+                    nextSisterGroups = nextSisterGroups.map(sg => 
+                        String(sg.id) === String(originalHomeGroup.id) ? { ...sg, members: sg.members.filter(m => String(m.id) !== String(member.id)) } : sg
+                    );
+                }
+            }
+            
+            // Add or update member in their final location
+            if (String(finalNewHomeGroup.id) === 'main') {
+                if(wasTransferred) nextMembers.push(finalUpdatedMember);
+                else nextMembers = nextMembers.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m);
+            } else {
+                 if(wasTransferred) {
+                     nextSisterGroups = nextSisterGroups.map(sg => 
+                        String(sg.id) === String(finalNewHomeGroup.id) ? { ...sg, members: [...(sg.members || []), finalUpdatedMember] } : sg
+                    );
+                 } else {
+                     nextSisterGroups = nextSisterGroups.map(sg => 
+                        String(sg.id) === String(finalNewHomeGroup.id) ? { ...sg, members: sg.members.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m) } : sg
+                    );
+                 }
+            }
+
+            setMembers(nextMembers);
+            setSisterGroups(nextSisterGroups);
+            
+            const notifMessage = `${member.name}'s group placement was updated.`;
+            setMessage(notifMessage);
+            addNotification({ type: 'Management', message: notifMessage });
+            setShowModal(null);
+            setSelectedMember(null);
+        };
+
         return (
-            <ModalWrapper title={<span className="flex items-center text-red-600"><Plane size={20} className="mr-2"/> SG Integration: {member.name}</span>} maxWidth="max-w-xl">
-                <p className="mb-4 text-gray-700">Cost: **¥50,000** for transfer or kennin membership. This gives {member.name} access to Main Group activities.</p>
-                
-                <h4 className="font-semibold mb-2">Choose Integration Path</h4>
-                <div className="grid grid-cols-1 gap-3">
-                    <button 
-                        onClick={() => handleConfirm("transfer")}
-                        disabled={money < 50000}
-                        className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors disabled:opacity-50"
-                    >
-                        1. FULL TRANSFER to {groupName}
-                        <p className='text-xs font-normal mt-1'>Removes member from {member.homeGroup} roster permanently and adds them to the Main Group.</p>
-                    </button>
+            <ModalWrapper title={<span className="flex items-center"><Plane size={20} className="mr-2"/> Manage Placement</span>}>
+                <p className="mb-3">Member: <span className="font-bold">{member.name}</span></p>
+                <h4 className="font-semibold mb-1 mt-3">Home Group (Transfer)</h4>
+                <p className="text-xs text-gray-500 mb-2">The member's primary group assignment.</p>
+                <select value={newHomeGroup} onChange={handleHomeChange} className="w-full p-2 border rounded mb-4 dark:bg-gray-800 dark:border-gray-600">
+                    {allGroups.map(group => (
+                        <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
+                </select>
 
-                    <button 
-                        onClick={() => handleConfirm("kennin")}
-                        disabled={money < 50000 || (member.kenninGroups || []).includes('main')}
-                        className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors disabled:opacity-50"
-                    >
-                        2. KENNIN (Concurrent) to {groupName}
-                        <p className='text-xs font-normal mt-1'>Member remains in {member.homeGroup} but can participate in Main Group activities (e.g., singles).</p>
-                    </button>
+                <h4 className="font-semibold mb-1 mt-3">Concurrent Positions (Kennin)</h4>
+                <p className="text-xs text-gray-500 mb-2">Assign additional, concurrent group memberships.</p>
+                <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded dark:border-gray-600">
+                    {allGroups.filter(g => String(g.id) !== String(newHomeGroup)).map(group => (
+                        <div key={group.id} className="flex items-center justify-between">
+                            <label className="text-gray-700 dark:text-gray-300">
+                                <input
+                                    type="checkbox"
+                                    checked={kenninStatus.includes(String(group.id))}
+                                    onChange={() => toggleKennin(group.id)}
+                                    className="mr-2"
+                                />
+                                {group.name}
+                            </label>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded">Cancel</button>
+                    <button onClick={handleConfirmMove} className="p-2 bg-blue-500 text-white rounded">Confirm Update</button>
                 </div>
             </ModalWrapper>
         );
-    }
-
-    // ========== MAIN → SISTER (UI identical to your old main UI) ==========
-
-    const allGroups = [
-        { id: "main", name: groupName },
-        ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name }))
-    ];
-
-    const [newHomeGroup, setNewHomeGroup] = useState(member.homeGroup);
-    const [kenninStatus, setKenninStatus] = useState(member.kenninGroups || []);
-
-    const toggleKennin = (group) => {
-        if (group === newHomeGroup && group !== "main") {
-            setMessage("A group cannot be both the Group and Kennin.");
-            return;
-        }
-        setKenninStatus(prev =>
-            prev.includes(group)
-                ? prev.filter(g => g !== group)
-                : [...prev, group]
-        );
     };
-
-    const handleHomeChange = (e) => {
-        const selected = e.target.value;
-        setNewHomeGroup(selected);
-        setKenninStatus(prev => prev.filter(g => g !== selected));
-    };
-
-    const handleMove = () => {
-        // Use new logic: if transferring to sister, call new transfer
-        if (newHomeGroup !== "main") {
-            return handleMainMemberTransfer(member, "transfer", newHomeGroup);
-        }
-
-        // Otherwise treat as normal main movement
-        setMembers(prev =>
-            prev.map(m =>
-                String(m.id) === String(member.id)
-                    ? {
-                          ...m,
-                          homeGroup: newHomeGroup,
-                          kenninGroups: kenninStatus.filter(g => g !== newHomeGroup)
-                      }
-                    : m
-            )
-        );
-
-        setMessage(`${member.name}'s status updated.`);
-        setShowModal(null);
-    };
-
-    return (
-        <ModalWrapper title={<span className="flex items-center"><Plane size={20} className="mr-2"/> Manage Placement</span>}>
-            <p className="mb-3">Member: <span className="font-bold">{member.name}</span></p>
-            
-            <h4 className="font-semibold mb-1 mt-3">Group (Transfer)</h4>
-            <p className="text-xs text-gray-500 mb-2">Primary group/base assignment.</p>
-
-            <select 
-                value={newHomeGroup}
-                onChange={handleHomeChange}
-                className="w-full p-2 border rounded mb-4"
-            >
-                {allGroups.map(group => (
-                    <option key={group.id} value={group.id}>
-                        {group.name}
-                    </option>
-                ))}
-            </select>
-
-            <h4 className="font-semibold mb-1 mt-3">Kennin Status</h4>
-            <p className="text-xs text-gray-500 mb-2">Assign concurrent memberships.</p>
-
-            <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded">
-                {(sisterGroups || []).map(sg => (
-                    <div key={sg.id} className="flex items-center justify-between">
-                        <label className={sg.id === newHomeGroup ? "text-gray-400" : "text-gray-700"}>
-                            <input
-                                type="checkbox"
-                                checked={kenninStatus.includes(sg.id)}
-                                onChange={() => toggleKennin(sg.id)}
-                                disabled={sg.id === newHomeGroup}
-                                className="mr-2"
-                            />
-                            {sg.name}
-                        </label>
-                    </div>
-                ))}
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                <button onClick={handleMove} className="p-2 bg-blue-500 text-white rounded">Confirm Update</button>
-            </div>
-        </ModalWrapper>
-    );
-};
 
     const MediaJobModal = () => {
         // Need to filter members to exclude current Kennin members in the main roster to avoid redundancy 
@@ -3638,80 +3996,92 @@ const MoveMemberModal = () => {
 
     // --- END NEW MODALS ---
 
-    const MemberParticipationHistory = ({ member }) => { 
-      
-      const songHistory = (member.songsParticipation || []);
-      const centerHistory = (member.centerHistory || []);
-      
-      const memberPerformances = performanceHistory.filter(p => p.members.includes(member.name));
-      const titleTrackHistory = songHistory.filter(s => s.type === 'title');
+       const MemberParticipationHistory = ({ member, getFormattedDateForWeek }) => { 
+         
+         const songHistory = (member.songsParticipation || []);
+         const centerHistory = (member.centerHistory || []);
+         const teamHistory = (member.teamHistory || []);
+         
+         const memberPerformances = performanceHistory.filter(p => p.members.includes(member.name));
+         const titleTrackHistory = songHistory.filter(s => s.type === 'title');
+   
+         const majorConcertHistory = memberPerformances.filter(p => p.category === "Major Concert");
+         const otherPerformanceHistory = memberPerformances.filter(p => p.category !== "Major Concert");
+   
+         return (
+             <div className="mt-4 border-t pt-4">
+                 <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className="mr-2"/> Participation & Team History</h4>
+                 
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><CalendarCheck size={14} className='mr-1 text-blue-500'/> Team History ({teamHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-blue-50 dark:bg-gray-800">
+                     {teamHistory.length === 0 && <p className="text-gray-500 italic p-1">No team history recorded.</p>}
+                     {teamHistory.slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1.5 rounded bg-blue-100 dark:bg-gray-700 border-b border-blue-200 dark:border-gray-600">
+                             <p className="font-bold text-blue-800 dark:text-blue-200">{entry.event}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Week {entry.week} ({getFormattedDateForWeek(entry.week)})</p> 
+                         </div>
+                     ))}
+                 </div>
 
-      const majorConcertHistory = memberPerformances.filter(p => p.category === "Major Concert");
-      const otherPerformanceHistory = memberPerformances.filter(p => p.category !== "Major Concert");
-
-      return (
-          <div className="mt-4 border-t pt-4">
-              <h4 className="font-semibold mb-2 flex items-center"><Music size={16} className="mr-2"/> Participation History</h4>
-              
-              <p className="text-sm font-medium text-gray-700 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
-              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50">
-                  {titleTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No title track senbatsu positions.</p>}
-                  {titleTrackHistory.slice(-5).reverse().map((entry, index) => (
-                      <div key={index} className="p-1.5 rounded bg-red-100 border border-red-200">
-                          <p className="font-bold text-red-800">{entry.songName}</p>
-                          <p className="text-gray-600">Single: {entry.singleName} ({entry.group})</p> 
-                          <p className="text-xs text-gray-500 mt-0.5">Position: <span className="font-semibold text-red-700">{entry.row || 'N/A'}</span></p>
-                      </div>
-                  ))}
-              </div>
-
-              <p className="text-sm font-medium text-gray-700 mt-3 flex items-center"><Music size={14} className='mr-1 text-green-500'/> B-Side Tracks ({songHistory.length - titleTrackHistory.length}):</p>
-              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-green-50">
-                  {(songHistory.length - titleTrackHistory.length) === 0 && <p className="text-gray-500 italic p-1">No B-side track positions.</p>}
-                  {songHistory.filter(s => s.type === 'b-side').slice(-5).reverse().map((entry, index) => (
-                      <div key={index} className="p-1.5 rounded bg-green-100 border border-green-200">
-                          <p className="font-bold text-green-800">{entry.songName}</p>
-                          <p className="text-gray-600">Single: {entry.singleName} ({entry.group})</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Position: <span className="font-semibold text-green-700">{entry.row || 'N/A'}</span></p>
-                      </div>
-                  ))}
-              </div>
-
-              <p className="text-sm font-medium text-gray-700 mt-3 flex items-center"><Star size={14} className='mr-1 text-yellow-500'/> Center Positions ({centerHistory.length}):</p>
-              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-yellow-50">
-                  {centerHistory.length === 0 && <p className="text-gray-500 italic p-1">No center history recorded.</p>}
-                  {centerHistory.slice(-5).reverse().map((entry, index) => (
-                      <div key={index} className="p-1 rounded bg-yellow-100 border border-yellow-300">
-                          <p className="font-bold text-yellow-800">{entry.songName}</p>
-                          <p className="text-gray-600">Single: {entry.singleName} (Group: {entry.group})</p> 
-                      </div>
-                  ))}
-              </div>
-
-              <p className="text-sm font-medium text-gray-700 mt-3 flex items-center"><Trophy size={14} className='mr-1 text-purple-500'/> Major Concerts ({majorConcertHistory.length}):</p>
-              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-purple-50">
-                  {majorConcertHistory.length === 0 && <p className="text-gray-500 italic p-1">No major concerts attended.</p>}
-                  {majorConcertHistory.slice(-5).reverse().map((entry, index) => (
-                      <div key={index} className="p-1 rounded bg-purple-100 border border-purple-300">
-                          <p className="font-bold text-purple-800">{entry.name}</p>
-                          <p className="text-gray-600">Week: {entry.week}</p> 
-                      </div>
-                  ))}
-              </div>
-
-              <p className="text-sm font-medium text-gray-700 mt-3 flex items-center"><ClipboardCheck size={14} className='mr-1 text-indigo-500'/> Performances ({otherPerformanceHistory.length}):</p>
-              <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-indigo-50">
-                  {otherPerformanceHistory.length === 0 && <p className="text-gray-500 italic p-1">No other performances recorded.</p>}
-                  {otherPerformanceHistory.slice(-5).reverse().map((entry, index) => (
-                      <div key={index} className="p-1 rounded bg-indigo-100 border border-indigo-300">
-                          <p className="font-bold text-indigo-800">{entry.name}</p>
-                          <p className="text-gray-600">Week: {entry.week} | Category: {entry.category}</p> 
-                      </div>
-                  ))}
-              </div>
-          </div>
-      );
-    };
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50 dark:bg-gray-800">
+                     {titleTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No title track senbatsu positions.</p>}
+                     {titleTrackHistory.slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1.5 rounded bg-red-100 dark:bg-gray-700 border border-red-200 dark:border-red-600">
+                             <p className="font-bold text-red-800 dark:text-red-200">{entry.songName}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} ({entry.group})</p> 
+                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Position: <span className="font-semibold text-red-700 dark:text-red-300">{entry.row || 'N/A'}</span></p>
+                         </div>
+                     ))}
+                 </div>
+   
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Music size={14} className='mr-1 text-green-500'/> B-Side Tracks ({songHistory.length - titleTrackHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-green-50 dark:bg-gray-800">
+                     {(songHistory.length - titleTrackHistory.length) === 0 && <p className="text-gray-500 italic p-1">No B-side track positions.</p>}
+                     {songHistory.filter(s => s.type === 'b-side').slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1.5 rounded bg-green-100 dark:bg-gray-700 border border-green-200 dark:border-green-600">
+                             <p className="font-bold text-green-800 dark:text-green-200">{entry.songName}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} ({entry.group})</p>
+                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Position: <span className="font-semibold text-green-700 dark:text-green-300">{entry.row || 'N/A'}</span></p>
+                         </div>
+                     ))}
+                 </div>
+   
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Star size={14} className='mr-1 text-yellow-500'/> Center Positions ({centerHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-yellow-50 dark:bg-gray-800">
+                     {centerHistory.length === 0 && <p className="text-gray-500 italic p-1">No center history recorded.</p>}
+                     {centerHistory.slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1 rounded bg-yellow-100 dark:bg-gray-700 border border-yellow-300 dark:border-yellow-600">
+                             <p className="font-bold text-yellow-800 dark:text-yellow-200">{entry.songName}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} (Group: {entry.group})</p> 
+                         </div>
+                     ))}
+                 </div>
+   
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Trophy size={14} className='mr-1 text-purple-500'/> Major Concerts ({majorConcertHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-purple-50 dark:bg-gray-800">
+                     {majorConcertHistory.length === 0 && <p className="text-gray-500 italic p-1">No major concerts attended.</p>}
+                     {majorConcertHistory.slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1 rounded bg-purple-100 dark:bg-gray-700 border border-purple-300 dark:border-purple-600">
+                             <p className="font-bold text-purple-800 dark:text-purple-200">{entry.name}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Week: {entry.week}</p> 
+                         </div>
+                     ))}
+                 </div>
+   
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><ClipboardCheck size={14} className='mr-1 text-indigo-500'/> Performances ({otherPerformanceHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-indigo-50 dark:bg-gray-800">
+                     {otherPerformanceHistory.length === 0 && <p className="text-gray-500 italic p-1">No other performances recorded.</p>}
+                     {otherPerformanceHistory.slice(-5).reverse().map((entry, index) => (
+                         <div key={index} className="p-1 rounded bg-indigo-100 dark:bg-gray-700 border border-indigo-300 dark:border-indigo-600">
+                             <p className="font-bold text-indigo-800 dark:text-indigo-200">{entry.name}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Week: {entry.week} | Category: {entry.category}</p> 
+                         </div>
+                     ))}
+                 </div>
+             </div>
+         );
+       };
     
     const PyramidRanking = () => {
       const sortedMembers = getMainGroupRoster();
@@ -3876,9 +4246,6 @@ const MoveMemberModal = () => {
                                   Show (¥10k)
                                 </button>
                                 
-                                <button onClick={() => recruitSisterGroupMember(selectedGroup.id)} className="px-3 py-1 bg-green-500 text-white text-sm rounded-md shadow-sm">
-                                  Recruit (¥10k)
-                                </button>
                                 <button onClick={openDisbandModal} className="px-3 py-1 bg-red-500 text-white text-sm rounded-md shadow-sm">
                                   <Trash2 size={16} className='inline mr-1'/> Disband
                                 </button>
@@ -4040,13 +4407,11 @@ if (!gameStarted) {
                       <>
                       <div className="flex justify-end items-center mb-2">
                         <button onClick={restAllTired} className="px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-md shadow-sm mr-2">Rest Tired</button>
-                        <button onClick={recruitMember} className="px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded-md shadow-sm">Recruit Main (¥20k)</button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {getMainGroupRoster().map(m => (
-                            <div key={m.id} 
-                                 className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer transition-colors duration-300 
-                                     ${!m.isAvailable ? 'opacity-60' : ''}
+                            <div key={`${m.homeGroup}-${m.id}`} 
+className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer focus:outline-none transition-colors duration-300                                     ${!m.isAvailable ? 'opacity-60' : ''}
                                      ${m.isKennin ? 'border-2 border-yellow-500' : ''}
                                      ${selectedMember && String(selectedMember.id) === String(m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
                                  onClick={() => setSelectedMember(m)}>
@@ -4058,12 +4423,12 @@ if (!gameStarted) {
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-0.5">{getMemberGroupStatus(m)}</p>
-                                <p className="text-xs text-gray-500 mb-1.5">{m.age} y.o. | Fans: {(m.fans || 0).toLocaleString()}</p>
-                                
+                                <p className="text-xs text-gray-500 mb-1.5">{`${m.generation ? `${m.generation} | ` : ''}${m.age} y.o. | Fans: ${(m.fans || 0).toLocaleString()}`}</p>                               
                                 <StatBar label="Singing" value={m.singing} color="bg-blue-500" />
                                 <StatBar label="Dancing" value={m.dancing} color="bg-green-500" />
                                 <StatBar label="Variety" value={m.variety} color="bg-pink-500" />
                                 <StatBar label="Stamina" value={m.stamina} color={m.stamina < 30 ? "bg-red-500" : "bg-gray-400"} />
+                                <StatBar label="Stress" value={m.stress} color={m.stress > 70 ? "bg-yellow-500" : "bg-indigo-500"} />
                                 <StatBar label="Morale" value={m.morale} color="bg-purple-500" />
                               </div>
                             </div>
@@ -4081,9 +4446,18 @@ if (!gameStarted) {
               <SisterGroupManagement />
             )}
 
-            {/* ----- MANAGEMENT TAB ----- */}
+        {/* ----- MANAGEMENT TAB ----- */}
         {currentTab === 'management' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Recruitment & Auditions */}
+        <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <h3 className="text-base font-bold mb-2 flex items-center"><User size={18} className="mr-2"/> Recruitment & Auditions</h3>
+          <div className="flex flex-col gap-1.5">
+            <button onClick={() => setShowModal('holdAudition')} className="w-full px-3 py-1.5 text-sm bg-green-600 text-white rounded font-semibold">
+              <Plus size={16} className='inline mr-1'/> Hold Audition
+            </button>
+          </div>
+        </div>
             {/* Performance & Elections */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
               <h3 className="text-base font-bold mb-2 flex items-center"><Star size={18} className="mr-2"/> Performance & Elections</h3>
@@ -4435,9 +4809,9 @@ if (!gameStarted) {
       {getMemberGroupStatus(selectedMember)}
     </p>
 
-    <p className="text-gray-600 mb-4">
-      {selectedMember.nickname} | {selectedMember.age} y.o.
-    </p>
+<p className="text-gray-600 mb-4">
+  {`${selectedMember.generation ? `${selectedMember.generation} | ` : ''}${selectedMember.nickname} | ${selectedMember.age} y.o.`}
+</p>
 
     {/* Stats */}
     <div className="mb-4">
@@ -4445,6 +4819,7 @@ if (!gameStarted) {
       <StatBar label="Dancing" value={selectedMember.dancing} color="bg-green-500" />
       <StatBar label="Variety" value={selectedMember.variety} color="bg-pink-500" />
       <StatBar label="Stamina" value={selectedMember.stamina} color={selectedMember.stamina < 30 ? "bg-red-500" : "bg-gray-400"} />
+      <StatBar label="Stress" value={selectedMember.stress} color={selectedMember.stress > 70 ? "bg-yellow-500" : "bg-indigo-500"} />
       <StatBar label="Morale" value={selectedMember.morale} color="bg-purple-500" />
 
       <p className="text-xs text-gray-500 mt-2">
@@ -4514,7 +4889,7 @@ if (!gameStarted) {
       </button>
     </div>
 
-    <MemberParticipationHistory member={selectedMember} />
+<MemberParticipationHistory member={selectedMember} getFormattedDateForWeek={getFormattedDateForWeek} />
   </div>
 ) : (
 
@@ -4572,12 +4947,24 @@ if (!gameStarted) {
         </aside>
 
         {/* Modals */}
+        {showModal === 'holdAudition' && <HoldAuditionModal 
+            startAudition={startAudition} 
+            groupName={groupName} 
+            sisterGroups={sisterGroups} 
+            setShowModal={setShowModal} 
+        />}
+        {showModal === 'traineeDraft' && <TraineeDraftModal 
+            auditionCandidates={auditionCandidates}
+            modalData={modalData}
+            confirmRecruitment={confirmRecruitment}
+            setShowModal={setShowModal}
+        />}
         {showModal === 'createSong' && <CreateSongModal />}
         {showModal === 'singleDetails' && <SingleDetailsModal />}
         {showModal === 'theaterShowPrep' && <TheaterShowPrepModal />} 
         {/* Removed: LargeConcertModal (Deprecated) */}
         {showModal === 'rename' && modalData && <RenameMemberModal />}
-        {showModal === 'moveMember' && modalData && <MoveMemberModal />}
+      {showModal === 'moveMember' && <MoveMemberModal member={modalData} setShowModal={setShowModal} />}
         {showModal === 'createTeam' && <CreateTeamModal />}
         {showModal === 'editTeam' && modalData && <EditTeamModal />}
         {showModal === 'saveGame' && <SaveGameModal />}
