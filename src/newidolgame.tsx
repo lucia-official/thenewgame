@@ -521,42 +521,28 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       }
     };
     
-    // UTILITY: Returns the main group roster including Kennin members for display.
-const getMainGroupRoster = () => {
-    let roster = [...members]; // Main members
+    const getMainGroupRoster = () => {
+      // 1. Start with main group members, adding a flag for the UI.
+      const mainRoster = members.map(m => ({
+        ...m,
+        isSisterMember: false 
+      }));
 
-    (sisterGroups || []).forEach(sg => {
-        (sg.members || []).forEach(m => {
-
-            // 1. Kennin from sister → main
-            if ((m.kenninGroups || []).includes('main') && m.isAvailable) {
-                roster.push({
-                    ...m,
-                    id: `sg-${sg.id}-${m.id}`,
-                    name: `${m.name} (K: ${sg.name})`,
-                    isSister: true,
-                    groupId: sg.id,
-                    isKennin: true
-                });
-                return;
-            }
-
-            // 2. Transferred main → sister members
-            if (m.homeGroup !== 'main' && m.isAvailable) {
-                roster.push({
-                    ...m,
-                    id: `sg-${sg.id}-${m.id}`,
-                    name: `${m.name} (${sg.name})`,
-                    isSister: true,
-                    groupId: sg.id,
-                    isKennin: false
-                    });
-                }
-            });
-        });
-        
-        // Sort by fans to maintain ranking order
-        return roster.sort((a, b) => (b.fans || 0) - (a.fans || 0));
+      // 2. Add all members from all sister groups, creating a unique UI ID and preserving the original.
+      const sisterRoster = sisterGroups.flatMap(sg => 
+        (sg.members || []).map(m => ({
+          ...m,
+          // IMPORTANT: We use a new 'rosterId' for the UI key to guarantee it's unique,
+          // while preserving the original 'id' for logic functions.
+          rosterId: `sg-${sg.id}-${m.id}`,
+          isSisterMember: true,
+          displayGroupName: sg.name, // Add the group name for display
+        }))
+      );
+      
+      const combined = [...mainRoster, ...sisterRoster];
+      // Sort the final combined list by fan count.
+      return combined.sort((a,b) => (b.fans || 0) - (a.fans || 0));
     };
 
     const getAllAvailableMembers = (includeSisterGroups = false) => {
@@ -580,25 +566,33 @@ const getMainGroupRoster = () => {
       return all.filter(m => m.isAvailable);
     };
     
-    const getMemberById = (memberId) => {
-      if (String(memberId).startsWith('sg-')) {
-          const parts = String(memberId).split('-'); 
-          const sgId = parseInt(parts[1]);
-          const mId = parseInt(parts[2]);
-          const sg = (sisterGroups || []).find(g => g.id === sgId);
-          const member = (sg?.members || []).find(m => m.id === mId);
-          if (member && sg) {
-              return {
-                  ...member,
-                  id: memberId, 
-                  name: `${member.name} (${sg.name})`,
-                  isSister: true,
-                  groupId: sgId
-              };
-          }
+const getMemberById = (memberId) => {
+  if (String(memberId).startsWith('sg-')) {
+      const parts = String(memberId).split('-'); 
+      const sgId = parseInt(parts[1]);
+      const mId = parseInt(parts[2]);
+      const sg = (sisterGroups || []).find(g => g.id === sgId);
+      const member = (sg?.members || []).find(m => m.id === mId);
+      if (member && sg) {
+          // Return the decorated object, similar to how the roster creates it
+          return {
+              ...member,
+              rosterId: memberId, 
+              isSisterMember: true,
+              displayGroupName: sg.name,
+          };
       }
-      return members.find(m => String(m.id) === String(memberId));
+  }
+  // Fallback for main group members
+  const mainMember = members.find(m => String(m.id) === String(memberId));
+  if (mainMember) {
+    return {
+      ...mainMember,
+      isSisterMember: false
     };
+  }
+  return null; // Return null if not found
+};
     
     const updateMemberState = (memberId, updateFn) => {
       if (!String(memberId).startsWith('sg-')) {
@@ -788,26 +782,34 @@ const getMemberGroupStatus = (member) => {
       setShowModal('createTeam');
     };
     
-    const confirmCreateTeam = (teamData) => {
-        const newId = Math.max(...(teams || []).map(t => t.id), 0) + 1;
-        const newTeam = {
-            id: newId,
-            name: teamData.name,
-            members: teamData.members.map(String),
-            currentSetlistId: teamData.setlistId,
-        };
-        setTeams(prev => [...prev, newTeam]);
-        setMessage(`Team "${teamData.name}" created with ${teamData.members.length} members!`);
-        setShowModal(null);
-    };
+        const confirmCreateTeam = (teamData) => {
+            const newId = Math.max(...(teams || []).map(t => t.id), 0) + 1;
+            const memberIds = teamData.members.map(String);
+            const newTeam = {
+                id: newId,
+                name: teamData.name,
+                members: memberIds,
+                currentSetlistId: teamData.setlistId,
+            };
 
-    const editTeam = (teamId) => {
-      const team = (teams || []).find(t => t.id === teamId);
-      if (!team) return setMessage("Team not found.");
+            // Add "Promoted" event to the history of the selected members
+            setMembers(prevMembers => prevMembers.map(m => {
+                if (memberIds.includes(String(m.id))) {
+                    const event = { week: week, event: `Promoted to Team ${newTeam.name}` };
+                    // Also update the member's teamId
+                    return { ...m, teamId: newTeam.id, teamHistory: [...(m.teamHistory || []), event] };
+                }
+                return m;
+            }));
+
+            setTeams(prev => [...prev, newTeam]);
+            setMessage(`Team "${teamData.name}" created with ${teamData.members.length} members!`);
+            setShowModal(null);
+        };
+    const editTeam = (team) => {
       setModalData(team);
       setShowModal('editTeam');
     };
-    
         const confirmEditTeam = (teamData) => {
             const newTeamName = teamData.name;
             const newMemberIds = teamData.members.map(String);
@@ -3631,146 +3633,160 @@ const CreateTeamModal = () => {
         );
     };
     
-    // --- Existing modals with missing functions that will be added in future steps ---
     const MoveMemberModal = ({ member, setShowModal }) => {
-        // SAFETY CHECK: Prevents crash if the modal renders before data is ready.
+        // --- SETUP: Unified UI and Logic ---
         if (!member) return null;
-
+    
         const allGroups = [{ id: 'main', name: groupName }, ...(sisterGroups || [])];
-        
-        const getGroupIdFromName = (name) => {
-            if (name === groupName) return 'main';
-            const sg = (sisterGroups || []).find(g => g.name === name);
-            return sg ? sg.id : null;
-        };
-
-        const initialHomeGroupId = getGroupIdFromName(member.homeGroup);
-        const initialKenninIds = (member.kenninGroups || []).map(name => getGroupIdFromName(name)).filter(Boolean).map(String);
-
-        const [newHomeGroup, setNewHomeGroup] = useState(String(initialHomeGroupId));
-        const [kenninStatus, setKenninStatus] = useState(initialKenninIds);
-
-        const handleHomeChange = (e) => {
-            const selectedGroupId = e.target.value;
-            setNewHomeGroup(selectedGroupId);
-            if (kenninStatus.includes(selectedGroupId)) {
-                setKenninStatus(prev => prev.filter(id => id !== selectedGroupId));
-            }
-        };
-
-        const toggleKennin = (groupId) => {
-            const strGroupId = String(groupId);
-            setKenninStatus(prev =>
-                prev.includes(strGroupId)
-                    ? prev.filter(id => id !== strGroupId)
-                    : [...prev, strGroupId]
-            );
-        };
-
-        const handleConfirmMove = () => {
-            let historyEvents = [];
-
-            const originalHomeGroup = allGroups.find(g => String(g.id) === String(initialHomeGroupId));
-            const finalNewHomeGroup = allGroups.find(g => String(g.id) === String(newHomeGroup));
-            
-            const originalKenninGroups = initialKenninIds.map(id => allGroups.find(g => String(g.id) === id)).filter(Boolean);
-            const newKenninGroups = kenninStatus.map(id => allGroups.find(g => String(g.id) === id)).filter(Boolean);
-
-            // Log transfer if home group changed
-            if (finalNewHomeGroup && originalHomeGroup && finalNewHomeGroup.id !== originalHomeGroup.id) {
-                historyEvents.push({ week: week, event: `Transferred from ${originalHomeGroup.name} to ${finalNewHomeGroup.name}` });
-            }
-
-            // Log added and removed kennin positions
-            const addedKennins = newKenninGroups.filter(g => !originalKenninGroups.some(og => og.id === g.id));
-            const removedKennins = originalKenninGroups.filter(g => !newKenninGroups.some(ng => ng.id === g.id));
-
-            addedKennins.forEach(g => historyEvents.push({ week: week, event: `Given a Concurrent Position in ${g.name}` }));
-            removedKennins.forEach(g => historyEvents.push({ week: week, event: `Concurrent Position in ${g.name} canceled` }));
-
-            if (historyEvents.length === 0) {
-                setMessage("No changes were made.");
-                return setShowModal(null);
-            }
-
-            const wasTransferred = finalNewHomeGroup && originalHomeGroup && finalNewHomeGroup.id !== originalHomeGroup.id;
-            const finalUpdatedMember = {
-                ...member,
-                homeGroup: finalNewHomeGroup.name,
-                kenninGroups: newKenninGroups.map(g => g.name),
-                teamHistory: [...(member.teamHistory || []), ...historyEvents],
-                teamId: wasTransferred ? null : member.teamId,
-            };
-            
-            let nextMembers = [...members];
-            let nextSisterGroups = [...sisterGroups];
-
-            // Remove member from their original group if they were transferred
-            if (wasTransferred) {
-                if (String(originalHomeGroup.id) === 'main') {
-                    nextMembers = nextMembers.filter(m => String(m.id) !== String(member.id));
+    
+        // 1. Find the member's true current home group ID from the actual state.
+            const findCurrentHomeGroupId = () => {
+                // The `member` object passed to the modal now has a reliable `isSisterMember` flag.
+                // This is the simplest and most accurate way to determine the home group.
+                if (member.isSisterMember) {
+                    // If it's a sister member, find the sister group object by its name.
+                    const parentSg = sisterGroups.find(g => g.name === member.homeGroup);
+                    if (parentSg) {
+                        return parentSg.id;
+                    }
                 } else {
-                    nextSisterGroups = nextSisterGroups.map(sg => 
-                        String(sg.id) === String(originalHomeGroup.id) ? { ...sg, members: sg.members.filter(m => String(m.id) !== String(member.id)) } : sg
-                    );
+                    // If it's not a sister member, it must be a main group member.
+                    return 'main';
                 }
-            }
-            
-            // Add or update member in their final location
-            if (String(finalNewHomeGroup.id) === 'main') {
-                if(wasTransferred) nextMembers.push(finalUpdatedMember);
-                else nextMembers = nextMembers.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m);
-            } else {
-                 if(wasTransferred) {
-                     nextSisterGroups = nextSisterGroups.map(sg => 
-                        String(sg.id) === String(finalNewHomeGroup.id) ? { ...sg, members: [...(sg.members || []), finalUpdatedMember] } : sg
-                    );
-                 } else {
-                     nextSisterGroups = nextSisterGroups.map(sg => 
-                        String(sg.id) === String(finalNewHomeGroup.id) ? { ...sg, members: sg.members.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m) } : sg
-                    );
-                 }
-            }
 
-            setMembers(nextMembers);
-            setSisterGroups(nextSisterGroups);
-            
-            const notifMessage = `${member.name}'s group placement was updated.`;
-            setMessage(notifMessage);
-            addNotification({ type: 'Management', message: notifMessage });
-            setShowModal(null);
-            setSelectedMember(null);
-        };
-
+                // --- Fallback for any edge cases or older data ---
+                // This logic is kept as a safety net.
+                const homeGroupName = member.homeGroup;
+                if (homeGroupName === groupName || homeGroupName === 'main') {
+                    return 'main';
+                }
+                const fallbackSg = sisterGroups.find(g => g.name === homeGroupName);
+                if (fallbackSg) {
+                    return fallbackSg.id;
+                }
+                
+                // If all else fails, do a final brute-force search.
+                const searchResultSg = sisterGroups.find(g => g.members && g.members.some(m => String(m.id) === String(member.id)));
+                if (searchResultSg) {
+                    return searchResultSg.id;
+                }
+                
+                return 'main'; // Default to main if completely lost.
+            };
+    
+        const initialHomeGroupId = findCurrentHomeGroupId();
+        const initialKenninGroupNames = member.kenninGroups || [];
+    
+        // 2. Form state
+        const [newHomeGroup, setNewHomeGroup] = useState(String(initialHomeGroupId));
+        const [kenninStatus, setKenninStatus] = useState(initialKenninGroupNames);
+    
+            const handleConfirmMove = () => {
+                const originalHomeGroup = allGroups.find(g => String(g.id) === String(initialHomeGroupId));
+                const finalNewHomeGroup = allGroups.find(g => String(g.id) === newHomeGroup);
+                const wasTransferred = finalNewHomeGroup.id !== originalHomeGroup.id;
+    
+                const addedKennins = kenninStatus.filter(name => !initialKenninGroupNames.includes(name));
+                const removedKennins = initialKenninGroupNames.filter(name => !kenninStatus.includes(name));
+                let historyEvents = [];
+    
+                if (wasTransferred) historyEvents.push({ week: week, event: `Transferred from ${originalHomeGroup.name} to ${finalNewHomeGroup.name}` });
+                addedKennins.forEach(name => historyEvents.push({ week: week, event: `Given a Concurrent Position in ${name}` }));
+                removedKennins.forEach(name => historyEvents.push({ week: week, event: `Concurrent Position in ${name} canceled` }));
+    
+                if (historyEvents.length === 0) {
+                    setMessage("No changes were made.");
+                    return setShowModal(null);
+                }
+    
+                // --- UNIFIED IMMUTABLE LOGIC ---
+    
+                const isCrossGroupTransfer = wasTransferred && ((originalHomeGroup.id === 'main' && finalNewHomeGroup.id !== 'main') || (originalHomeGroup.id !== 'main' && finalNewHomeGroup.id === 'main'));
+                const memberIdToUse = isCrossGroupTransfer ? Math.max(0, ...members.map(m => m.id), ...sisterGroups.flatMap(sg => sg.members || []).map(m => m.id)) + 1 : member.id;
+    
+                const finalUpdatedMember = { ...member, id: memberIdToUse, homeGroup: finalNewHomeGroup.name, kenninGroups: kenninStatus, teamHistory: [...(member.teamHistory || []), ...historyEvents], teamId: wasTransferred ? null : member.teamId };
+    
+                let intermediateMembers = members;
+                let intermediateSisterGroups = sisterGroups;
+    
+                // Step 1: REMOVE the member from their original location (if a transfer occurred)
+                if (wasTransferred) {
+                    if (originalHomeGroup.id === 'main') {
+                        intermediateMembers = members.filter(m => String(m.id) !== String(member.id));
+                    } else {
+                        intermediateSisterGroups = sisterGroups.map(sg => {
+                            if (String(sg.id) !== String(originalHomeGroup.id)) return sg;
+                            // Create a new SG object with the member immutably removed
+                            return { ...sg, members: sg.members.filter(m => String(m.id) !== String(member.id)) };
+                        });
+                    }
+                }
+    
+                // Step 2: ADD or UPDATE the member in their final location
+                let finalMembers = intermediateMembers;
+                let finalSisterGroups = intermediateSisterGroups;
+    
+                if (finalNewHomeGroup.id === 'main') {
+                    if (wasTransferred) {
+                        finalMembers = [...intermediateMembers, finalUpdatedMember];
+                    } else { // Kennin-only update for main group member
+                        finalMembers = intermediateMembers.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m);
+                    }
+                } else { // Final location is a sister group
+                    finalSisterGroups = intermediateSisterGroups.map(sg => {
+                        if (String(sg.id) !== String(finalNewHomeGroup.id)) return sg;
+                        
+                        if (wasTransferred) {
+                            // Create a new SG object with the transferred member immutably added
+                            return { ...sg, members: [...(sg.members || []), finalUpdatedMember] };
+                        } else { // Kennin-only update for sister group member
+                            // Create a new SG object with the member immutably updated
+                            return { ...sg, members: sg.members.map(m => String(m.id) === String(member.id) ? finalUpdatedMember : m) };
+                        }
+                    });
+                }
+    
+                setMembers(finalMembers);
+                setSisterGroups(finalSisterGroups);
+    
+                setMessage(`${member.name}'s placement was updated.`);
+                addNotification({ type: 'Management', message: `${member.name}'s placement was updated.` });
+                setShowModal(null);
+                setSelectedMember(null);
+            };
+    
+        // --- The Unified UI ---
         return (
             <ModalWrapper title={<span className="flex items-center"><Plane size={20} className="mr-2"/> Manage Placement</span>}>
                 <p className="mb-3">Member: <span className="font-bold">{member.name}</span></p>
                 <h4 className="font-semibold mb-1 mt-3">Home Group (Transfer)</h4>
-                <p className="text-xs text-gray-500 mb-2">The member's primary group assignment.</p>
-                <select value={newHomeGroup} onChange={handleHomeChange} className="w-full p-2 border rounded mb-4 dark:bg-gray-800 dark:border-gray-600">
-                    {allGroups.map(group => (
-                        <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
+                <p className="text-xs text-gray-500 mb-2">Primary group assignment.</p>
+                <select value={newHomeGroup} onChange={(e) => {
+                    const selectedGroupId = e.target.value;
+                    setNewHomeGroup(selectedGroupId);
+                    const selectedGroupName = allGroups.find(g => g.id === selectedGroupId)?.name;
+                    if (kenninStatus.includes(selectedGroupName)) {
+                        setKenninStatus(prev => prev.filter(name => name !== selectedGroupName));
+                    }
+                }} className="w-full p-2 border rounded mb-4 dark:bg-gray-800 dark:border-gray-600">
+                    {allGroups.map(group => (<option key={group.id} value={group.id}>{group.name}</option>))}
                 </select>
-
+    
                 <h4 className="font-semibold mb-1 mt-3">Concurrent Positions (Kennin)</h4>
-                <p className="text-xs text-gray-500 mb-2">Assign additional, concurrent group memberships.</p>
+                <p className="text-xs text-gray-500 mb-2">Assign additional group memberships.</p>
                 <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded dark:border-gray-600">
-                    {allGroups.filter(g => String(g.id) !== String(newHomeGroup)).map(group => (
+                    {allGroups.filter(g => g.id !== newHomeGroup).map(group => (
                         <div key={group.id} className="flex items-center justify-between">
                             <label className="text-gray-700 dark:text-gray-300">
-                                <input
-                                    type="checkbox"
-                                    checked={kenninStatus.includes(String(group.id))}
-                                    onChange={() => toggleKennin(group.id)}
-                                    className="mr-2"
-                                />
+                                <input type="checkbox" checked={kenninStatus.includes(group.name)} onChange={() => {
+                                    setKenninStatus(prev => prev.includes(group.name) ? prev.filter(n => n !== group.name) : [...prev, group.name]);
+                                }} className="mr-2"/>
                                 {group.name}
                             </label>
                         </div>
                     ))}
                 </div>
-
+    
                 <div className="flex justify-end gap-2 mt-4">
                     <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded">Cancel</button>
                     <button onClick={handleConfirmMove} className="p-2 bg-blue-500 text-white rounded">Confirm Update</button>
@@ -4165,117 +4181,6 @@ const CreateTeamModal = () => {
       );
     };
     
-    const SisterGroupManagement = () => {
-        const initialSGId = sisterGroups[0]?.id || null;
-        const [currentSisterGroup, setCurrentSisterGroup] = useState(selectedSisterGroup || initialSGId);
-        const selectedGroup = sisterGroups.find(sg => sg.id === currentSisterGroup);
-        
-        useEffect(() => {
-          if (sisterGroups.length > 0 && (!currentSisterGroup || !selectedGroup)) {
-              const newId = sisterGroups[0].id;
-              setCurrentSisterGroup(newId);
-              setSelectedSisterGroup(newId); 
-          } else if (sisterGroups.length === 0) {
-               setCurrentSisterGroup(null);
-               setSelectedSisterGroup(null);
-          }
-        }, [sisterGroups, currentSisterGroup, selectedGroup, setSelectedSisterGroup]);
-
-        if (sisterGroups.length === 0) {
-            return (
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                    <h2 className="text-xl font-semibold mb-3 flex items-center"><Globe size={20} className="mr-2"/> Sister Groups</h2>
-                    <p className='text-gray-500'>No sister groups established yet. Time to expand!</p>
-                    <button onClick={() => setShowModal('createSisterGroup')} className="w-full p-2 bg-red-500 text-white rounded mt-4">
-                      Establish Sister Group (¥250k)
-                    </button>
-                </div>
-            );
-        }
-        
-        const sisterMemberRank = (member, membersList) => {
-            return [...(membersList || [])].sort((a, b) => (b.fans || 0) - (a.fans || 0)).findIndex(m => m.id === member.id) + 1;
-        };
-        
-        const handleSelectSGMember = (member, sgId) => {
-          const sg = sisterGroups.find(g => g.id === sgId);
-          setSelectedMember({
-              ...member,
-              id: `sg-${sgId}-${member.id}`,
-              name: `${member.name} (${sg?.name || 'Unknown'})`,
-              isSister: true,
-              groupId: sgId
-          });
-          setCurrentTab('members');
-        };
-        
-        const openDisbandModal = () => {
-          if (selectedGroup) {
-              setModalData(selectedGroup);
-              setShowModal('sisterGroupDisband');
-          }
-        }
-
-        return (
-            <div className="bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-xl font-semibold mb-3 flex items-center"><Globe size={20} className="mr-2"/> Sister Group Management</h2>
-                
-                <select 
-                    value={currentSisterGroup || ''}
-                    onChange={(e) => {
-                      const newId = parseInt(e.target.value);
-                      setCurrentSisterGroup(newId);
-                      setSelectedSisterGroup(newId);
-                    }}
-                    className="w-full p-2 border rounded mb-4 bg-gray-50"
-                >
-                    {(sisterGroups || []).map(sg => (
-                        <option key={sg.id} value={sg.id}>{sg.name} ({sg.location})</option>
-                    ))}
-                </select>
-
-                {selectedGroup && (
-                    <div>
-                        <div className='flex justify-between items-center mb-3 p-3 bg-blue-50 rounded-lg'>
-                            <div>
-                                <p className='font-bold text-lg'>{selectedGroup.name}</p>
-                                <p className="text-sm text-gray-600">Fans: {selectedGroup.fans.toLocaleString()} | Weekly Income: ¥{selectedGroup.income.toLocaleString()}</p>
-                            </div>
-                            <div className='flex gap-2'>
-                                <button onClick={() => holdSisterGroupShow(selectedGroup.id)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md shadow-sm">
-                                  Show (¥10k)
-                                </button>
-                                
-                                <button onClick={openDisbandModal} className="px-3 py-1 bg-red-500 text-white text-sm rounded-md shadow-sm">
-                                  <Trash2 size={16} className='inline mr-1'/> Disband
-                                </button>
-                            </div>
-                        </div>
-
-                        <h4 className="font-semibold mb-2">Member Roster ({selectedGroup.members.length})</h4>
-                        <div className="max-h-80 overflow-y-auto space-y-2">
-                            {(selectedGroup.members || []).sort((a, b) => sisterMemberRank(a, selectedGroup.members) - sisterMemberRank(b, selectedGroup.members)).map(m => (
-                                <div key={m.id} 
-                                     className={`p-3 border rounded bg-gray-50 flex justify-between items-center cursor-pointer ${selectedMember && String(selectedMember.id) === `sg-${selectedGroup.id}-${m.id}` ? 'border-2 border-blue-500 ring-2 ring-blue-200 bg-blue-50' : 'hover:bg-gray-100'}`}
-                                     onClick={() => handleSelectSGMember(m, selectedGroup.id)}
-                                >
-                                    <div>
-                                        <span className="font-bold">{m.name} {m.kenninGroups?.includes('main') ? '(Kennin)' : ''}</span>
-                                        <p className="text-xs text-gray-600">
-                                            Rank: #{sisterMemberRank(m, selectedGroup.members)} | Variety: {m.variety}
-                                        </p>
-                                    </div>
-                                    <button className="p-1 bg-yellow-400 text-white rounded text-xs">
-                                        View/Manage
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
 
 
     // --- STYLES/HELPERS ---
@@ -4408,22 +4313,23 @@ if (!gameStarted) {
                       <div className="flex justify-end items-center mb-2">
                         <button onClick={restAllTired} className="px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-md shadow-sm mr-2">Rest Tired</button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {getMainGroupRoster().map(m => (
-                            <div key={`${m.homeGroup}-${m.id}`} 
-className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer focus:outline-none transition-colors duration-300                                     ${!m.isAvailable ? 'opacity-60' : ''}
-                                     ${m.isKennin ? 'border-2 border-yellow-500' : ''}
-                                     ${selectedMember && String(selectedMember.id) === String(m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
+                            <div key={m.rosterId || m.id} // Use the unique rosterId for keys to prevent UI bugs
+                                 className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden cursor-pointer focus:outline-none transition-all duration-300
+                                     ${!m.isAvailable ? 'opacity-60' : ''}
+                                     ${(m.kenninGroups || []).length > 0 ? 'border-2 border-yellow-400 dark:border-yellow-500' : ''}
+                                     ${selectedMember && (selectedMember.rosterId || selectedMember.id) === (m.rosterId || m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
                                  onClick={() => setSelectedMember(m)}>
                               <div className="p-2">
                                 <div className="flex justify-between items-start mb-1">
                                   <h3 className="text-base font-bold">{m.name}</h3>
                                   <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${m.position === 'center' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
-                                    #{getMainGroupRoster().findIndex(r => r.id === m.id) + 1} {m.position === 'center' ? 'Center' : m.position === 'front' ? 'Front' : m.position === 'middle' ? 'Mid' : m.position === 'back' ? 'Back' : 'UG'}
+                                    #{getMainGroupRoster().findIndex(r => (r.rosterId || r.id) === (m.rosterId || m.id)) + 1}
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-0.5">{getMemberGroupStatus(m)}</p>
-                                <p className="text-xs text-gray-500 mb-1.5">{`${m.generation ? `${m.generation} | ` : ''}${m.age} y.o. | Fans: ${(m.fans || 0).toLocaleString()}`}</p>                               
+                                <p className="text-xs text-gray-500 mb-1.5">{`${m.generation ? `${m.generation} | ` : ''}${m.age} y.o. | Fans: ${(m.fans || 0).toLocaleString()}`}</p>
                                 <StatBar label="Singing" value={m.singing} color="bg-blue-500" />
                                 <StatBar label="Dancing" value={m.dancing} color="bg-green-500" />
                                 <StatBar label="Variety" value={m.variety} color="bg-pink-500" />
@@ -4440,11 +4346,6 @@ className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden curso
                     )}
                   </div>
                 )}
-
-            {/* ----- SISTER GROUP TAB ----- */}
-            {currentTab === 'sisterGroup' && (
-              <SisterGroupManagement />
-            )}
 
         {/* ----- MANAGEMENT TAB ----- */}
         {currentTab === 'management' && (
@@ -4762,7 +4663,6 @@ className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden curso
             <TabButton id="discography" label="Songs" icon={Music} />
             <TabButton id="management" label="Manage" icon={Building} />
             <TabButton id="history" label="History" icon={Clipboard} />
-            <TabButton id="sisterGroup" label="SG" icon={Globe} />
             <TabButton id="activities" label="Activities" icon={Zap} />
           </nav>
         </div>
@@ -4902,7 +4802,6 @@ className={`bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden curso
       { id: 'activities', label: 'Activities' },
       { id: 'discography', label: 'Songs' },
       { id: 'history', label: 'History' },
-      { id: 'sisterGroup', label: 'SG' }
     ].map(tab => (
       <button
         key={tab.id}
