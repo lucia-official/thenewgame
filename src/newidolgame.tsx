@@ -103,6 +103,7 @@ const useIdolManager = () => {
     const [notifications, setNotifications] = useState([]);
     const [formattedDate, setFormattedDate] = useState('');
     const [songs, setSongs] = useState([]);
+    const [hasPerformedThisWeek, setHasPerformedThisWeek] = useState(false);
     const [teams, setTeams] = useState([]);
     const [allSetlists, setAllSetlists] = useState([
 // --- AKB48 Team A ---
@@ -153,7 +154,8 @@ const useIdolManager = () => {
 // --- Overseas (JKT & BNK) ---
 { id: 30, name: "JKT1 'Pertaruhan Cinta'", theme: 'energy', difficulty: 310 },
 { id: 31, name: "BNK1 'WHISPER ROAR'", theme: 'theatrical', difficulty: 320 }    ]);
-    const [buildings, setBuildings] = useState({ theater: false, practiceRooms: { vocal: 0, dance: 0, variety: 0 } });
+    const [theaters, setTheaters] = useState([]);
+    const [buildings, setBuildings] = useState({ practiceRooms: { vocal: 0, dance: 0, variety: 0 } });
     const [sisterGroups, setSisterGroups] = useState([]); 
     const [rivalGroups, setRivalGroups] = useState([]);
     const [achievements, setAchievements] = useState([]);
@@ -311,6 +313,7 @@ const saveGame = async (gameUsername, uidParam) => {
     songs: JSON.stringify(songs),
     teams: JSON.stringify(teams),
     allSetlists: JSON.stringify(allSetlists),
+    theaters: JSON.stringify(theaters),
     buildings: JSON.stringify(buildings),
     sisterGroups: JSON.stringify(sisterGroups),
     rivalGroups: JSON.stringify(rivalGroups),
@@ -401,7 +404,29 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setTotalFans(data.totalFans || 0);
       setSongs(JSON.parse(data.songs || "[]"));
       setTeams(JSON.parse(data.teams || "[]"));
-      setBuildings(JSON.parse(data.buildings || "{}"));
+            setTheaters(JSON.parse(data.theaters || "[]"));
+      // --- MIGRATION LOGIC FOR OLD SAVES ---
+      const loadedBuildings = JSON.parse(data.buildings || "{}");
+      if (loadedBuildings.hasOwnProperty('theater')) {
+          // This is an OLD save file.
+          if (loadedBuildings.theater === true) {
+              // If they had a theater, create a default one for the main group,
+              // but only if the new `theaters` array from the save is empty.
+              if (!data.theaters || JSON.parse(data.theaters).length === 0) {
+                  setTheaters([{
+                      owner: 'main',
+                      level: 1,
+                      capacity: 250,
+                      name: `${data.groupName || groupName} Theater`
+                  }]);
+              }
+          }
+          // Set the new buildings state with only the practice rooms.
+          setBuildings({ practiceRooms: loadedBuildings.practiceRooms || { vocal: 0, dance: 0, variety: 0 } });
+      } else {
+          // This is a NEW save file, or a fresh game.
+          setBuildings(loadedBuildings);
+      }
       setSisterGroups(JSON.parse(data.sisterGroups || "[]"));
       setRivalGroups(JSON.parse(data.rivalGroups || "[]"));
       setAchievements(JSON.parse(data.achievements || "[]"));
@@ -516,7 +541,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
 const getMainGroupRoster = () => {
   const mainRoster = members.map(m => ({
     ...m,
-    isSisterMember: false 
+    isSisterMember: false
   }));
 
   const sisterRoster = sisterGroups.flatMap(sg => 
@@ -526,6 +551,7 @@ const getMainGroupRoster = () => {
       id: `sg-${sg.id}-${m.id}`, 
       isSisterMember: true,
       displayGroupName: sg.name,
+      groupId: sg.id // THE FIX: This line was missing.
     }))
   );
   
@@ -650,27 +676,29 @@ const distributeFans = (amount, memberIds) => {
   const pushedFanPool = Math.floor(amount * 0.5);
   const regularFanPool = amount - pushedFanPool;
 
-  const distribute = (pool, ids) => {
-    if (ids.length === 0 || pool === 0) return;
+    const distribute = (pool, ids) => {
+        if (ids.length === 0 || pool === 0) return;
+        
+        // By cubing the random number, we create a much more uneven distribution.
+        // Most members will get a small amount, but a lucky few with high random numbers will get a huge boost.
+        const weights = ids.map(() => Math.pow(Math.random(), 3));
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
     
-    const weights = ids.map(() => Math.random());
-    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-
-    let totalGained = 0;
-    ids.forEach((memberId, index) => {
-      const fanGain = totalWeight > 0 ? Math.floor((weights[index] / totalWeight) * pool) : Math.floor(pool / ids.length);
-      totalGained += fanGain;
-      updateMemberState(memberId, m => ({
-        ...m,
-        fans: (m.fans || 0) + fanGain
-      }));
-    });
-
-    const remainder = pool - totalGained;
-    if (remainder > 0 && ids.length > 0) {
-        updateMemberState(ids[0], m => ({ ...m, fans: (m.fans || 0) + remainder }));
-    }
-  };
+        let totalGained = 0;
+        ids.forEach((memberId, index) => {
+          const fanGain = totalWeight > 0 ? Math.floor((weights[index] / totalWeight) * pool) : Math.floor(pool / ids.length);
+          totalGained += fanGain;
+          updateMemberState(memberId, m => ({
+            ...m,
+            fans: (m.fans || 0) + fanGain
+          }));
+        });
+    
+        const remainder = pool - totalGained;
+        if (remainder > 0 && ids.length > 0) {
+            updateMemberState(ids[0], m => ({ ...m, fans: (m.fans || 0) + remainder }));
+        }
+    };
 
   distribute(pushedFanPool, pushedMemberIds);
   distribute(regularFanPool, regularMemberIds);
@@ -779,15 +807,28 @@ const distributeFans = (amount, memberIds) => {
       setMessage('All tired, available main group members rested!');
     };
 
-    const buildTheater = () => {
-      const cost = 100000;
-      if (money < cost) return setMessage('Need ¥100,000 to build the theater!');
-      setMoney(prev => prev - cost);
-      setBuildings(prev => ({ ...prev, theater: true }));
-            const successMessage = 'Theater built! You can now create teams and hold theater shows.';
-      setMessage(successMessage);
-      addNotification({ type: 'Facility', message: successMessage });
+const buildTheater = () => {
+    // Check if the main group already has a theater
+    if (theaters.some(t => t.owner === 'main')) {
+        return setMessage("You already own a theater for your main group.");
+    }
+  const cost = 100000;
+  if (money < cost) return setMessage('Need ¥100,000 to build the theater!');
+
+  setMoney(prev => prev - cost);
+
+    const newTheater = {
+        owner: 'main',
+        level: 1,
+        capacity: 250,
+        name: `${groupName} Theater`
     };
+  setTheaters(prev => [...prev, newTheater]);
+
+  const successMessage = 'Theater built! You can now create teams and hold theater shows.';
+  setMessage(successMessage);
+  addNotification({ type: 'Facility', message: successMessage });
+};
 
     const upgradePracticeRoom = (type) => {
       const roomType = type === 'vocal' ? 'vocal' : type;
@@ -851,7 +892,7 @@ const distributeFans = (amount, memberIds) => {
     };
 
     const createTeam = () => {
-      if (!buildings.theater) return setMessage("Build the theater first to create teams!");
+      if (theaters.length === 0) return setMessage("Build a theater first to create teams!");
       // Set modalData to null to ensure the 'Create Team' modal is always empty
       setModalData(null); 
       setShowModal('createTeam');
@@ -866,118 +907,200 @@ const distributeFans = (amount, memberIds) => {
       }
     };
 
-const saveTeam = (teamId, teamName, selectedMembers, setlistId) => {
+const saveTeam = (teamId, teamName, groupId, selectedMembers, setlistId) => {
     if (!teamName || teamName.trim() === '') return setMessage("Team name cannot be empty.");
 
     const newTeamId = teamId || Date.now();
-    const oldTeam = teamId ? teams.find(t => t.id === teamId) : null;
-    const fullRoster = getMainGroupRoster();
+    const isEditing = !!teamId;
+    const oldTeam = isEditing ? teams.find(t => t.id === teamId) : null;
+    
+    const teamGroupName = (String(groupId) === 'main') 
+        ? groupName 
+        : (sisterGroups.find(sg => String(sg.id) === String(groupId))?.name || 'Unknown Group');
 
-    // --- HISTORY TRACKING ---
-    let newHistory;
-    if (oldTeam) {
-        newHistory = [...(oldTeam.history || [])];
+    // Create deep copies of the state to modify safely
+    let nextMembers = JSON.parse(JSON.stringify(members));
+    let nextSisterGroups = JSON.parse(JSON.stringify(sisterGroups));
+    
+    // --- Part 1: Prepare Team History & ID mapping ---
+    let teamHistory = [];
+    const idChangeMap = new Map(); // Maps old selection ID to the NEW ID after transfer
+
+    if (isEditing) {
+        teamHistory = oldTeam.history || [];
     } else {
-        // Find the setlist name to create a detailed formation event.
-        const initialSetlistName = allSetlists.find(s => s.id === setlistId)?.name || 'None';
-        const formationEvent = `Team "${teamName}" was formed, starting with setlist: ${initialSetlistName}`;
-        newHistory = [{ week: week + 1, event: formationEvent }];
+        const setlistName = allSetlists.find(s => s.id === setlistId)?.name || 'None';
+        teamHistory.push({ week: week + 1, event: `Team "${teamName}" formed for ${teamGroupName}, starting with setlist: ${setlistName}` });
     }
 
-    // 1. Log setlist changes for existing teams
-    if (oldTeam && oldTeam.currentSetlistId !== setlistId) {
-        const oldSetlist = allSetlists.find(s => s.id === oldTeam.currentSetlistId)?.name || 'None';
-        const newSetlist = allSetlists.find(s => s.id === setlistId)?.name || 'None';
-        newHistory.push({ week: week + 1, event: `Setlist changed from ${oldSetlist} to ${newSetlist}` });
-    }
+    // --- Part 2: Process Member Removals (if editing) ---
+    if (isEditing) {
+        const oldMemberIds = oldTeam.members.map(String);
+        const newMemberIds = selectedMembers.map(sm => String(sm.id));
+        const removedIds = oldMemberIds.filter(id => !newMemberIds.includes(id));
 
-    // 2. Log member changes
-    const newMemberIds = selectedMembers.map(sm => sm.id);
-    const oldMemberIds = oldTeam ? oldTeam.members : [];
-    const addedIds = newMemberIds.filter(id => !oldMemberIds.includes(id));
-    const removedIds = oldMemberIds.filter(id => !newMemberIds.includes(id));
-
-    addedIds.forEach(id => {
-        const member = fullRoster.find(m => m.id === id);
-        if (member) newHistory.push({ week: week + 1, event: `Member Joined: ${member.name}` });
-    });
-    removedIds.forEach(id => {
-        const member = fullRoster.find(m => m.id === id);
-        if (member) newHistory.push({ week: week + 1, event: `Member Left: ${member.name}` });
-    });
-    // --- END HISTORY TRACKING ---
-
-    const teamData = { id: newTeamId, name: teamName, members: newMemberIds, currentSetlistId: setlistId, history: newHistory };
-
-    if (teamId && oldTeam) {
         removedIds.forEach(memberId => {
-            updateMemberState(memberId, m => {
+            const roster = [...nextMembers.map(m => ({ ...m, isSg: false })), ...nextSisterGroups.flatMap(sg => (sg.members || []).map(m => ({ ...m, id: `sg-${sg.id}-${m.id}`, isSg: true, sgId: sg.id })))];
+            const memberForHistory = roster.find(m => m.id === memberId);
+            if (memberForHistory) {
+                teamHistory.push({ week: week + 1, event: `Member Left: ${memberForHistory.name}` });
+            }
+
+            const updateFn = m => {
                 const event = { week: week + 1, event: `Removed from Team ${oldTeam.name}` };
-                let newConcurrent = [...(m.concurrentTeams || [])];
+                let newConcurrent = (m.concurrentTeams || []).filter(ct => ct.id !== oldTeam.id);
                 let newTeamId_ = m.teamId;
                 let newTeamName_ = m.teamName;
 
                 if (m.teamId === oldTeam.id) {
                     if (newConcurrent.length > 0) {
-                        const promoted = newConcurrent.shift();
-                        newTeamId_ = promoted.id;
-                        newTeamName_ = promoted.name;
+                        const promoted = newConcurrent.shift(); newTeamId_ = promoted.id; newTeamName_ = promoted.name;
                     } else {
-                        newTeamId_ = null;
-                        newTeamName_ = null;
+                        newTeamId_ = null; newTeamName_ = null;
                     }
-                } else {
-                    newConcurrent = newConcurrent.filter(ct => ct.id !== oldTeam.id);
                 }
                 return { ...m, teamId: newTeamId_, teamName: newTeamName_, concurrentTeams: newConcurrent, teamHistory: [...(m.teamHistory || []), event] };
-            });
+            };
+            
+            if (!String(memberId).startsWith('sg-')) {
+                nextMembers = nextMembers.map(m => String(m.id) === String(memberId) ? updateFn(m) : m);
+            } else {
+                const [, sgId, mId] = memberId.split('-');
+                nextSisterGroups = nextSisterGroups.map(sg => {
+                    if (String(sg.id) === sgId) {
+                        return { ...sg, members: (sg.members || []).map(m => String(m.id) === mId ? updateFn(m) : m) };
+                    }
+                    return sg;
+                });
+            }
         });
     }
 
-    selectedMembers.forEach(selection => {
+    // --- Part 3: Process Member Additions ---
+    const oldMemberIds = oldTeam ? oldTeam.members.map(String) : [];
+    const addedSelections = selectedMembers.filter(sm => !oldMemberIds.includes(String(sm.id)));
+
+    addedSelections.forEach(selection => {
         const { id: memberId, type } = selection;
-        if (type === 'existing') return;
 
-        updateMemberState(memberId, currentMember => {
-            let historyEvent = '';
-            let newTeamId_ = currentMember.teamId;
-            let newTeamName_ = currentMember.teamName;
-            let newConcurrent = [...(currentMember.concurrentTeams || [])];
+        let memberToProcess, originalLocation, originalSgIndex, originalMIndex;
+        // Find the member in our mutable 'next' arrays
+        if (String(memberId).startsWith('sg-')) {
+            const [, sgId, mId] = memberId.split('-');
+            originalSgIndex = nextSisterGroups.findIndex(sg => String(sg.id) === sgId);
+            if (originalSgIndex === -1) return;
+            originalMIndex = (nextSisterGroups[originalSgIndex].members || []).findIndex(m => String(m.id) === mId);
+            if (originalMIndex === -1) return;
+            memberToProcess = nextSisterGroups[originalSgIndex].members[originalMIndex];
+            originalLocation = 'sister';
+        } else {
+            originalMIndex = nextMembers.findIndex(m => String(m.id) === String(memberId));
+            if (originalMIndex === -1) return;
+            memberToProcess = nextMembers[originalMIndex];
+            originalLocation = 'main';
+        }
 
-            switch (type) {
-                case 'shuffle':
-                    historyEvent = `Shuffled from Team ${currentMember.teamName} to Team ${teamData.name}`;
-                    newTeamId_ = teamData.id;
-                    newTeamName_ = teamData.name;
-                    break;
-                case 'concurrent':
-                    historyEvent = `Added concurrent position in Team ${teamData.name}`;
-                    if (currentMember.teamId) {
-                        if (!newConcurrent.some(t => t.id === teamData.id) && currentMember.teamId !== teamData.id) {
-                            newConcurrent.push({ id: teamData.id, name: teamData.name });
-                        }
-                    } else {
-                        newTeamId_ = teamData.id;
-                        newTeamName_ = teamData.name;
-                    }
-                    break;
-                case 'add':
-                    historyEvent = `Promoted to Team ${teamData.name}`;
-                    newTeamId_ = teamData.id;
-                    newTeamName_ = teamData.name;
-                    break;
+        if (!memberToProcess) return;
+
+        teamHistory.push({ week: week + 1, event: `Member Joined: ${memberToProcess.name} (via ${type})` });
+
+        if (type === 'transfer') {
+            const newHomeGroupId = groupId;
+            const newTeamOwnerName = newHomeGroupId === 'main' ? groupName : nextSisterGroups.find(sg => String(sg.id) === String(newHomeGroupId))?.name;
+            
+            const transferredMember = {
+                ...memberToProcess,
+                homeGroup: newHomeGroupId === 'main' ? 'main' : newTeamOwnerName,
+                kenninGroups: [], teamId: newTeamId, teamName: teamName, concurrentTeams: [],
+                teamHistory: [...(memberToProcess.teamHistory || []), { week: week + 1, event: `Transferred to ${newTeamOwnerName} via Team ${teamName}` }]
+            };
+
+            if (originalLocation === 'main') {
+                nextMembers.splice(originalMIndex, 1);
+            } else {
+                nextSisterGroups[originalSgIndex].members.splice(originalMIndex, 1);
             }
-            if (!historyEvent) return currentMember;
-            const newHistoryEntry = { event: historyEvent, week: week + 1 };
-            return { ...currentMember, teamId: newTeamId_, teamName: newTeamName_, concurrentTeams: newConcurrent, teamHistory: [...(currentMember.teamHistory || []), newHistoryEntry] };
-        });
+
+            if (newHomeGroupId === 'main') {
+                const newId = (nextMembers.length > 0 ? Math.max(0, ...nextMembers.map(m => m.id)) : 0) + 1;
+                transferredMember.id = newId;
+                nextMembers.push(transferredMember);
+                idChangeMap.set(memberId, newId);
+            } else {
+                const newSgIndex = nextSisterGroups.findIndex(sg => String(sg.id) === String(newHomeGroupId));
+                const sgMembers = nextSisterGroups[newSgIndex].members || [];
+                const newId = (sgMembers.length > 0 ? Math.max(0, ...sgMembers.map(m => m.id)) : 0) + 1;
+                transferredMember.id = newId;
+                nextSisterGroups[newSgIndex].members.push(transferredMember);
+                idChangeMap.set(memberId, `sg-${newHomeGroupId}-${newId}`);
+            }
+
+        } else { // Handle 'kennin', 'shuffle', 'concurrent', 'add'
+            const updateFn = m => {
+                let historyEvent = '';
+                let newTeamId_ = m.teamId; let newTeamName_ = m.teamName;
+                let newConcurrent = [...(m.concurrentTeams || [])];
+                let newKenninGroups = [...(m.kenninGroups || [])];
+
+                switch (type) {
+                    case 'kennin':
+                        historyEvent = `Given Kennin in ${teamGroupName} via Team ${teamName}`;
+                        if (!newKenninGroups.includes(teamGroupName)) newKenninGroups.push(teamGroupName);
+                        if (!m.teamId) { newTeamId_ = newTeamId; newTeamName_ = teamName; }
+                        else if (!newConcurrent.some(t => t.id === newTeamId)) newConcurrent.push({ id: newTeamId, name: teamName });
+                        break;
+                    case 'shuffle':
+                        historyEvent = `Shuffled from Team ${m.teamName} to Team ${teamName}`;
+                        newTeamId_ = newTeamId; newTeamName_ = teamName; newConcurrent = m.concurrentTeams.filter(ct => ct.id !== newTeamId); // Ensure it's not also concurrent
+                        break;
+                    case 'concurrent':
+                        historyEvent = `Added concurrent position in Team ${teamName}`;
+                        if (m.teamId) { if (!newConcurrent.some(t => t.id === newTeamId) && m.teamId !== newTeamId) newConcurrent.push({ id: newTeamId, name: teamName }); } 
+                        else { newTeamId_ = newTeamId; newTeamName_ = teamName; }
+                        break;
+                    default: // 'add'
+                        if (!m.teamId) {
+                            historyEvent = `Promoted to Team ${teamName}`;
+                            newTeamId_ = newTeamId; newTeamName_ = teamName;
+                        } else if (!newConcurrent.some(t => t.id === newTeamId) && m.teamId !== newTeamId) {
+                             newConcurrent.push({ id: newTeamId, name: teamName });
+                             historyEvent = `Given concurrent position in Team ${teamName}`;
+                        }
+                        break;
+                }
+                if (!historyEvent) return m;
+                return { ...m, teamId: newTeamId_, teamName: newTeamName_, concurrentTeams: newConcurrent, kenninGroups: newKenninGroups, teamHistory: [...(m.teamHistory || []), { event: historyEvent, week: week + 1 }] };
+            };
+            
+            if (originalLocation === 'main') {
+                nextMembers[originalMIndex] = updateFn(memberToProcess);
+            } else {
+                nextSisterGroups[originalSgIndex].members[originalMIndex] = updateFn(memberToProcess);
+            }
+            idChangeMap.set(memberId, memberId); // No ID change for non-transfers
+        }
     });
 
-    setTeams(prev => {
-        const teamExists = prev.some(t => t.id === newTeamId);
-        if (teamExists) return prev.map(t => t.id === newTeamId ? teamData : t);
-        return [...prev, teamData];
-    });
+    // --- Part 4: Finalize Team Data ---
+    // For editing, we must include members who were already in the team and were not changed.
+    const removedIds = oldTeam ? oldTeam.members.map(String).filter(id => !selectedMembers.some(sm => sm.id === id)) : [];
+    const existingUnchangedIds = oldTeam ? oldTeam.members.filter(id => !removedIds.includes(id) && !addedSelections.some(s => s.id === id)) : [];
+    
+    // Create the final roster using the new IDs for transferred members
+    const addedMemberFinalIds = addedSelections.map(sm => idChangeMap.get(sm.id) || sm.id);
+    const finalTeamRoster = [...existingUnchangedIds, ...addedMemberFinalIds];
+
+    const teamData = { id: newTeamId, name: teamName, groupId, members: finalTeamRoster, currentSetlistId: setlistId, history: teamHistory };
+
+    const teamExists = teams.some(t => t.id === newTeamId);
+    const nextTeams = teamExists 
+        ? teams.map(t => (t.id === newTeamId ? teamData : t))
+        : [...teams, teamData];
+
+    // --- Part 5: Set all state ONCE ---
+    setMembers(nextMembers);
+    setSisterGroups(nextSisterGroups);
+    setTeams(nextTeams);
 
     setShowModal(null);
     addNotification({ type: "Management", message: `Team "${teamName}" saved successfully.` });
@@ -1024,27 +1147,31 @@ const deleteTeam = (teamId) => {
 
 
     const startTheaterShowPrep = () => {
-      if (!buildings.theater) return setMessage("Build the theater first to create teams!");
-      
-      if (selectedTheaterTeam) {
-          const team = (teams || []).find(t => t.id === selectedTheaterTeam);
-          if (!team) {
-              setSelectedTheaterTeam(null);
-              return setMessage("Selected team no longer exists. Please select 'All Members' or a new team.");
-          }
+      if (theaters.length === 0) return setMessage("Build a theater first!");
+      const selection = selectedTheaterTeam; // Can be a team ID (number), group ID (string 'sg-X'), or null
+
+      if (typeof selection === 'number') { // A Team is selected
+          const team = teams.find(t => t.id === selection);
+          if (!team) return;
           if (team.members.length === 0) return setMessage(`${team.name} has no members!`);
           if (!team.currentSetlistId) return setMessage(`${team.name} needs a setlist!`);
-      } else if (members.filter(m => m.isAvailable).length === 0) {
-          return setMessage("No members are available to perform.");
+
+      } else if (typeof selection === 'string' && selection.startsWith('sg-')) { // A Sister Group is selected
+          const sgId = selection.replace('sg-', '');
+          const sg = sisterGroups.find(g => String(g.id) === sgId);
+          if (sg && (sg.members || []).length === 0) {
+              return setMessage(`${sg.name} has no members!`);
+          }
+      } else { // "All Available Members" is selected
+          if (getMainGroupRoster().filter(m => m.isAvailable).length === 0) {
+              return setMessage("No members are available to perform in any group.");
+          }
       }
 
-      setShowModal('theaterShowPrep');
+      setModalData({ selection: selection });
+      setShowModal('theaterSelection');
     };
     
-    // DEPRECATED: LargeConcertPrep is now handled by the general PerformanceModal
-    const startLargeConcertPrep = () => {
-      return setMessage("Major Concerts are now scheduled via the 'Schedule Performance' button, under the 'Touring' category.");
-    };
     
     const graduateMember = (memberId) => {
       let graduatedMember;
@@ -1086,87 +1213,104 @@ const deleteTeam = (teamId) => {
       }
     };
     
-    const holdTheaterShow = (concertTheme) => {
-      setShowModal(null);
-           // Get ALL available members from ALL groups (main, sister, kennin)
-      const allAvailableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
-      
-      const team = (teams || []).find(t => t.id === selectedTheaterTeam);
-      const setlist = (allSetlists || []).find(s => s.id === team?.currentSetlistId);
-      
-      // If a team is selected, filter all available members. Otherwise, use all available members.
-      const performingMembers = team
-        ? allAvailableMembers.filter(m => team.members.includes(String(m.id)))
-        : allAvailableMembers;
+    const holdTheaterShow = ({ teamId, venueOwnerId, concertTheme, travelCost }) => {
+        setShowModal(null);
 
-      if (performingMembers.length === 0) {
-        return setMessage(team ? `${team.name} has no available members!` : 'No available members in the group!');
-      }
+        const team = teamId ? teams.find(t => t.id === teamId) : null;
+        const setlist = team ? allSetlists.find(s => s.id === team.currentSetlistId) : null;
+        const venue = theaters.find(t => t.owner === venueOwnerId);
 
-      const avgStamina = performingMembers.reduce((sum, m) => sum + (m.stamina || 0), 0) / performingMembers.length;
-      if (avgStamina < 30) return setMessage('Performing members are too tired!');
-      
-      let themeBonus = 1.0;
-      if (setlist && setlist.theme === concertTheme) {
-          themeBonus = 1.5; 
-      } else if (setlist) {
-          themeBonus = 0.8; 
-      }
+        if (!venue) return setMessage("Error: Selected theater not found.");
 
-      const performance = performingMembers.reduce((sum, m) => sum + ((m.singing || 0) + (m.dancing || 0)) * ((m.stamina || 0) / 100), 0) * themeBonus;
-      const newFans = Math.floor(performance / 10);
-      const ticketRevenue = Math.floor(performance * 50 * (buildings.theater ? 1 : 0.5));
+        if (hasPerformedThisWeek) {
+            setMessage("You can only hold one performance activity per week.");
+            return;
+        }
+        
+        let performingMembers;
+        if (team) {
+            const allMembersWithStatus = getMainGroupRoster();
+            performingMembers = allMembersWithStatus.filter(m => team.members.includes(String(m.id)) && m.isAvailable);
+        } else {
+            performingMembers = members.filter(m => m.isAvailable);
+        }
 
-      let merchRevenue = 0;
-      let merchSold = { photos: 0, towels: 0, lightsticks: 0 };
-      const fanDemand = Math.floor(totalFans / 200);
+        if (performingMembers.length === 0) {
+            return setMessage(team ? `${team.name} has no available members!` : 'No available members in the main group!');
+        }
 
-      Object.keys(merchInventory).forEach(item => {
-          const toSell = Math.min(merchInventory[item], fanDemand + Math.floor(Math.random() * fanDemand));
-          merchRevenue += toSell * merchPrices[item];
-          merchSold[item] = toSell;
-      });
-      setMerchInventory(prev => ({
-          photos: (prev.photos || 0) - merchSold.photos,
-          towels: (prev.towels || 0) - merchSold.towels,
-          lightsticks: (prev.lightsticks || 0) - merchSold.lightsticks,
-      }));
+        const avgStamina = performingMembers.reduce((sum, m) => sum + (m.stamina || 0), 0) / performingMembers.length;
+        if (avgStamina < 30) return setMessage('Performing members are too tired!');
+          
+        let themeBonus = 1.0;
+        if (setlist && setlist.theme === concertTheme) {
+            themeBonus = 1.5; 
+        } else if (setlist) {
+            themeBonus = 0.8; 
+        }
 
-      const totalRevenue = ticketRevenue + merchRevenue;
+        const performance = performingMembers.reduce((sum, m) => sum + ((m.singing || 0) + (m.dancing || 0)) * ((m.stamina || 0) / 100), 0) * themeBonus;
+        const newFans = Math.floor(performance / 10);
+        
+        const capacityMultiplier = venue.capacity / 250;
+        const ticketRevenue = Math.floor(performance * 50 * capacityMultiplier);
 
-      const performingMemberIds = performingMembers.map(m => m.id);
+        let merchRevenue = 0;
+        let merchSold = { photos: 0, towels: 0, lightsticks: 0 };
+        const fanDemand = Math.floor(totalFans / 200);
 
-      // Use our new function to handle fan distribution
-      distributeFans(newFans, performingMemberIds);
-
-      // Now, handle the stamina and stress updates separately for all performers
-      performingMembers.forEach(member => {
-        updateMemberState(member.id, m => ({
-          ...m,
-          stamina: Math.max(0, (m.stamina || 100) - 20),
-          stress: Math.min(100, (m.stress || 0) + 10),
+        Object.keys(merchInventory).forEach(item => {
+            const toSell = Math.min(merchInventory[item], fanDemand + Math.floor(Math.random() * fanDemand));
+            merchRevenue += toSell * merchPrices[item];
+            merchSold[item] = toSell;
+        });
+        setMerchInventory(prev => ({
+            photos: (prev.photos || 0) - merchSold.photos,
+            towels: (prev.towels || 0) - merchSold.towels,
+            lightsticks: (prev.lightsticks || 0) - merchSold.lightsticks,
         }));
-      });
 
-      setMoney(prev => (prev || 0) + totalRevenue);
-      setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
-      
-      let concertMessage = `Theater Show success! ${team ? team.name : 'All members'} performed!`;
-      if (themeBonus > 1) concertMessage += " (Theme Bonus!)";
-      if (themeBonus < 1) concertMessage += " (Theme Mismatch!)";
-      concertMessage += ` +${newFans} fans. Tickets: ¥${ticketRevenue.toLocaleString()}. Merch: ¥${merchRevenue.toLocaleString()}.`;
-      const summaryMessage = `Theater Show: ${team ? team.name : 'All members'} gained +${newFans.toLocaleString()} fans and ¥${totalRevenue.toLocaleString()} in revenue.`;
-      setMessage(summaryMessage);
-      addNotification({ type: 'Performance', message: summaryMessage });
+        const totalRevenue = ticketRevenue + merchRevenue;
+        const totalCosts = travelCost || 0; 
+        const netProfit = totalRevenue - totalCosts;
 
+        // Restore the 60/40 revenue split
+        const agencyProfit = Math.floor(netProfit * 0.6); 
+        const idolShare = netProfit - agencyProfit;
 
-      setModalData({
-        title: "Theater Show Result",
-        message: `The crowd loved the performance!`,
-        fansGained: newFans,
-        revenue: totalRevenue,
-      });
-      setShowModal('performanceResult');
+        const performingMemberIds = performingMembers.map(m => m.id);
+        distributeFans(newFans, performingMemberIds);
+
+        performingMembers.forEach(member => {
+            updateMemberState(member.id, m => ({
+                ...m,
+                stamina: Math.max(0, (m.stamina || 100) - 20),
+                stress: Math.min(100, (m.stress || 0) + 10),
+            }));
+        });
+
+        setMoney(prev => (prev || 0) + agencyProfit);
+        setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
+          
+        // --- UPDATED MESSAGE ---
+        let concertMessage = `Theater Show at ${venue.name}!`;
+        if (totalCosts > 0) {
+            concertMessage += ` Travel Costs: ¥${totalCosts.toLocaleString()}.`;
+        }
+        concertMessage += ` Agency Profit: ¥${agencyProfit.toLocaleString()}. External Cost (Idol Share, Staffs, Rental, Etc): ¥${idolShare.toLocaleString()}. +${newFans.toLocaleString()} fans.`;
+        // --- END UPDATED MESSAGE ---
+        
+        setHasPerformedThisWeek(true);
+        setMessage(concertMessage);
+        addNotification({ type: 'Performance', message: concertMessage });
+
+        setModalData({
+            title: "Theater Show Result",
+            message: `The crowd loved the performance! Total Revenue: ¥${totalRevenue.toLocaleString()}. Travel Costs: ¥${totalCosts.toLocaleString()}. External Cost (Idol Share, Staffs, Rental, Etc): ¥${idolShare.toLocaleString()}`,
+            fansGained: newFans,
+            revenue: agencyProfit,
+        });
+        setShowModal('performanceResult');
     };
     
     const holdSisterGroupShow = (sgId) => {
@@ -1194,9 +1338,6 @@ const deleteTeam = (teamId) => {
       setMessage(`${sg.name} held a show. Profit: ¥${profit.toLocaleString()}. +${fanGain} fans to ${sg.name}.`);
     }
     
-    // DEPRECATED: holdLargeConcert logic removed, now part of recordPerformance
-    const holdLargeConcert = () => { /* No Op */ };
-
 
     const holdElection = () => {
       if (money < 5000) return setMessage('Elections cost ¥5,000!');
@@ -1329,7 +1470,11 @@ const executeSongRelease = (singleToRelease) => {
   const fanGains = {};
   const rowWeights = { '1st Row': 5, '2nd Row': 4, '3rd Row': 3, '4th Row': 2, '5th Row': 1 };
   
-  const memberWeights = senbatsuMemberIds.map(memberId => {
+  // Create a controlled "luck modifier" for each member. This adds variance without breaking the hierarchy.
+  // It results in a multiplier between 0.7 (a bit unlucky) and 1.3 (a bit lucky).
+  const luckModifiers = senbatsuMemberIds.map(() => 0.7 + (Math.random() * 0.6));
+
+  const memberWeights = senbatsuMemberIds.map((memberId, index) => {
       const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
       if (!member) return { id: memberId, weight: 0 };
       
@@ -1341,7 +1486,10 @@ const executeSongRelease = (singleToRelease) => {
       if (isCenter) weight = 7; // Center gets the highest weight
       if (isPushed) weight *= 2; // Pushed members get a 2x multiplier
       
-      return { id: memberId, weight };
+      // Combine the base weight with the controlled luck modifier
+      const finalWeight = weight * luckModifiers[index];
+
+      return { id: memberId, weight: finalWeight };
   });
 
   const totalWeight = memberWeights.reduce((sum, member) => sum + member.weight, 0);
@@ -1395,7 +1543,7 @@ const executeSongRelease = (singleToRelease) => {
           }
           // Then apply history and fan gains
           const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
-          const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs;
+          const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs.slice();
 
           return { ...sg, songs: sgSongs, members: finalMembers };
       }));
@@ -1421,7 +1569,7 @@ const executeSongRelease = (singleToRelease) => {
     
     // --- Performance Management Logic ---
 
-    const holdMajorConcert = (venue, setlist, selectedMemberIds, targetGroup, details) => {
+        const holdMajorConcert = (venue, setlist, selectedMemberIds, targetGroup, details, prices) => {
         if (!setlist) return setMessage("A setlist is required.");
         if (selectedMemberIds.length === 0) return setMessage("Must select at least one member to perform.");
         
@@ -1432,27 +1580,72 @@ const executeSongRelease = (singleToRelease) => {
         if (money < baseCost) return setMessage(`Insufficient funds! Concert costs ¥${baseCost.toLocaleString()}.`);
 
         const avgSkill = performingMembers.reduce((sum, m) => m.singing + m.dancing, 0) / (performingMembers.length * 200);
+
+        // --- REBUILT: Stricter Zone & Pricing Logic ---
+        const standardPrices = {
+            s: 6000 + Math.floor(venue.capacity / 10),
+            a: 4000 + Math.floor(venue.capacity / 20),
+            b: 2500 + Math.floor(venue.capacity / 30)
+        };
+
+        const priceModifiers = {
+            s: prices.s / standardPrices.s,
+            a: prices.a / standardPrices.a,
+            b: prices.b / standardPrices.b
+        };
         
-        const ticketPrice = 5000 + (venue.capacity / 100); 
-        const demandRatio = Math.min(1.0, (totalFans / 5) / venue.capacity); 
-        const ticketsSold = Math.floor(venue.capacity * demandRatio * (1 + avgSkill * 0.5));
-        const ticketRevenue = ticketsSold * ticketPrice;
+        // NEW DEMAND LOGIC: Punishes high prices heavily!
+        const getDemandMod = (mod) => {
+            if (mod > 3) return 0; // If price is >3x recommended, ZERO demand.
+            if (mod <= 0) return 2; // If price is free, max out demand bonus.
+            // Demand scales as 1/mod^2. Cheaper is better, expensive is much worse.
+            return 1 / (mod * mod); 
+        };
+
+        const zoneCapacity = {
+            s: Math.floor(venue.capacity * 0.1), // 10%
+            a: Math.floor(venue.capacity * 0.3), // 30%
+            b: venue.capacity - Math.floor(venue.capacity * 0.1) - Math.floor(venue.capacity * 0.3) // Remaining 60%
+        };
+
+        const baseFanDemand = (totalFans || 0) * 0.1;
+        const hypeMultiplier = 1 + avgSkill;
+        let potentialAttendance = baseFanDemand * hypeMultiplier;
         
-        const fanGain = Math.floor(ticketsSold * (0.01 + avgSkill * 0.05));
+        let ticketsSold = { s: 0, a: 0, b: 0 };
+
+        // Sell S-Zone tickets first
+        const sDemand = potentialAttendance * getDemandMod(priceModifiers.s);
+        ticketsSold.s = Math.min(zoneCapacity.s, Math.floor(sDemand));
+        potentialAttendance -= ticketsSold.s;
+
+        // Sell A-Zone tickets next
+        const aDemand = potentialAttendance * getDemandMod(priceModifiers.a);
+        ticketsSold.a = Math.min(zoneCapacity.a, Math.floor(aDemand));
+        potentialAttendance -= ticketsSold.a;
+
+        // Sell B-Zone tickets last
+        const bDemand = potentialAttendance * getDemandMod(priceModifiers.b);
+        ticketsSold.b = Math.min(zoneCapacity.b, Math.floor(bDemand));
+
+        const totalTicketsSold = ticketsSold.s + ticketsSold.a + ticketsSold.b;
+        const ticketRevenue = (ticketsSold.s * prices.s) + (ticketsSold.a * prices.a) + (ticketsSold.b * prices.b);
+        // --- END REBUILT LOGIC ---
+
+        const fanGain = Math.floor(totalTicketsSold * 0.005 * hypeMultiplier);
         const skillImprovement = 10 + Math.floor(avgSkill * 10);
         const staminaDrain = 60;
         
-        const profit = ticketRevenue - baseCost;
+        const netProfit = ticketRevenue - baseCost;
+        const agencyProfit = Math.floor(netProfit * 0.6);
+        const idolShare = netProfit - agencyProfit;
 
-        setMoney(prev => prev + profit);
-               setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + ticketRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
+        setMoney(prev => prev + agencyProfit);
+        setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + ticketRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
         const performingMemberIds = performingMembers.map(m => m.id);
-
-        // Use our new fan distribution function
         distributeFans(fanGain, performingMemberIds);
 
-        // Update other stats for each performer
         performingMemberIds.forEach(memberId => {
             updateMemberState(memberId, m => ({
                 ...m,
@@ -1472,9 +1665,9 @@ const executeSongRelease = (singleToRelease) => {
             week,
             cost: baseCost,
             revenue: ticketRevenue,
-            profit: profit,
+            profit: agencyProfit,
             fansGained: fanGain,
-            attendance: ticketsSold,
+            attendance: totalTicketsSold,
             capacity: venue.capacity,
             members: performingMembers.map(m => m.name),
             tracks: setlist,
@@ -1484,21 +1677,30 @@ const executeSongRelease = (singleToRelease) => {
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
 
-        const summaryMessage = `Concert "${newEntry.name}": +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`;
+        const summaryMessage = `Concert \"${newEntry.name}\": +${fanGain.toLocaleString()} fans, Agency Profit: ¥${agencyProfit.toLocaleString()}. (External Costs: ¥${idolShare.toLocaleString()})`;
+        
+        setHasPerformedThisWeek(true);
         setMessage(summaryMessage);
         addNotification({ type: 'Performance', message: summaryMessage });
 
-      setModalData({
-        title: `Concert "${newEntry.name}" Results`,
-        message: `A smashing success at ${newEntry.venueName}!`,
-        fansGained: fanGain,
-        revenue: ticketRevenue,
-      });
-      setShowModal('performanceResult');
+        setModalData({
+            title: `Concert \"${newEntry.name}\" Results`,
+            message: `A smashing success at ${newEntry.venueName}! External Costs (Idols, Staff, etc.): ¥${idolShare.toLocaleString()}`,
+            fansGained: fanGain,
+            revenue: ticketRevenue,
+        });
+        setShowModal('performanceResult');
     };
 
 
     const recordPerformance = (typeData, setlist, selectedMemberIds, performanceName) => {
+
+        if (hasPerformedThisWeek) {
+  setMessage("You can only hold one performance activity per week.");
+  return;
+}
+
+
         const songTracks = setlist.filter(item => item.type === 'song');
         if (songTracks.length === 0) return setMessage("Must select at least one song to perform.");
         if (selectedMemberIds.length === 0) return setMessage("Must select at least one member to perform.");
@@ -1515,10 +1717,12 @@ const executeSongRelease = (singleToRelease) => {
         const fanGain = Math.floor(baseFanGain);
         const skillImprovement = typeData.skillImpact * 10;
         
-        const totalRevenue = typeData.cost * (typeData.category === 'Internal' ? 1.0 : 1.5) * (1 + avgSkill * 0.5); 
-        const profit = totalRevenue - cost;
+        const totalRevenue = typeData.cost * (typeData.category === 'Internal' ? 1.0 : 1.5) * (1 + avgSkill * 0.5);
+        const netProfit = totalRevenue - cost;
+        const agencyProfit = Math.floor(netProfit * 0.6);
+        const idolShare = netProfit - agencyProfit;
 
-        setMoney(prev => prev + profit);
+        setMoney(prev => prev + agencyProfit);
         setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
         const performingMemberIds = performingMembers.map(m => m.id);
@@ -1545,20 +1749,22 @@ const executeSongRelease = (singleToRelease) => {
             week,
             cost: typeData.cost,
             revenue: totalRevenue,
-            profit: profit,
+            profit: agencyProfit, // Log agency profit
             fansGained: fanGain,
             members: performingMembers.map(m => m.name),
             tracks: setlist,
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
-        const summaryMessage = `Performance "${newEntry.name}": +${fanGain.toLocaleString()} fans, Profit: ¥${profit.toLocaleString()}.`;
+        const summaryMessage = `Performance \"${newEntry.name}\": +${fanGain.toLocaleString()} fans, Agency Profit: ¥${agencyProfit.toLocaleString()}. (External Costs: ¥${idolShare.toLocaleString()})`;
+        
+        setHasPerformedThisWeek(true);
         setMessage(summaryMessage);
         addNotification({ type: 'Performance', message: summaryMessage });
 
 
       setModalData({
-        title: `Performance: "${newEntry.name}"`,
-        message: `The performance was a success!`,
+        title: `Performance: \"${newEntry.name}\"`,
+        message: `The performance was a success! External Costs (Idols, Staff, etc.): ¥${idolShare.toLocaleString()}`,
         fansGained: fanGain,
         revenue: totalRevenue,
       });
@@ -1868,6 +2074,7 @@ const executeSongRelease = (singleToRelease) => {
 
 
     const nextWeek = () => {
+     setHasPerformedThisWeek(false);
       if (activeTour) return progressTour();
       
       const scandalRoll = Math.random();
@@ -2106,6 +2313,70 @@ const executeSongRelease = (singleToRelease) => {
       
       setMoney(prev => (prev || 0) + income);
 
+        // --- NEW: Monthly Financial Drain & Fan Churn ---
+        let expenseNotification = '';
+        // This logic triggers on the last week of every "month" (every 4 weeks)
+        if (newWeek > 0 && newWeek % 4 === 0) {
+            // 1. Member Salaries
+            const allMembersForSalary = [...members, ...sisterGroups.flatMap(sg => sg.members || [])];
+            const totalSalaries = allMembersForSalary.reduce((sum, member) => {
+                const baseSalary = 2000; // Base salary per month
+                const skillBonus = Math.floor(((member.singing || 0) + (member.dancing || 0) + (member.variety || 0)) * 5);
+                const fanBonus = Math.floor((member.fans || 0) / 50);
+                return sum + baseSalary + skillBonus + fanBonus;
+            }, 0);
+
+            // 2. Facility Maintenance
+            const theaterMaintenance = theaters.reduce((sum, t) => sum + (t.level * 20000), 0);
+            const roomMaintenance = (buildings.practiceRooms.vocal + buildings.practiceRooms.dance + buildings.practiceRooms.variety) * 5000;
+            const totalMaintenance = theaterMaintenance + roomMaintenance;
+            
+            const monthlyExpenses = totalSalaries + totalMaintenance;
+
+            // 3. Fan Churn (Increased to 2% and uses a better distribution method)
+            const fanChurnTotal = Math.ceil((totalFans || 0) * 0.02); 
+
+            // 4. Apply Drains
+            setMoney(prev => prev - monthlyExpenses);
+
+            // --- REVISED & FIXED: Distribute Fan Loss Proportionally ---
+            let totalFansActuallyLost = 0;
+            const fanLossAppliedMembers = new Map();
+
+            // Create a single list of all members with unique IDs to process them all at once
+            const allGameMembers = [
+                ...members.map(m => ({ ...m, uniqueId: String(m.id) })), 
+                ...sisterGroups.flatMap(sg => (sg.members || []).map(m => ({ ...m, uniqueId: `sg-${sg.id}-${m.id}`, sgId: sg.id })))
+            ];
+
+            // First, calculate the loss for every member and update them in a temporary map
+            allGameMembers.forEach(member => {
+                let lossForMember = 0;
+                if (totalFans > 0 && (member.fans || 0) > 0) {
+                    const fanProportion = (member.fans || 0) / totalFans;
+                    // Use Math.ceil to ensure members with few fans still lose at least one, making the effect visible
+                    lossForMember = Math.ceil(fanProportion * fanChurnTotal);
+                }
+                
+                const newFans = Math.max(0, (member.fans || 0) - lossForMember);
+                totalFansActuallyLost += ((member.fans || 0) - newFans);
+                
+                fanLossAppliedMembers.set(member.uniqueId, { ...member, fans: newFans });
+            });
+            
+            // Now, apply the updates from the map back to the state
+            setMembers(prevMembers => prevMembers.map(m => fanLossAppliedMembers.get(String(m.id)) || m));
+            setSisterGroups(prevSGs => prevSGs.map(sg => ({
+                ...sg,
+                members: (sg.members || []).map(m => fanLossAppliedMembers.get(`sg-${sg.id}-${m.id}`) || m)
+            })));
+            // --- END REVISED FAN LOSS ---
+
+            expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()} (Salaries & Upkeep). Lost ${totalFansActuallyLost.toLocaleString()} fans due to churn.`;
+            addNotification({ type: 'info', message: expenseNotification });
+        }
+        // --- END NEW ---
+      
       let campMessage = '';
       if (activeTrainingCamp) {
           if (activeTrainingCamp.weeksLeft <= 1) {
@@ -2117,12 +2388,14 @@ const executeSongRelease = (singleToRelease) => {
           }
       }
       
-      // **THE FIX: Set the blue box message based on priority**
-      if (priorityMessage) {
-          setMessage(priorityMessage);
-      } else {
-          setMessage(`Week ${newWeek}: +¥${income.toLocaleString()}. ${campMessage}`); 
-      }
+        // **THE FIX: Set the blue box message based on priority**
+        if (priorityMessage) {
+            setMessage(priorityMessage);
+        } else if (expenseNotification) { // <-- This is new
+            setMessage(expenseNotification);
+        } else {
+            setMessage(`Week ${newWeek}: +¥${income.toLocaleString()}. ${campMessage}`); 
+        }
       
       // Always add income to the notification log for history
       addNotification({ type: 'info', message: `+¥${income.toLocaleString()} income.` });
@@ -2139,6 +2412,28 @@ const executeSongRelease = (singleToRelease) => {
             memberToUpdate.returningWeek = undefined; // Clear the property now that they've returned
             addNotification({ type: 'info', message: `${memberToUpdate.name} has returned from their assignment and is available again.` });
         }
+
+        // --- NEW: Yearly Stat Decay ---
+// At the start of a new year, apply a small stat decay for veteran members.
+if (newWeek > 52 && newWeek % 52 === 1) { // Triggers on week 53, 105, 157, etc.
+    if (memberToUpdate.yearsActive >= 4) { // Affects members active for 4 or more years
+        const decay = Math.random() * 0.5 + 0.2; // Decay between 0.2 and 0.7
+        const moralePenalty = 5;
+
+        // Apply decay, ensuring stats don't fall below a minimum of 20
+        memberToUpdate.singing = Math.max(20, memberToUpdate.singing - decay);
+        memberToUpdate.dancing = Math.max(20, memberToUpdate.dancing - decay);
+        memberToUpdate.variety = Math.max(20, memberToUpdate.variety - decay);
+        memberToUpdate.morale = Math.max(0, memberToUpdate.morale - moralePenalty);
+
+        addNotification({ 
+            type: 'info', 
+            message: `${memberToUpdate.name} is feeling the strain of a long career. Her stats and morale have slightly decreased.` 
+        });
+    }
+}
+// --- END NEW ---
+
         // --- END FIX ---
 
         if (!memberToUpdate.isAvailable) {
@@ -2369,29 +2664,102 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
         setAuditionCandidates([]);
     };
 
-    return {
-        // State
-        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
-        // Firebase/Persistence
-        db, auth, userId, isAuthReady, saveGame, loadGame,
-        // Utilities
-        startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
-        // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    const upgradeTheater = (ownerId) => {
+      const theater = theaters.find(t => t.owner === ownerId);
+      if (!theater) return setMessage("Theater not found.");
+
+      const currentLevel = theater.level;
+      if (currentLevel >= 5) return setMessage("Theater is already at maximum level (5).");
+
+      const cost = 100000 + (currentLevel * 250000);
+      if (money < cost) return setMessage(`Need ¥${cost.toLocaleString()} to upgrade the theater!`);
+
+      setMoney(prev => prev - cost);
+      
+      const newCapacity = theater.capacity + 150 + (currentLevel * 50);
+
+      setTheaters(prev => prev.map(t => 
+        t.owner === ownerId 
+          ? { 
+              ...t, 
+              level: currentLevel + 1, 
+              capacity: newCapacity
+            } 
+          : t
+      ));
+      
+      const successMessage = `${theater.name} upgraded to Level ${currentLevel + 1}! Capacity is now ${newCapacity}.`;
+      setMessage(successMessage);
+      addNotification({ type: 'Facility', message: successMessage });
     };
+
+    const buildSisterTheater = (sgId) => {
+        const sg = sisterGroups.find(g => g.id === sgId);
+        if (!sg) return setMessage("Sister group not found.");
+        if (theaters.some(t => t.owner === sgId)) return setMessage(`${sg.name} already has a theater.`);
+
+        const cost = 150000;
+        if (money < cost) return setMessage(`Need ¥${cost.toLocaleString()} to build a theater for ${sg.name}!`);
+
+        setMoney(prev => prev - cost);
+
+        const newTheater = {
+            owner: sgId,
+            level: 1,
+            capacity: 250,
+            name: `${sg.name} Theater`
+        };
+        setTheaters(prev => [...prev, newTheater]);
+        
+        const successMessage = `Theater built for ${sg.name}!`;
+        setMessage(successMessage);
+        addNotification({ type: 'Facility', message: successMessage });
+    };
+
+    const renameTheater = (ownerId, newName) => {
+        setTheaters(prev => prev.map(t => 
+            t.owner === ownerId 
+            ? { ...t, name: newName }
+            : t
+        ));
+        setMessage(`Theater renamed to "${newName}".`);
+        setShowModal(null);
+    };
+
+    const handleCheatCode = (code) => {
+      if (code === 'rich') {
+        setMoney(prev => prev + 1000000);
+        setMessage("Cheat activated! You gained ¥1,000,000.");
+        setShowModal(null);
+      } else {
+        setMessage("Invalid cheat code.");
+      }
+    };
+
+
+    return {
+// State
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
+// Firebase/Persistence
+db, auth, userId, isAuthReady, saveGame, loadGame,
+// Utilities
+startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+// Logic
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 };
-
-
+};
 const App = () => {
     // Destructure everything from the custom hook
     const {
-        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, merchPrices, merchProdCost, activeTour, venues, performanceHistory, performanceTypes,
-        // Firebase/Persistence
-        db, userId, isAuthReady, saveGame, loadGame,
-        // Utilities
-        startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
-        // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+// State
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
+// Firebase/Persistence
+db, auth, userId, isAuthReady, saveGame, loadGame,
+// Utilities
+startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+// Logic
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+
     } = useIdolManager();
 
     // Local state for start screen inputs (not part of the main game state in the hook)
@@ -3375,7 +3743,8 @@ const CreateSongModal = () => {
         const [setlist, setSetlist] = useState([]);
         const [selectedMembers, setSelectedMembers] = useState([]);
         const [filterCategory, setFilterCategory] = useState('All');
-        
+        const [memberFilter, setMemberFilter] = useState('all'); // For member group filter
+
         // --- DERIVED DATA ---
         const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
         const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
@@ -3387,7 +3756,14 @@ const CreateSongModal = () => {
         const availableMembers = getAllAvailableMembers(true); 
         const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
         const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
-    
+        
+        // Filter members based on the selected group/filter
+        const filteredMembers = availableMembers.filter(member => {
+            if (memberFilter === 'all') return true;
+            if (memberFilter === 'main') return member.homeGroup === 'main';
+            return String(member.groupId) === memberFilter;
+        });
+
         // --- SETLIST MANIPULATION ---
         const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
         const addSpecialItemToSetlist = (itemType) => {
@@ -3409,7 +3785,7 @@ const CreateSongModal = () => {
     
         // --- MEMBER & EXECUTION ---
         const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
-        const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
+        const selectAllMembers = () => setSelectedMembers(filteredMembers.map(m => m.id)); // Now selects only filtered members
         const deselectAllMembers = () => setSelectedMembers([]);
         const executePerformance = () => {
             if (!selectedTypeData) return setMessage("Please select a performance type.");
@@ -3418,7 +3794,6 @@ const CreateSongModal = () => {
     
         // --- RENDER LOGIC ---
         let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
-    
         return (
             <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
@@ -3443,20 +3818,10 @@ const CreateSongModal = () => {
                         </div>
                     </div>
     
-                    {/* Col 4-6: Available Tracks */}
-                    <div className="col-span-12 lg:col-span-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
-                        <h4 className="font-semibold mb-2 dark:text-gray-100">2. Available Tracks</h4>
-                         <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
-                            {allTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
-                            {allTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs released yet!</p>}
-                        </div>
-                    </div>
-    
-                    {/* Col 7-9: Setlist Builder */}
-                    <div className="col-span-12 lg:col-span-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
-                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>3. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
-                        <div className="flex gap-2 mb-2"><button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
-                        <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
+                    {/* Col 4-7: Combined Setlist Builder */}
+                    <div className="col-span-12 lg:col-span-4 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
+                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>2. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
+                        <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800 mb-2">
                             {setlist.map((item, index) => {
                                 let label, labelColor;
                                 if (item.type === 'encore') inEncore = true;
@@ -3482,13 +3847,44 @@ const CreateSongModal = () => {
                                 );
                             })}
                         </div>
+                         <div className="grid grid-cols-2 gap-2">
+                            <select onChange={e => addTrackToSetlist(allTracks.find(t => t.id === e.target.value))} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option>-- Add Song --</option>{allTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                            <div><button onClick={() => addSpecialItemToSetlist('mc')} className="w-1/2 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded-l hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="w-1/2 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-r hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
+                        </div>
                     </div>
     
-                    {/* Col 10-12: Member Selection */}
-                    <div className="col-span-12 lg:col-span-3">
-                        <h4 className="font-semibold mb-2 dark:text-gray-100">4. Select Members ({selectedMembers.length})</h4>
-                        <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button></div>
-                        <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+                    {/* Col 8-12: Member Selection (Expanded) */}
+                    <div className="col-span-12 lg:col-span-5">
+                        <h4 className="font-semibold mb-2 dark:text-gray-100">3. Select Members ({selectedMembers.length})</h4>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            <button onClick={() => setMemberFilter('all')} className={`text-xs p-1 rounded ${memberFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>All</button>
+                            <button onClick={() => setMemberFilter('main')} className={`text-xs p-1 rounded ${memberFilter === 'main' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{groupName}</button>
+                            {sisterGroups.map(sg => (
+                                <button key={sg.id} onClick={() => setMemberFilter(String(sg.id))} className={`text-xs p-1 rounded ${memberFilter === String(sg.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{sg.name}</button>
+                            ))}
+                        </div>
+                         <div className="space-y-1 max-h-[500px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                            {filteredMembers.map(member => (
+                                <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
+                                    <div>
+                                        <p className="font-semibold text-sm">{member.name}</p>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                            Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {(member.fans || 0).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => toggleMember(member.id)}
+                                        className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
+                                    >
+                                        {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                            <button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select Filtered</button>
+                            <button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button>
+                        </div>
                     </div>
                 </div>
     
@@ -3516,27 +3912,39 @@ const CreateSongModal = () => {
         const [setlist, setSetlist] = useState([]);
         const [selectedMembers, setSelectedMembers] = useState([]);
         const [targetGroup, setTargetGroup] = useState('main');
-    
+        const [sPrice, setSPrice] = useState(0);
+        const [aPrice, setAPrice] = useState(0);
+        const [bPrice, setBPrice] = useState(0);
+
         // --- DERIVED DATA ---
         const selectedVenue = venues.find(v => v.id === parseInt(selectedVenueId));
         const allSongs = [...songs, ...sisterGroups.flatMap(sg => (sg.songs || []))];
         const allGroupTracks = allSongs
             .filter(s => targetGroup === 'main' ? s.targetGroup === 'main' || s.targetGroup === groupName : s.targetGroup === targetGroup)
             .flatMap(s => (s.tracks || []).map(t => ({ id: `${s.id}-${t.name}-${s.targetGroup}`, name: `${t.name} (Single: ${s.name})` })));
-    
+
         const availableMembers = getAllAvailableMembers(true).filter(member => {
             if (targetGroup === 'main') return member.homeGroup === 'main' || (member.kenninGroups || []).includes('main');
             const sg = sisterGroups.find(g => g.name === targetGroup);
             return sg ? String(member.groupId) === String(sg.id) : false;
         });
-    
+
+        // --- USE EFFECTS ---
         useEffect(() => {
             setSelectedMembers([]);
             setSetlist([]);
             setKageAna('');
             setShimeAna('');
         }, [targetGroup]);
-    
+        
+        useEffect(() => {
+            if (selectedVenue) {
+                setSPrice(6000 + Math.floor(selectedVenue.capacity / 10));
+                setAPrice(4000 + Math.floor(selectedVenue.capacity / 20));
+                setBPrice(2500 + Math.floor(selectedVenue.capacity / 30));
+            }
+        }, [selectedVenue]);
+
         // --- SETLIST MANIPULATION ---
         const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
         const addSpecialItemToSetlist = (itemType) => {
@@ -3559,7 +3967,7 @@ const CreateSongModal = () => {
                 return newList;
             });
         };
-    
+
         // --- MEMBER SELECTION & CONFIRMATION ---
         const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
         const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
@@ -3570,107 +3978,239 @@ const CreateSongModal = () => {
                 kageAna: getMemberById(kageAna)?.name,
                 shimeAna: getMemberById(shimeAna)?.name,
             };
-            if (!selectedVenue || setlist.filter(i => i.type === 'song').length === 0) return setMessage("Must select a venue and at least one song.");
-            if (selectedMembers.length < 5) return setMessage("Need at least 5 members for a major concert.");
+            const ticketPrices = { s: sPrice, a: aPrice, b: bPrice };
             
-            holdMajorConcert(selectedVenue, setlist, selectedMembers, targetGroup, concertDetails);
-        };
+            if (!selectedVenue || setlist.filter(i => i.type === 'song').length === 0) {
+                setMessage("Must select a venue and at least one song.");
+                return;
+            }
+            if (selectedMembers.length < 5) {
+                setMessage("Need at least 5 members for a major concert.");
+                return;
+            }
+            
+            // Call the main function directly
+            holdMajorConcert(selectedVenue, setlist, selectedMembers, targetGroup, concertDetails, ticketPrices);
+   };
         const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
-        
+
         // --- RENDER LOGIC ---
         let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
-    
+        
         return (
-            <ModalWrapper title={<span className="flex items-center"><Trophy size={24} className="mr-2"/> Book Major Concert</span>} maxWidth="max-w-7xl">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ minHeight: '70vh' }}>
-                    {/* Col 1-3: Controls & Available Tracks */}
-                    <div className="col-span-12 lg:col-span-3 space-y-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <h3 className="text-2xl font-bold mb-4 dark:text-white">Plan Major Concert</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Left Column: Details & Setlist */}
                         <div>
-                            <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
-                            <input type="text" value={concertName} onChange={e => setConcertName(e.target.value)} placeholder="e.g., Spring Tour Final" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <h4 className="font-semibold mb-1 text-xs dark:text-gray-100">Kage-ana</h4>
-                                <select value={kageAna} onChange={e => setKageAna(e.target.value)} className="w-full p-2 border rounded text-xs bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Announcer --</option>{availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+                            <div className="mb-4">
+                                <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
+                                <input type="text" value={concertName} onChange={(e) => setConcertName(e.target.value)} placeholder="e.g., 'First Light Tour'" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
                             </div>
-                            <div>
-                                <h4 className="font-semibold mb-1 text-xs dark:text-gray-100">Shime-ana</h4>
-                                <select value={shimeAna} onChange={e => setShimeAna(e.target.value)} className="w-full p-2 border rounded text-xs bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Announcer --</option>{availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+
+                            <div className="mb-4">
+                                <h4 className="font-semibold mb-1 dark:text-gray-100">Venue & Group</h4>
+                                <select value={selectedVenueId} onChange={(e) => setSelectedVenueId(e.target.value)} className="w-full p-2 border rounded mb-1 bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Select Venue --</option>{venues.map(v => (<option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>))}</select>
+                                <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="main">{groupName} (Main)</option>{(sisterGroups || []).map(sg => (<option key={sg.id} value={sg.name}>{sg.name}</option>))}</select>
+                                 {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
                             </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold mb-1 dark:text-gray-100">Venue & Group</h4>
-                            <select value={selectedVenueId} onChange={(e) => setSelectedVenueId(e.target.value)} className="w-full p-2 border rounded mb-1 bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Select Venue --</option>{venues.map(v => (<option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>))}</select>
-                            <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="main">{groupName} (Main)</option>{(sisterGroups || []).map(sg => (<option key={sg.id} value={sg.name}>{sg.name}</option>))}</select>
-                             {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
-                        </div>
-                        <div>
-                            <h4 className="font-semibold mb-2 dark:text-gray-100">Available Tracks</h4>
-                            <div className="h-64 overflow-y-auto space-y-1 border p-2 rounded bg-gray-50 dark:bg-gray-800">
-                                {allGroupTracks.map(track => <div key={track.id} onClick={() => addTrackToSetlist(track)} title="Click to add" className="p-1.5 border rounded text-xs cursor-pointer bg-white hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-gray-600"><span className='font-medium dark:text-gray-200'>{track.name}</span></div>)}
-                                {allGroupTracks.length === 0 && <p className='text-gray-500 p-2 italic text-center'>No songs for {targetGroup}.</p>}
-                            </div>
-                        </div>
-                    </div>
-    
-                    {/* Col 4-8: Setlist Builder */}
-                    <div className="col-span-12 lg:col-span-5 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
-                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
-                        <div className="flex gap-2 mb-2">
-                            <button onClick={() => addSpecialItemToSetlist('mc')} className="flex-1 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button>
-                            <button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="flex-1 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button>
-                        </div>
-                        <div className="h-[500px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800">
-                            {setlist.length === 0 && <p className="text-center text-gray-500 p-10">Build your setlist here.</p>}
-                            {setlist.map((item, index) => {
-                                let label, labelColor;
-                                if (item.type === 'encore') inEncore = true;
-                                if (item.type === 'song') {
-                                    if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
-                                    labelColor = 'text-blue-600 dark:text-blue-400';
-                                } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
-                                
-                                return (
-                                    <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
-                                        <div className="flex items-center overflow-hidden flex-1">
-                                            <span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
-                                            {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
-                                            {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200 border-gray-500" />}
-                                            {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE BREAK ---</span>}
+                            
+                            {/* --- Ticket Pricing UI --- */}
+                            {selectedVenue && (
+                                <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
+                                    <h4 className="font-semibold mb-2 dark:text-gray-100">Ticket Prices</h4>
+                                    <div className="space-y-2">
+                                        <div className="grid grid-cols-3 items-center gap-2">
+                                            <label className="font-semibold text-sm dark:text-gray-300">S Zone</label>
+                                            <input type="number" step="100" value={sPrice} onChange={e => setSPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(6000 + Math.floor(selectedVenue.capacity / 10)).toLocaleString()}</small>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Announce?</label>}
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 ml-2">
-                                                <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
-                                                <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
-                                                <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
-                                            </div>
+                                        <div className="grid grid-cols-3 items-center gap-2">
+                                            <label className="font-semibold text-sm dark:text-gray-300">A Zone</label>
+                                            <input type="number" step="100" value={aPrice} onChange={e => setAPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(4000 + Math.floor(selectedVenue.capacity / 20)).toLocaleString()}</small>
+                                        </div>
+                                        <div className="grid grid-cols-3 items-center gap-2">
+                                            <label className="font-semibold text-sm dark:text-gray-300">B Zone</label>
+                                            <input type="number" step="100" value={bPrice} onChange={e => setBPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(2500 + Math.floor(selectedVenue.capacity / 30)).toLocaleString()}</small>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            )}
+
+                            {/* Setlist builder here */}
+                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
+                                <h4 className="font-semibold mb-2 dark:text-gray-100">Setlist</h4>
+                                <div className="max-h-60 overflow-y-auto mb-2 border-y dark:border-gray-700">
+                                    {setlist.map((item, index) => {
+                                        if (item.type === 'encore') inEncore = true;
+                                        if (item.type === 'song') {
+                                            if (inEncore) encoreSongCount++; else mainSongCount++;
+                                        }
+                                        return (
+                                            <div key={index} className="flex items-center p-1 border-b dark:border-gray-700 last:border-b-0">
+                                                <span className="font-bold text-gray-500 dark:text-gray-400 w-6">{index + 1}.</span>
+                                                <div className="flex-grow">
+                                                {item.type === 'song' && (<span className='text-blue-600 dark:text-blue-400'>{item.item.name}</span>)}
+                                                {item.type === 'mc' && (<div className='flex items-center'><span className='text-green-600 dark:text-green-400'>{item.name}</span><label className='ml-4 text-xs'><input type="checkbox" checked={item.hasAnnouncement} onChange={e => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className='mr-1' />Announce?</label></div>)}
+                                                {item.type === 'vtr' && <span className='text-purple-600 dark:text-purple-400'>VTR</span>}
+                                                {item.type === 'encore' && <span className='font-bold text-red-500 dark:text-red-400'>-- ENCORE --</span>}
+                                                </div>
+                                                <button onClick={() => moveSetlistItem(index, -1)} disabled={index===0} className="px-1 text-gray-400 disabled:opacity-20">↑</button>
+                                                <button onClick={() => moveSetlistItem(index, 1)} disabled={index===setlist.length-1} className="px-1 text-gray-400 disabled:opacity-20">↓</button>
+                                                <button onClick={() => removeSetlistItem(index)} className="px-2 text-red-500 font-bold">X</button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                <select onChange={e => addTrackToSetlist(allGroupTracks.find(t => t.id === e.target.value))} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option>-- Add Song --</option>{allGroupTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                                <div><button onClick={() => addSpecialItemToSetlist('mc')} className="w-1/3 p-2 text-xs bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 rounded-l">MC</button><button onClick={() => addSpecialItemToSetlist('vtr')} className="w-1/3 p-2 text-xs bg-purple-200 hover:bg-purple-300 dark:bg-purple-800 dark:hover:bg-purple-700">VTR</button><button onClick={() => addSpecialItemToSetlist('encore')} className="w-1/3 p-2 text-xs bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 rounded-r">Encore</button></div>
+                                </div>
+                                <div className='text-xs mt-1 text-gray-500'>Main: {mainSongCount} songs, Encore: {encoreSongCount} songs</div>
+                            </div>
+                        </div>
+
+                        {/* Right Column: Members & Announcements */}
+                        <div>
+                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
+                                <h4 className="font-semibold mb-2 dark:text-gray-100">Performing Members ({selectedMembers.length} / {availableMembers.length})</h4>
+                                <div className='mb-2'><button onClick={selectAllMembers} className='text-xs p-1 bg-blue-100 dark:bg-blue-900 rounded'>Select All</button><button onClick={deselectAllMembers} className='ml-2 text-xs p-1 bg-gray-200 dark:bg-gray-700 rounded'>Deselect All</button></div>
+                                <div className="space-y-1 max-h-60 overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                                    {availableMembers.map(member => (
+                                        <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
+                                            <div>
+                                                <p className="font-semibold text-sm">{member.name}</p>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                                    Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {(member.fans || 0).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => toggleMember(member.id)}
+                                                className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
+                                            >
+                                                {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
+                                <h4 className="font-semibold mb-2 dark:text-gray-100">Announcements</h4>
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kage-ana</label><select value={kageAna} onChange={e => setKageAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
+                                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Shime-ana</label><select value={shimeAna} onChange={e => setShimeAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-    
-                    {/* Col 9-12: Member Selection */}
-                    <div className="col-span-12 lg:col-span-4">
-                        <h4 className="font-semibold mb-2 dark:text-gray-100">Members ({selectedMembers.length})</h4>
-                        <p className="text-xs text-gray-500 mb-2">Min 5 members required.</p>
-                        <div className="flex gap-2 mb-2"><button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select All</button><button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Deselect All</button></div>
-                        <MemberSelectionList members={availableMembers} selectedIds={selectedMembers} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button onClick={() => setShowModal(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                        <button onClick={handleConfirm} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Book Concert</button>
                     </div>
                 </div>
-    
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                    <button onClick={handleConfirm} disabled={!selectedVenue || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length < 5 || money < cost} className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400">
-                        Book Concert (¥{cost.toLocaleString()})
+            </div>
+        );
+    };
+
+    const TheaterSelectionModal = () => {
+        const { selection } = modalData; // selection can be teamId, 'sg-ID', or null
+
+        const [venueOwnerId, setVenueOwnerId] = useState('');
+        const [theme, setTheme] = useState('classic');
+        const themes = ['classic', 'vocal', 'dance', 'idol', 'energy', 'theatrical', 'cool'];
+
+        // --- Determine roster for cost calculation ---
+        const getRosterForCosting = () => {
+            const fullRoster = getMainGroupRoster();
+
+            if (typeof selection === 'number') { // Team selected
+                const team = teams.find(t => t.id === selection);
+                if (!team) return [];
+                return fullRoster.filter(m => team.members.includes(String(m.id)) && m.isAvailable);
+            }
+
+            if (typeof selection === 'string' && selection.startsWith('sg-')) { // Sister Group selected
+                const sgId = selection.replace('sg-', '');
+                return fullRoster.filter(m => String(m.groupId) === sgId && m.isAvailable);
+            }
+
+            // "All Available Members" selected
+            return fullRoster.filter(m => m.isAvailable);
+        };
+        
+        const roster = getRosterForCosting();
+        const venue = theaters.find(t => t.owner === venueOwnerId);
+        
+        let travelCost = 0;
+        if (venue) {
+            // New Per-Member Travel Cost Logic
+            roster.forEach(member => {
+                const memberHomeGroupId = member.isSisterMember ? member.groupId : 'main';
+                if (String(memberHomeGroupId) !== String(venue.owner)) {
+                    travelCost += 2500; // Cost for this member to travel to a venue not owned by their group
+                }
+            });
+        }
+
+        const handleConfirm = () => {
+            if (!venueOwnerId) return setMessage("You must select a theater to perform in.");
+            holdTheaterShow({
+                selection: selection, // Pass the original selection
+                venueOwnerId: venueOwnerId,
+                concertTheme: theme,
+                travelCost: travelCost
+            });
+        };
+
+        const performingEntityName = () => {
+            if (typeof selection === 'number') {
+                const team = teams.find(t => t.id === selection);
+                const ownerName = team.groupId === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(team.groupId))?.name || '');
+                return `${team.name} (${ownerName})`;
+            };
+            if (typeof selection === 'string' && selection.startsWith('sg-')) return `${sisterGroups.find(g => String(g.id) === selection.replace('sg-',''))?.name} (Group)`;
+            return "All Available Members";
+        }
+
+        return (
+            <ModalWrapper title={`Plan Show for: ${performingEntityName()}`} maxWidth="max-w-xl">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select a venue for the performance. Costs are incurred when members travel to theaters not owned by their home group.</p>
+
+                <h4 className="font-semibold mb-1 dark:text-gray-200">1. Select Venue</h4>
+                <select value={venueOwnerId} onChange={(e) => setVenueOwnerId(e.target.value)} className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700 dark:border-gray-600">
+                    <option value="">-- Choose a Theater --</option>
+                    {theaters.map(t => {
+                        const owner = t.owner === 'main' ? groupName : sisterGroups.find(sg => sg.id === t.owner)?.name;
+                        return <option key={t.owner} value={t.owner}>{t.name} ({owner})</option>
+                    })}
+                </select>
+
+                <h4 className="font-semibold mb-1 mt-3 dark:text-gray-200">2. Select Performance Theme</h4>
+                <select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700 dark:border-gray-600">
+                    {themes.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Matching the theme to the setlist's theme (if applicable) provides a performance bonus.</p>
+                
+                <div className="p-3 bg-yellow-50 dark:bg-gray-900 rounded-lg border border-yellow-200 dark:border-gray-700">
+                    <p className="font-bold text-red-600 dark:text-yellow-300">Estimated Travel Cost: ¥{travelCost.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Cost is ¥2,500 per member traveling to a theater not owned by their home group.</p>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-gray-600">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Cancel</button>
+                    <button onClick={handleConfirm} disabled={!venueOwnerId} className="p-2 bg-green-500 text-white rounded px-4 font-bold disabled:bg-gray-400">
+                        Start Show
                     </button>
                 </div>
             </ModalWrapper>
-        );
+        )
     };
+
 
     const TheaterShowPrepModal = () => {
         const [theme, setTheme] = useState('classic');
@@ -3912,7 +4452,60 @@ const CreateSongModal = () => {
             </ModalWrapper>
         );
     };
-    
+
+    const RenameTheaterModal = () => {
+        const theater = modalData;
+        const [newName, setNewName] = useState(theater?.name || '');
+
+        const handleConfirm = () => {
+            if (!newName.trim()) return setMessage("Theater name cannot be empty.");
+            renameTheater(theater.owner, newName.trim());
+        };
+
+        if (!theater) return null;
+
+        return (
+            <ModalWrapper title={`Rename ${theater.name}`}>
+                <h4 className="font-semibold mb-1">New Theater Name</h4>
+                <input 
+                    type="text" 
+                    value={newName} 
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full p-2 border rounded mb-3"
+                    placeholder="Enter new theater name"
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={handleConfirm} disabled={!newName.trim()} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
+                        Confirm Rename
+                    </button>
+                </div>
+            </ModalWrapper>
+        );
+    };
+
+    const CheatCodeModal = () => {
+        const [code, setCode] = useState('');
+
+        return (
+            <ModalWrapper title="Enter Cheat Code">
+                <input 
+                    type="text" 
+                    value={code} 
+                    onChange={(e) => setCode(e.target.value)}
+                    className="w-full p-2 border rounded mb-3"
+                    placeholder="Enter code..."
+                    onKeyDown={(e) => e.key === 'Enter' && handleCheatCode(code)}
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={() => handleCheatCode(code)} className="p-2 bg-green-500 text-white rounded">Confirm</button>
+                </div>
+            </ModalWrapper>
+        );
+    };
+
+
     const RenameMemberModal = () => {
         const member = modalData;
         const [newName, setNewName] = useState(member?.name || '');
@@ -3965,6 +4558,7 @@ const CreateSongModal = () => {
     
 const TeamManagementModal = ({ isEditing = false, team = null }) => {
     const [teamName, setTeamName] = useState(isEditing ? team.name : '');
+    const [groupId, setGroupId] = useState(isEditing ? (team.groupId || 'main') : 'main');
     const [selectedSetlist, setSelectedSetlist] = useState(isEditing && team ? team.currentSetlistId : '');
     const [filterKey, setFilterKey] = useState('All');
     
@@ -3973,15 +4567,21 @@ const TeamManagementModal = ({ isEditing = false, team = null }) => {
 
     const fullRoster = getMainGroupRoster();
 
-    const handleAddMemberClick = (member) => {
-        if (selectedMembers.some(m => m.id === member.id)) return;
-        const isCurrentlyInAnotherTeam = isEditing ? (member.teamId && member.teamId !== team.id) : member.teamId;
-        if (isCurrentlyInAnotherTeam) {
-            setPendingDecision(member);
-        } else {
-            setSelectedMembers(prev => [...prev, { id: member.id, type: 'add' }]);
-        }
-    };
+        const handleAddMemberClick = (member) => {
+            if (selectedMembers.some(m => m.id === member.id)) return;
+            
+            const memberHomeGroupId = member.isSisterMember ? String(member.groupId) : 'main';
+            const isCrossGroupAssignment = String(memberHomeGroupId) !== String(groupId);
+            const isAlreadyInAnotherTeam = !!member.teamId;
+
+            // Trigger the decision modal if the member is not "free"
+            if (isCrossGroupAssignment || isAlreadyInAnotherTeam) {
+                setPendingDecision({ ...member, isCrossGroupAssignment }); // Pass context to the modal
+            } else {
+                // Member is free, just add them directly
+                setSelectedMembers(prev => [...prev, { id: member.id, type: 'add' }]);
+            }
+        };
     
     const resolveDecision = (decisionType) => {
         if (decisionType && pendingDecision) {
@@ -4015,7 +4615,7 @@ const TeamManagementModal = ({ isEditing = false, team = null }) => {
     
     const handleSave = () => {
         const teamId = isEditing ? team.id : null;
-        saveTeam(teamId, teamName, selectedMembers, selectedSetlist);
+        saveTeam(teamId, teamName, groupId, selectedMembers, selectedSetlist);
     };
 
     const handleDelete = () => {
@@ -4037,11 +4637,14 @@ const TeamManagementModal = ({ isEditing = false, team = null }) => {
 
     return (
         <ModalWrapper title={isEditing ? `Edit Team: ${team.name}` : "Create New Team"}>
-            {pendingDecision && <ConcurrentPositionModal member={pendingDecision} onResolve={resolveDecision} />}
-            <div className="space-y-3 text-sm">
+                {pendingDecision && <AssignmentDecisionModal member={pendingDecision} onResolve={resolveDecision} />}            <div className="space-y-3 text-sm">
                 <input type="text" placeholder="Team Name" value={teamName} onChange={e => setTeamName(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700" />
                 
-                {/* FINAL BUG FIX: Convert the selected value to a Number to fix data type mismatch. */}
+                <select value={groupId} onChange={e => setGroupId(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700" disabled={isEditing}>
+                    <option value="main">Team for: {groupName} (Main)</option>
+                    {sisterGroups.map(sg => <option key={sg.id} value={sg.id}>Team for: {sg.name}</option>)}
+                </select>
+
                 <select value={selectedSetlist} onChange={e => setSelectedSetlist(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700">
                     <option value="">-- Select a Setlist --</option>
                     {allSetlists.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -4097,23 +4700,44 @@ const TeamManagementModal = ({ isEditing = false, team = null }) => {
     );
 };
 
-const ConcurrentPositionModal = ({ member, onResolve }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-sm mx-4">
-            <h3 className="text-lg font-bold mb-2">Team Assignment for {member.name}</h3>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">This member is already in <b>Team {member.teamName}</b>. How do you want to assign them to the new team?</p>
-            <div className="flex justify-center gap-4">
-                <button onClick={() => onResolve('shuffle')} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">Shuffle</button>
-                <button onClick={() => onResolve('concurrent')} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold">Add Concurrent</button>
-                <button onClick={() => onResolve(null)} className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500">Cancel</button>
-            </div>
-             <div className="text-left text-xs text-gray-500 dark:text-gray-400 mt-4 bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
-                <p><b>Shuffle:</b> Moves the member. They will leave their old team and join the new one.</p>
-                <p className="mt-1"><b>Add Concurrent:</b> The member will hold a "kennin" position, being active in both teams.</p>
+const AssignmentDecisionModal = ({ member, onResolve }) => {
+    const isCrossGroup = member.isCrossGroupAssignment;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-sm mx-4">
+                <h3 className="text-lg font-bold mb-2">Assignment for {member.name}</h3>
+                {isCrossGroup ? (
+                    <>
+                        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">This member is from a different group. How do you want to add them?</p>
+                        <div className="flex justify-center gap-4">
+                            <button onClick={() => onResolve('transfer')} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold">Transfer</button>
+                            <button onClick={() => onResolve('kennin')} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold">Give Kennin</button>
+                            <button onClick={() => onResolve(null)} className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500">Cancel</button>
+                        </div>
+                        <div className="text-left text-xs text-gray-500 dark:text-gray-400 mt-4 bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
+                            <p><b>Transfer:</b> Permanently moves the member to the new group. This is a big decision.</p>
+                            <p className="mt-1"><b>Give Kennin:</b> The member holds a concurrent position in both groups.</p>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">This member is already in <b>Team {member.teamName}</b>. How do you want to assign them to the new team?</p>
+                        <div className="flex justify-center gap-4">
+                            <button onClick={() => onResolve('shuffle')} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">Shuffle</button>
+                            <button onClick={() => onResolve('concurrent')} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold">Add Concurrent</button>
+                            <button onClick={() => onResolve(null)} className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500">Cancel</button>
+                        </div>
+                        <div className="text-left text-xs text-gray-500 dark:text-gray-400 mt-4 bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
+                           <p><b>Shuffle:</b> Moves the member. They will leave their old team and join this new one.</p>
+                           <p className="mt-1"><b>Add Concurrent:</b> The member will be active in both teams within the same group.</p>
+                       </div>
+                    </>
+                )}
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const TeamDetailsModal = ({ team }) => {
     const fullRoster = getMainGroupRoster();
@@ -4660,87 +5284,75 @@ const EditGroupNameModal = () => {
          );
        };
     
-    const PyramidRanking = () => {
-      const sortedMembers = getMainGroupRoster();
-      
-      const tiers = {
-          'Senbatsu (#1-16)': sortedMembers.slice(0, 16),
-          'Undergirls (#17-32)': sortedMembers.slice(16, 32),
-          'Next Girls (#33-48)': sortedMembers.slice(32, 48),
-          'Future Girls (#49-64)': sortedMembers.slice(48, 64),
-          'Upcoming Girls (#65-80)': sortedMembers.slice(64, 80),
-          'Unplaced (81+)': sortedMembers.slice(80),
-      };
+       const PyramidRanking = () => {
+         const sortedMembers = getMainGroupRoster();
+         
+         // Add rank to each member
+         sortedMembers.forEach((member, index) => {
+            member.rank = index + 1;
+         });
 
-      const tierColors = {
-          'Senbatsu (#1-16)': 'bg-yellow-500 text-yellow-900',
-          'Undergirls (#17-32)': 'bg-red-400 text-white',
-          'Next Girls (#33-48)': 'bg-blue-400 text-white',
-          'Future Girls (#49-64)': 'bg-green-400 text-white',
-          'Upcoming Girls (#65-80)': 'bg-purple-400 text-white',
-          'Unplaced (81+)': 'bg-gray-400 text-white',
-      };
+         const tiers = {
+             'Center (#1)': sortedMembers.slice(0, 1),
+             'Kami 7 (#2-7)': sortedMembers.slice(1, 7),
+             'Senbatsu (#8-16)': sortedMembers.slice(7, 16),
+             'Undergirls (#17-32)': sortedMembers.slice(16, 32),
+             'Next Girls (#33-48)': sortedMembers.slice(32, 48),
+             'Future Girls (#49-64)': sortedMembers.slice(48, 64),
+             'Upcoming Girls (#65-80)': sortedMembers.slice(64, 80),
+             'Unplaced (81+)': sortedMembers.slice(80),
+         };
 
-      const maxTierMembers = Math.max(1, ...Object.values(tiers).slice(0, 5).map(t => (t || []).length));
-      const baseWidth = 300; 
-
-      const renderTier = (tierName, tierMembers) => {
-          if ((tierMembers || []).length === 0) return null;
-
-          const memberCount = tierMembers.length;
-          const widthPercentage = tierName === 'Unplaced (81+)' 
-              ? 1
-              : (memberCount / maxTierMembers);
-              
-          const widthStyle = { 
-              width: tierName === 'Unplaced (81+)' ? '100%' : `${widthPercentage * 100}%`, 
-              minWidth: '50px', 
-              maxWidth: `${baseWidth + (tierName === 'Unplaced (81+)' ? 100 : 0)}px` 
-          };
-
-          return (
-              <div key={tierName} className="flex flex-col items-center mb-4 w-full">
-                <div 
-                    className={`p-1 rounded-t-lg shadow-lg text-xs font-bold w-full text-center ${tierColors[tierName]} transition-all duration-300`} 
-                    style={widthStyle}
-                >
-                    {tierName} ({memberCount})
-                </div>
-                <div
-                    className="flex justify-center flex-wrap gap-1 p-2 w-full rounded-b-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
-                    style={widthStyle}>
-                    {(tierMembers || []).map((m, index) => (
-                        <div key={m.id} 
-                             onClick={() => { setSelectedMember(m); setMemberView('list'); }}
-                             className={`cursor-pointer text-center p-1 rounded-full text-xs font-medium border-2 hover:border-blue-500 transition-colors bg-gray-100 border-gray-300`}
-                             title={`${m.name} (#${getMainGroupRoster().findIndex(mem => mem.id === m.id) + 1} | ${(m.fans || 0).toLocaleString()} fans)`}
-                        >
-                            {m.nickname || m.name.split(' ')[0]}
-                        </div>
-                    ))}
-                </div>
-              </div>
-          );
-      };
-
-      return (
-          <div className="p-6 rounded-lg shadow-xl flex flex-col items-center mx-auto max-w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-xl font-bold mb-4 flex items-center"><Award size={20} className='mr-2'/> Idol Ranking Pyramid</h3>
-              <p className="text-sm text-gray-500 mb-6 text-center">General Election style ranking based on current fan count.</p>
-              
-              <div className="flex flex-col items-center w-full">
-                  {renderTier('Unplaced (81+)', tiers['Unplaced (81+)'])}
-                  {renderTier('Upcoming Girls (#65-80)', tiers['Upcoming Girls (#65-80)'])}
-                  {renderTier('Future Girls (#49-64)', tiers['Future Girls (#49-64)'])}
-                  {renderTier('Next Girls (#33-48)', tiers['Next Girls (#33-48)'])}
-                  {renderTier('Undergirls (#17-32)', tiers['Undergirls (#17-32)'])}
-                  {renderTier('Senbatsu (#1-16)', tiers['Senbatsu (#1-16)'])}
-              </div>
-              
-              {sortedMembers.length === 0 && <p className="text-gray-500">Recruit members to see the ranking pyramid!</p>}
-          </div>
-      );
-    };
+         const tierColors = {
+            'Center (#1)': 'bg-amber-400 border-2 border-amber-600 text-black',
+            'Kami 7 (#2-7)': 'bg-yellow-500 text-yellow-900',
+            'Senbatsu (#8-16)': 'bg-yellow-300 text-yellow-800',
+            'Undergirls (#17-32)': 'bg-red-400 text-white',
+            'Next Girls (#33-48)': 'bg-blue-400 text-white',
+            'Future Girls (#49-64)': 'bg-green-400 text-white',
+            'Upcoming Girls (#65-80)': 'bg-purple-400 text-white',
+            'Unplaced (81+)': 'bg-gray-400 text-white',
+         };
+   
+         const renderTier = (tierName, tierMembers) => {
+             if ((tierMembers || []).length === 0) return null;
+             
+             return (
+                 <div className={`p-2 m-1 rounded-lg shadow-md text-center ${tierColors[tierName]} w-full`}>
+                     <h3 className="font-bold text-lg">{tierName}</h3>
+                     <div className={`flex flex-wrap justify-center gap-1 mt-2`}>
+                         {tierMembers.map((member) => (
+                            <div key={member.id} className="text-xs p-1 bg-black bg-opacity-20 rounded flex-shrink-0" style={{flexBasis: '75px'}}>
+                                <span className="font-bold block">#{member.rank}</span>
+                                <span className="truncate block">{member.name}</span>
+                            </div>
+                         ))}
+                     </div>
+                 </div>
+             );
+         };
+       
+         return (
+             <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                 <h2 className="text-2xl font-bold mb-4 text-center">Group Ranking Pyramid</h2>
+                 
+                 <div className="w-full max-w-xl mx-auto">
+                     <div className="flex flex-col-reverse items-center space-y-1">
+                         {renderTier('Unplaced (81+)', tiers['Unplaced (81+)'])}
+                         {renderTier('Upcoming Girls (#65-80)', tiers['Upcoming Girls (#65-80)'])}
+                         {renderTier('Future Girls (#49-64)', tiers['Future Girls (#49-64)'])}
+                         {renderTier('Next Girls (#33-48)', tiers['Next Girls (#33-48)'])}
+                         {renderTier('Undergirls (#17-32)', tiers['Undergirls (#17-32)'])}
+                         {renderTier('Senbatsu (#8-16)', tiers['Senbatsu (#8-16)'])}
+                         {renderTier('Kami 7 (#2-7)', tiers['Kami 7 (#2-7)'])}
+                         {renderTier('Center (#1)', tiers['Center (#1)'])}
+                     </div>
+                 </div>
+                 
+                 {sortedMembers.length === 0 && <p className="text-gray-500">Recruit members to see the ranking pyramid!</p>}
+             </div>
+         );
+       };
     
 
 
@@ -4969,7 +5581,7 @@ if (!gameStarted) {
             </button>
           </div>
         </div>
-            {/* Performance & Elections */}
+                      {/* Performance & Elections */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
               <h3 className="text-base font-bold mb-2 flex items-center"><Star size={18} className="mr-2"/> Performance & Elections</h3>
               <div className="flex flex-col gap-1.5">
@@ -4977,17 +5589,21 @@ if (!gameStarted) {
                 <div className="flex items-center gap-2 mb-1">
                   <select 
                     value={selectedTheaterTeam || ''}
-                    onChange={(e) => setSelectedTheaterTeam(e.target.value ? parseInt(e.target.value) : null)}
+                    onChange={(e) => setSelectedTheaterTeam(e.target.value || null)}
                     className="flex-1 p-1.5 text-sm border rounded"
-                    disabled={!buildings.theater}
+                    disabled={theaters.length === 0}
                   >
                     <option value="">All Available Members</option>
-                    {(teams || []).map(team => (
-                      <option key={team.id} value={team.id}>{team.name}</option>
+                    {sisterGroups.map(sg => (
+                      <option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name} (Group)</option>
                     ))}
+                    {(teams || []).map(team => {
+                        const ownerName = team.groupId === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(team.groupId))?.name || 'Unknown');
+                        return <option key={team.id} value={team.id}>{team.name} ({ownerName})</option>;
+                    })}
                   </select>
                 </div>
-                <button onClick={startTheaterShowPrep} className="w-full px-3 py-1.5 text-sm bg-green-500 text-white rounded disabled:bg-gray-400 font-semibold" disabled={!buildings.theater || !!activeTour}>
+                <button onClick={startTheaterShowPrep} className="w-full px-3 py-1.5 text-sm bg-green-500 text-white rounded disabled:bg-gray-400 font-semibold" disabled={theaters.length === 0 || !!activeTour}>
                   <Users size={16} className='inline mr-1'/> Hold Theater Show
                 </button>
                 
@@ -5007,11 +5623,48 @@ if (!gameStarted) {
 
             {/* Facilities */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Building size={18} className="mr-2"/> Facilities</h3>
-              <div className="flex flex-col gap-1.5">
-                <button onClick={buildTheater} disabled={buildings.theater} className="w-full p-1.5 text-sm bg-gray-700 text-white rounded disabled:bg-gray-400 font-semibold">
-                  {buildings.theater ? 'Theater Built' : 'Build Theater (¥100k)'}
-                </button>
+              <h3 className="text-sm font-bold mb-2 flex items-center"><Building size={18} className="mr-2"/> Facilities</h3>
+              <div className="flex flex-col gap-2">
+                {/* Theater Management */}
+                <h4 className="font-semibold text-sm mt-1 border-t pt-2">Theaters</h4>
+                
+                {theaters.map(theater => {
+                    const ownerName = theater.owner === 'main' ? groupName : (sisterGroups.find(sg => sg.id === theater.owner)?.name || 'Unknown');
+                    const cost = 100000 + (theater.level * 250000);
+                    return (
+                        <div key={theater.owner} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700">
+                            <p className="font-bold text-sm">{theater.name} ({ownerName})</p>
+                            <p className="text-xs">Level: {theater.level} | Capacity: {theater.capacity}</p>
+                            <div className="flex gap-1 mt-1">
+                                {theater.level < 5 ? (
+                                    <button onClick={() => upgradeTheater(theater.owner)} className="flex-1 p-1 text-xs bg-purple-200 text-purple-800 rounded font-semibold">
+                                        Upgrade (¥{cost.toLocaleString()})
+                                    </button>
+                                ) : (
+                                    <p className="flex-1 text-xs text-center font-bold text-green-500 mt-1">Max Level</p>
+                                )}
+                                <button onClick={() => { setModalData(theater); setShowModal('renameTheater'); }} className="p-1 px-2 text-xs bg-yellow-400 text-black rounded font-semibold">
+                                    Rename
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {!theaters.some(t => t.owner === 'main') && (
+                    <button onClick={buildTheater} className="w-full p-1.5 text-sm bg-gray-700 text-white rounded font-semibold">
+                        Build Main Theater (¥100k)
+                    </button>
+                )}
+                
+                {sisterGroups.filter(sg => !theaters.some(t => t.owner === sg.id)).map(sg => (
+                     <button key={`build-th-${sg.id}`} onClick={() => buildSisterTheater(sg.id)} className="w-full p-1.5 text-sm bg-gray-600 text-white rounded font-semibold">
+                        Build Theater for {sg.name} (¥150k)
+                    </button>
+                ))}
+
+                {/* Practice Rooms */}
+                <h4 className="font-semibold text-sm mt-2 border-t pt-2">Practice Rooms</h4>
                 <button onClick={() => upgradePracticeRoom('vocal')} className="w-full p-1.5 text-sm bg-blue-100 text-blue-700 rounded flex justify-between items-center font-semibold">
                   <span>Upgrade Vocal Room (Lvl {buildings.practiceRooms.vocal})</span>
                   <span className='text-xs font-semibold'>¥{(25000 + buildings.practiceRooms.vocal * 15000).toLocaleString()}</span>
@@ -5029,36 +5682,35 @@ if (!gameStarted) {
 
             {/* Teams & Setlists */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Users size={18} className="mr-2"/> Theater Teams & Setlists</h3>
+              <h3 className="text-sm font-bold mb-2 flex items-center"><Users size={18} className="mr-2"/> Theater Teams & Setlists</h3>
               <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
                 {(teams || []).map(team => (
-                  <div key={team.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div key={team.id} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
                       <div>
-                          <h4 className="font-bold text-lg">{team.name} ({team.members.length} members)</h4>
-                          <p className="text-xd text-gray-500 dark:text-gray-400">
+                          <h4 className="font-semibold text-sm">{team.name} ({team.members.length} members)</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                               Setlist: {allSetlists.find(s => s.id === team.currentSetlistId)?.name || 'None'}
                           </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                          <button onClick={() => showTeamDetails(team)} className="px-3 py-2 text-sm bg-blue-500 text-white rounded font-semibold hover:bg-blue-600">Details</button>
-                          <button onClick={() => editTeam(team.id)} className="p-2 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={18}/></button>
+                      <div className="flex items-center gap-1">
+                          <button onClick={() => showTeamDetails(team)} className="px-2 py-1 text-xs bg-blue-500 text-white rounded font-semibold hover:bg-blue-600">Details</button>
+                          <button onClick={() => editTeam(team.id)} className="p-1.5 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={16}/></button>
                       </div>
                   </div>
                 ))}
               </div>
               <div className="flex gap-1.5 mt-1.5">
-                  <button onClick={createTeam} className="flex-1 p-1.5 text-sm bg-blue-500 text-white rounded font-semibold" disabled={!buildings.theater}>
+                  <button onClick={createTeam} className="flex-1 p-1.5 text-sm bg-blue-500 text-white rounded font-semibold" disabled={theaters.length === 0}>
                     Create New Team
                   </button>
-                  <button onClick={createCustomSetlist} className="flex-1 p-1.5 text-sm bg-indigo-500 text-white rounded font-semibold" disabled={!buildings.theater}>
+                  <button onClick={createCustomSetlist} className="flex-1 p-1.5 text-sm bg-indigo-500 text-white rounded font-semibold" disabled={theaters.length === 0}>
                     <Plus size={16} className='inline mr-1'/> Custom Setlist
                   </button>
               </div>
             </div>
-
             {/* Groups Panel */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Globe size={18} className="mr-2"/> Groups ({1 + sisterGroups.length})</h3>
+              <h3 className="text-sm font-bold mb-2 flex items-center"><Globe size={18} className="mr-2"/> Groups ({1 + sisterGroups.length})</h3>
               <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
                   {/* Main Group Card */}
                   <div className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
@@ -5105,7 +5757,7 @@ if (!gameStarted) {
 
             {/* Push Member Management */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300 md:col-span-2">
-              <h3 className="text-base font-bold mb-2 flex items-center"><TrendingUp size={18} className="mr-2 text-green-500"/> Push Member Management</h3>
+              <h3 className="text-sm font-bold mb-2 flex items-center"><TrendingUp size={18} className="mr-2 text-green-500"/> Push Member Management</h3>
               <p className="text-xs text-gray-500 mb-2">Select members to receive a "push". Pushed members will receive a larger share of fans from group activities.</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900 rounded">
                 {getMainGroupRoster().map(member => (
@@ -5128,11 +5780,14 @@ if (!gameStarted) {
 
             {/* App Settings */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Sparkles size={18} className="mr-2"/> App Settings</h3>
+              <h3 className="text-sm font-bold mb-2 flex items-center"><Sparkles size={18} className="mr-2"/> App Settings</h3>
               <div className="flex flex-col gap-1.5">
                 <button onClick={toggleDarkMode} className="w-full p-1.5 text-sm bg-gray-700 text-white rounded flex justify-center items-center font-semibold">
                   <Moon size={16} className="mr-2"/>
                   <span>{isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+                </button>
+                <button onClick={() => setShowModal('cheatCode')} className="w-full p-1.5 text-sm bg-yellow-500 text-black rounded font-semibold">
+                  Enter Cheat Code
                 </button>
               </div>
             </div>
@@ -5530,7 +6185,7 @@ if (!gameStarted) {
         />}
         {showModal === 'createSong' && <CreateSongModal />}
         {showModal === 'singleDetails' && <SingleDetailsModal />}
-        {showModal === 'theaterShowPrep' && <TheaterShowPrepModal />} 
+        {showModal === 'theaterSelection' && <TheaterSelectionModal />}
         {/* Removed: LargeConcertModal (Deprecated) */}
         {showModal === 'rename' && modalData && <RenameMemberModal />}
         {showModal === 'moveMember' && <MoveMemberModal member={modalData} setShowModal={setShowModal} />}
@@ -5551,6 +6206,8 @@ if (!gameStarted) {
         {showModal === 'majorConcert' && <MajorConcertModal />}
         {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
         {showModal === 'performanceResult' && <PerformanceResultModal />}
+        {showModal === 'renameTheater' && <RenameTheaterModal />}
+        {showModal === 'cheatCode' && <CheatCodeModal />}
       </div>
     );
 };
