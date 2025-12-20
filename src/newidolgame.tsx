@@ -222,6 +222,7 @@ const useIdolManager = () => {
     const [performanceHistory, setPerformanceHistory] = useState([]);
     const [scheduledSingles, setScheduledSingles] = useState([]);
     const [auditionCandidates, setAuditionCandidates] = useState([]);
+    const [pushedMembers, setPushedMembers] = useState([]);
 
 
     // Performance Types Data
@@ -320,6 +321,7 @@ const saveGame = async (gameUsername, uidParam) => {
     difficulty,
     internationalMarkets: JSON.stringify(internationalMarkets),
     outfits: JSON.stringify(outfits),
+    pushedMembers: JSON.stringify(pushedMembers),
     tours: JSON.stringify(tours),
     activeTour: JSON.stringify(activeTour),
     musicVideos: JSON.stringify(musicVideos),
@@ -411,6 +413,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setOutfits(JSON.parse(data.outfits || "[]"));
       setTours(JSON.parse(data.tours || "[]"));
       setActiveTour(JSON.parse(data.activeTour || "null"));
+      setPushedMembers(JSON.parse(data.pushedMembers || "[]"));
       setMusicVideos(JSON.parse(data.musicVideos || "[]"));
       setVarietyShows(JSON.parse(data.varietyShows || "[]"));
       setPhotoBooks(JSON.parse(data.photoBooks || "[]"));
@@ -510,29 +513,25 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       }
     };
     
-    const getMainGroupRoster = () => {
-      // 1. Start with main group members, adding a flag for the UI.
-      const mainRoster = members.map(m => ({
-        ...m,
-        isSisterMember: false 
-      }));
+const getMainGroupRoster = () => {
+  const mainRoster = members.map(m => ({
+    ...m,
+    isSisterMember: false 
+  }));
 
-      // 2. Add all members from all sister groups, creating a unique UI ID and preserving the original.
-      const sisterRoster = sisterGroups.flatMap(sg => 
-        (sg.members || []).map(m => ({
-          ...m,
-          // IMPORTANT: We use a new 'rosterId' for the UI key to guarantee it's unique,
-          // while preserving the original 'id' for logic functions.
-          rosterId: `sg-${sg.id}-${m.id}`,
-          isSisterMember: true,
-          displayGroupName: sg.name, // Add the group name for display
-        }))
-      );
-      
-      const combined = [...mainRoster, ...sisterRoster];
-      // Sort the final combined list by fan count.
-      return combined.sort((a,b) => (b.fans || 0) - (a.fans || 0));
-    };
+  const sisterRoster = sisterGroups.flatMap(sg => 
+    (sg.members || []).map(m => ({
+      ...m,
+      // IMPORTANT FIX: We are now replacing the ID to be consistent everywhere.
+      id: `sg-${sg.id}-${m.id}`, 
+      isSisterMember: true,
+      displayGroupName: sg.name,
+    }))
+  );
+  
+  const combined = [...mainRoster, ...sisterRoster];
+  return combined.sort((a,b) => (b.fans || 0) - (a.fans || 0));
+};
 
     const getAllAvailableMembers = (includeSisterGroups = false) => {
       let all = [...members];
@@ -642,6 +641,49 @@ const getMemberGroupStatus = (member) => {
 
     const getMemberRank = (member) => [...(members || [])].sort((a, b) => (b.fans || 0) - (a.fans || 0)).findIndex(m => m.id === member.id) + 1;
 
+const distributeFans = (amount, memberIds) => {
+  if (!memberIds || memberIds.length === 0) return;
+
+  const pushedMemberIds = memberIds.filter(id => pushedMembers.map(String).includes(String(id)));
+  const regularMemberIds = memberIds.filter(id => !pushedMembers.map(String).includes(String(id)));
+
+  const pushedFanPool = Math.floor(amount * 0.5);
+  const regularFanPool = amount - pushedFanPool;
+
+  const distribute = (pool, ids) => {
+    if (ids.length === 0 || pool === 0) return;
+    
+    const weights = ids.map(() => Math.random());
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+    let totalGained = 0;
+    ids.forEach((memberId, index) => {
+      const fanGain = totalWeight > 0 ? Math.floor((weights[index] / totalWeight) * pool) : Math.floor(pool / ids.length);
+      totalGained += fanGain;
+      updateMemberState(memberId, m => ({
+        ...m,
+        fans: (m.fans || 0) + fanGain
+      }));
+    });
+
+    const remainder = pool - totalGained;
+    if (remainder > 0 && ids.length > 0) {
+        updateMemberState(ids[0], m => ({ ...m, fans: (m.fans || 0) + remainder }));
+    }
+  };
+
+  distribute(pushedFanPool, pushedMemberIds);
+  distribute(regularFanPool, regularMemberIds);
+  
+  let notificationMessage = `Gained ${amount.toLocaleString()} fans!`;
+  if (pushedMemberIds.length > 0) {
+      notificationMessage += ` Pushed members received a major boost.`
+  }
+
+  addNotification({ type: 'Fans', message: notificationMessage });
+};
+
+
     // --- CORE GAME LOGIC ---
 
     const addNotification = ({ type, message }) => {
@@ -659,6 +701,17 @@ const getMemberGroupStatus = (member) => {
     const handleSetTrainingFocus = (memberId, focus) => {
       updateMemberState(memberId, m => ({ ...m, trainingFocus: focus }));
     };
+
+   const handleTogglePushMember = (memberId) => {
+  setPushedMembers(prev => {
+    const memberIdStr = String(memberId);
+    if (prev.map(String).includes(memberIdStr)) {
+      return prev.filter(id => String(id) !== memberIdStr);
+    } else {
+      return [...prev, memberId];
+    }
+  });
+};
 
     const assignRandomTraining = () => {
       const skills = ['singing', 'dancing', 'variety'];
@@ -799,91 +852,177 @@ const getMemberGroupStatus = (member) => {
 
     const createTeam = () => {
       if (!buildings.theater) return setMessage("Build the theater first to create teams!");
+      // Set modalData to null to ensure the 'Create Team' modal is always empty
+      setModalData(null); 
       setShowModal('createTeam');
     };
-    
-        const confirmCreateTeam = (teamData) => {
-            const newId = Math.max(...(teams || []).map(t => t.id), 0) + 1;
-            const memberIds = teamData.members.map(String);
-            const newTeam = {
-                id: newId,
-                name: teamData.name,
-                members: memberIds,
-                currentSetlistId: teamData.setlistId,
-            };
 
-            // Add "Promoted" event to the history of the selected members
-            setMembers(prevMembers => prevMembers.map(m => {
-                if (memberIds.includes(String(m.id))) {
-                    const event = { week: week, event: `Promoted to Team ${newTeam.name}` };
-                    // Also update the member's teamId
-                    return { ...m, teamId: newTeam.id, teamHistory: [...(m.teamHistory || []), event] };
-                }
-                return m;
-            }));
-
-            setTeams(prev => [...prev, newTeam]);
-            setMessage(`Team "${teamData.name}" created with ${teamData.members.length} members!`);
-            setShowModal(null);
-        };
-    const editTeam = (team) => {
-      setModalData(team);
-      setShowModal('editTeam');
+    const editTeam = (teamId) => {
+      const teamToEdit = teams.find(t => t.id === teamId);
+      if (teamToEdit) {
+        // Pre-fill the modal with the existing team's data for editing
+        setModalData(teamToEdit);
+        setShowModal('editTeam');
+      }
     };
-        const confirmEditTeam = (teamData) => {
-            const newTeamName = teamData.name;
-            const newMemberIds = teamData.members.map(String);
+
+const saveTeam = (teamId, teamName, selectedMembers, setlistId) => {
+    if (!teamName || teamName.trim() === '') return setMessage("Team name cannot be empty.");
+
+    const newTeamId = teamId || Date.now();
+    const oldTeam = teamId ? teams.find(t => t.id === teamId) : null;
+    const fullRoster = getMainGroupRoster();
+
+    // --- HISTORY TRACKING ---
+    let newHistory;
+    if (oldTeam) {
+        newHistory = [...(oldTeam.history || [])];
+    } else {
+        // Find the setlist name to create a detailed formation event.
+        const initialSetlistName = allSetlists.find(s => s.id === setlistId)?.name || 'None';
+        const formationEvent = `Team "${teamName}" was formed, starting with setlist: ${initialSetlistName}`;
+        newHistory = [{ week: week + 1, event: formationEvent }];
+    }
+
+    // 1. Log setlist changes for existing teams
+    if (oldTeam && oldTeam.currentSetlistId !== setlistId) {
+        const oldSetlist = allSetlists.find(s => s.id === oldTeam.currentSetlistId)?.name || 'None';
+        const newSetlist = allSetlists.find(s => s.id === setlistId)?.name || 'None';
+        newHistory.push({ week: week + 1, event: `Setlist changed from ${oldSetlist} to ${newSetlist}` });
+    }
+
+    // 2. Log member changes
+    const newMemberIds = selectedMembers.map(sm => sm.id);
+    const oldMemberIds = oldTeam ? oldTeam.members : [];
+    const addedIds = newMemberIds.filter(id => !oldMemberIds.includes(id));
+    const removedIds = oldMemberIds.filter(id => !newMemberIds.includes(id));
+
+    addedIds.forEach(id => {
+        const member = fullRoster.find(m => m.id === id);
+        if (member) newHistory.push({ week: week + 1, event: `Member Joined: ${member.name}` });
+    });
+    removedIds.forEach(id => {
+        const member = fullRoster.find(m => m.id === id);
+        if (member) newHistory.push({ week: week + 1, event: `Member Left: ${member.name}` });
+    });
+    // --- END HISTORY TRACKING ---
+
+    const teamData = { id: newTeamId, name: teamName, members: newMemberIds, currentSetlistId: setlistId, history: newHistory };
+
+    if (teamId && oldTeam) {
+        removedIds.forEach(memberId => {
+            updateMemberState(memberId, m => {
+                const event = { week: week + 1, event: `Removed from Team ${oldTeam.name}` };
+                let newConcurrent = [...(m.concurrentTeams || [])];
+                let newTeamId_ = m.teamId;
+                let newTeamName_ = m.teamName;
+
+                if (m.teamId === oldTeam.id) {
+                    if (newConcurrent.length > 0) {
+                        const promoted = newConcurrent.shift();
+                        newTeamId_ = promoted.id;
+                        newTeamName_ = promoted.name;
+                    } else {
+                        newTeamId_ = null;
+                        newTeamName_ = null;
+                    }
+                } else {
+                    newConcurrent = newConcurrent.filter(ct => ct.id !== oldTeam.id);
+                }
+                return { ...m, teamId: newTeamId_, teamName: newTeamName_, concurrentTeams: newConcurrent, teamHistory: [...(m.teamHistory || []), event] };
+            });
+        });
+    }
+
+    selectedMembers.forEach(selection => {
+        const { id: memberId, type } = selection;
+        if (type === 'existing') return;
+
+        updateMemberState(memberId, currentMember => {
+            let historyEvent = '';
+            let newTeamId_ = currentMember.teamId;
+            let newTeamName_ = currentMember.teamName;
+            let newConcurrent = [...(currentMember.concurrentTeams || [])];
+
+            switch (type) {
+                case 'shuffle':
+                    historyEvent = `Shuffled from Team ${currentMember.teamName} to Team ${teamData.name}`;
+                    newTeamId_ = teamData.id;
+                    newTeamName_ = teamData.name;
+                    break;
+                case 'concurrent':
+                    historyEvent = `Added concurrent position in Team ${teamData.name}`;
+                    if (currentMember.teamId) {
+                        if (!newConcurrent.some(t => t.id === teamData.id) && currentMember.teamId !== teamData.id) {
+                            newConcurrent.push({ id: teamData.id, name: teamData.name });
+                        }
+                    } else {
+                        newTeamId_ = teamData.id;
+                        newTeamName_ = teamData.name;
+                    }
+                    break;
+                case 'add':
+                    historyEvent = `Promoted to Team ${teamData.name}`;
+                    newTeamId_ = teamData.id;
+                    newTeamName_ = teamData.name;
+                    break;
+            }
+            if (!historyEvent) return currentMember;
+            const newHistoryEntry = { event: historyEvent, week: week + 1 };
+            return { ...currentMember, teamId: newTeamId_, teamName: newTeamName_, concurrentTeams: newConcurrent, teamHistory: [...(currentMember.teamHistory || []), newHistoryEntry] };
+        });
+    });
+
+    setTeams(prev => {
+        const teamExists = prev.some(t => t.id === newTeamId);
+        if (teamExists) return prev.map(t => t.id === newTeamId ? teamData : t);
+        return [...prev, teamData];
+    });
+
+    setShowModal(null);
+    addNotification({ type: "Management", message: `Team "${teamName}" saved successfully.` });
+};
+
+const deleteTeam = (teamId) => {
+    const teamToDisband = teams.find(t => t.id === teamId);
+    if (!teamToDisband) return;
+
+    // When a team is deleted, we must update all its members
+    teamToDisband.members.forEach(memberId => {
+        updateMemberState(memberId, m => {
+            const event = { week: week + 1, event: `Team ${teamToDisband.name} was disbanded` };
+            let newConcurrent = (m.concurrentTeams || []).filter(ct => ct.id !== teamId);
+            let newTeamId = m.teamId;
+            let newTeamName = m.teamName;
+
+            if (m.teamId === teamId) { // If the disbanded team was primary
+                if (newConcurrent.length > 0) { // Promote the first concurrent team
+                    const promoted = newConcurrent.shift();
+                    newTeamId = promoted.id;
+                    newTeamName = promoted.name;
+                } else { // Member becomes a trainee
+                    newTeamId = null;
+                    newTeamName = null;
+                }
+            }
             
-            const oldTeam = teams.find(t => t.id === teamData.id);
-            if (!oldTeam) return;
+            return { ...m, teamId: newTeamId, teamName: newTeamName, concurrentTeams: newConcurrent, teamHistory: [...(m.teamHistory || []), event] };
+        });
+    });
 
-            const oldMemberIds = oldTeam.members.map(String);
-
-            // Update members state with history for promotions and shuffles
-            setMembers(prevMembers => prevMembers.map(m => {
-                const memberIdStr = String(m.id);
-                const wasInTeam = oldMemberIds.includes(memberIdStr);
-                const isNowInTeam = newMemberIds.includes(memberIdStr);
-
-                if (isNowInTeam && !wasInTeam) { // Member was ADDED to this team
-                    const oldTeamForEvent = teams.find(t => t.id === m.teamId);
-                    const eventText = oldTeamForEvent 
-                        ? `Shuffled from Team ${oldTeamForEvent.name} to Team ${newTeamName}`
-                        : `Promoted to Team ${newTeamName}`;
-                    const event = { week: week, event: eventText };
-                    return { ...m, teamId: teamData.id, teamHistory: [...(m.teamHistory || []), event] };
-                }
-                
-                if (!isNowInTeam && wasInTeam) { // Member was REMOVED from this team
-                    const event = { week: week, event: `Removed from Team ${oldTeam.name} (becomes trainee)` };
-                    return { ...m, teamId: null, teamHistory: [...(m.teamHistory || []), event] };
-                }
-                
-                return m;
-            }));
-
-            // Now, update the teams state itself
-            setTeams(prevTeams => prevTeams.map(t => 
-                t.id === teamData.id 
-                ? { ...t, name: newTeamName, members: newMemberIds, currentSetlistId: teamData.setlistId } 
-                : t
-            ));
-
-            const notifMessage = `Team "${newTeamName}" has been updated.`;
-            setMessage(notifMessage);
-            addNotification({type: "Management", message: notifMessage});
-            setShowModal(null);
-        };
-
-
-    const deleteTeam = (teamId) => {
-      const team = (teams || []).find(t => t.id === teamId);
-      if (!team) return;
-      setTeams(prev => prev.filter(t => t.id !== teamId));
-      if (selectedTheaterTeam === teamId) setSelectedTheaterTeam(null);
-      setMessage(`Team ${team.name} disbanded!`);
-    };
+    setTeams(prev => prev.filter(t => t.id !== teamId));
+    if (selectedTheaterTeam === teamId) setSelectedTheaterTeam(null);
     
+    setShowModal(null);
+    addNotification({ type: "Management", message: `Team "${teamToDisband.name}" has been disbanded.` });
+};
+ 
+    const showTeamDetails = (team) => {
+        setModalData(team);
+        setShowModal('teamDetails');
+    };
+
+
     const startTheaterShowPrep = () => {
       if (!buildings.theater) return setMessage("Build the theater first to create teams!");
       
@@ -994,18 +1133,21 @@ const getMemberGroupStatus = (member) => {
       }));
 
       const totalRevenue = ticketRevenue + merchRevenue;
-      setMembers(prev => prev.map(m => {
-        if (performingMembers.find(pm => String(pm.id) === String(m.id))) {
-          return {
-            ...m,
-            stamina: Math.max(0, (m.stamina || 100) - 20),
-            stress: Math.min(100, (m.stress || 0) + 10),
-            fans: (m.fans || 0) + Math.floor(newFans / performingMembers.length)
-          };
-        }
-        return m;
-      }));
-      setTotalFans(prev => (prev || 0) + newFans);
+
+      const performingMemberIds = performingMembers.map(m => m.id);
+
+      // Use our new function to handle fan distribution
+      distributeFans(newFans, performingMemberIds);
+
+      // Now, handle the stamina and stress updates separately for all performers
+      performingMembers.forEach(member => {
+        updateMemberState(member.id, m => ({
+          ...m,
+          stamina: Math.max(0, (m.stamina || 100) - 20),
+          stress: Math.min(100, (m.stress || 0) + 10),
+        }));
+      });
+
       setMoney(prev => (prev || 0) + totalRevenue);
       setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
       
@@ -1131,106 +1273,151 @@ const getMemberGroupStatus = (member) => {
         setMessage(`Production for "${songData.songName}" scheduled for Week ${releaseWeek}! Cost: ¥${totalCost.toLocaleString()}`);
     };
 
-    const executeSongRelease = (singleToRelease) => {
-      const { songData, productionData } = singleToRelease;
+const executeSongRelease = (singleToRelease) => {
+  const { songData, productionData } = singleToRelease;
+  
+  const titleTrack = songData.tracks[0];
+  const senbatsuMemberIds = titleTrack.members.map(String);
+  const isSisterSong = songData.targetGroupId !== 'main';
+  const targetGroupName = songData.targetGroupId;
+
+  // Apply Production Bonuses to a temporary copy of members to calculate sales correctly
+  let updatedMembers = [...members];
+  let updatedSisterGroups = [...sisterGroups];
+
+  const applyBonuses = (member) => {
+    const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
+    const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
+    return {
+      ...member,
+      singing: Math.min(100, (member.singing || 0) + trainingBuff),
+      dancing: Math.min(100, (member.dancing || 0) + trainingBuff),
+      morale: Math.min(100, (member.morale || 0) + moraleBuff)
+    };
+  };
+
+  if (isSisterSong) {
+    updatedSisterGroups = sisterGroups.map(sg => {
+      if (sg.name === targetGroupName) {
+        return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
+      }
+      return sg;
+    });
+  } else {
+    updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
+  }
+  
+  const allMembersAfterBonuses = [
+    ...updatedMembers,
+    ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
+  ];
+  
+  const avgSkill = senbatsuMemberIds.reduce((sum, memberId) => {
+      const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
+      return sum + (member ? ((member.singing || 0) + (member.dancing || 0)) / 2 : 0);
+  }, 0) / (senbatsuMemberIds.length || 1);
+  
+  const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
+  const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
+  const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
+
+  const sales = Math.floor(avgSkill * 1000 * (salesMultipliers[productionData.song] || 1));
+  const newFansTotal = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
+  const revenue = sales * 15;
+
+  // --- NEW FAN DISTRIBUTION LOGIC ---
+  const fanGains = {};
+  const rowWeights = { '1st Row': 5, '2nd Row': 4, '3rd Row': 3, '4th Row': 2, '5th Row': 1 };
+  
+  const memberWeights = senbatsuMemberIds.map(memberId => {
+      const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
+      if (!member) return { id: memberId, weight: 0 };
       
-      const senbatsuMemberIds = songData.tracks[0].members.map(String);
-      const isSisterSong = songData.targetGroupId !== 'main';
-      const targetGroupName = songData.targetGroupId;
+      const isPushed = pushedMembers.map(String).includes(memberId);
+      const isCenter = String(titleTrack.center) === memberId;
+      const row = titleTrack.lineup[memberId];
+      
+      let weight = rowWeights[row] || 1;
+      if (isCenter) weight = 7; // Center gets the highest weight
+      if (isPushed) weight *= 2; // Pushed members get a 2x multiplier
+      
+      return { id: memberId, weight };
+  });
 
-      // Apply Production Bonuses to a temporary copy of members to calculate sales correctly
-      let updatedMembers = [...members];
-      let updatedSisterGroups = [...sisterGroups];
+  const totalWeight = memberWeights.reduce((sum, member) => sum + member.weight, 0);
 
-      const applyBonuses = (member) => {
-        const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
-        const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
-        return {
-          ...member,
-          singing: (member.singing || 0) + trainingBuff,
-          dancing: (member.dancing || 0) + trainingBuff,
-          morale: Math.min(100, (member.morale || 0) + moraleBuff)
-        };
+  let distributedFans = 0;
+  if (totalWeight > 0) {
+    memberWeights.forEach(({ id, weight }) => {
+        const gain = Math.floor((weight / totalWeight) * newFansTotal);
+        fanGains[id] = gain;
+        distributedFans += gain;
+    });
+  }
+
+  // Distribute remainder to the center
+  const remainder = newFansTotal - distributedFans;
+  if (remainder > 0 && titleTrack.center) {
+      fanGains[String(titleTrack.center)] = (fanGains[String(titleTrack.center)] || 0) + remainder;
+  }
+  // --- END NEW FAN DISTRIBUTION LOGIC ---
+
+  const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
+  
+  const updateMemberHistoryAndFans = (m, sg = null) => {
+      const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
+      const fanGainForMember = fanGains[memberId] || 0;
+
+      const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
+      if (participatedTracks.length === 0) {
+          return m; // No changes if not in any track
+      }
+
+      let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: sg ? sg.name : groupName }));
+      const isTitleCenter = String(songData.tracks[0].center) === memberId;
+      const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
+      
+      return { 
+          ...m, 
+          fans: (m.fans || 0) + fanGainForMember, // FANS ARE ADDED HERE
+          singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: sg ? sg.name : groupName }] : [])], 
+          songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: sg ? sg.name : groupName, row: t.lineup[memberId] }))], 
+          centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
       };
+  };
 
-      if (isSisterSong) {
-        updatedSisterGroups = sisterGroups.map(sg => {
+  if (isSisterSong) {
+      setSisterGroups(prev => prev.map(sg => {
+          let membersToUpdate = sg.members || [];
+          // Apply bonuses first
           if (sg.name === targetGroupName) {
-            return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
+              membersToUpdate = updatedSisterGroups.find(usg => usg.id === sg.id)?.members || membersToUpdate;
+          }
+          // Then apply history and fan gains
+          const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
+          const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs;
+
+          return { ...sg, songs: sgSongs, members: finalMembers };
+      }));
+  } else {
+      setSongs(prev => [...(prev || []), newSong]);
+      setMembers(prev => updatedMembers.map(m => updateMemberHistoryAndFans(m)));
+      setSisterGroups(prev => prev.map(sg => {
+          if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
+              return { ...sg, members: sg.members.map(m => updateMemberHistoryAndFans(m, sg)) };
           }
           return sg;
-        });
-      } else {
-        updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
-      }
-      
-      const allMembersAfterBonuses = [
-        ...updatedMembers,
-        ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
-      ];
-      
-      const avgSkill = senbatsuMemberIds.reduce((sum, memberId) => {
-          const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
-          return sum + (member ? ((member.singing || 0) + (member.dancing || 0)) / 2 : 0);
-      }, 0) / (senbatsuMemberIds.length || 1);
-      
-      const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
-      const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
-      const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
+      }));
+  }
 
-      const sales = Math.floor(avgSkill * 1000 * (salesMultipliers[productionData.song] || 1));
-      const newFans = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
-      const revenue = sales * 15;
-
-      const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
-      
-      const updateMemberHistory = (m, sg = null) => {
-          const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
-          if (!songData.tracks.some(track => track.members.includes(memberId))) return m;
-          const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
-          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: sg ? sg.name : groupName }));
-          const isTitleCenter = String(songData.tracks[0].center) === memberId;
-          const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
-          
-          return { 
-              ...m, 
-              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: sg ? sg.name : groupName }] : [])], 
-              songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: sg ? sg.name : groupName, row: t.lineup[memberId] }))], 
-              centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
-          };
-      };
-
-      if (isSisterSong) {
-          setSisterGroups(prev => prev.map(sg => {
-              if (sg.name === targetGroupName) {
-                  return { ...sg, songs: [...(sg.songs || []), newSong], fans: (sg.fans || 0) + newFans, members: updatedSisterGroups.find(usg => usg.id === sg.id).members.map(m => updateMemberHistory(m, sg)) };
-              }
-              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
-                  return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
-              }
-              return sg;
-          }));
-      } else {
-          setSongs(prev => [...(prev || []), newSong]);
-          setTotalFans(prev => (prev || 0) + newFans);
-          setMembers(prev => updatedMembers.map(m => updateMemberHistory(m)));
-          setSisterGroups(prev => prev.map(sg => {
-              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
-                  return { ...sg, members: sg.members.map(m => updateMemberHistory(m, sg)) };
-              }
-              return sg;
-          }));
-      }
-
-      setMoney(prev => prev + revenue);
-      
-      const releaseMessage = `RELEASED: "${songData.songName}"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFans.toLocaleString()}`;
-      
-      addNotification({ type: 'success', message: releaseMessage });
-      
-      // Return the message string
-      return releaseMessage;
-    };
+  setMoney(prev => prev + revenue);
+  
+  const releaseMessage = `RELEASED: \"${songData.songName}\"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFansTotal.toLocaleString()}`;
+  
+  addNotification({ type: 'success', message: releaseMessage });
+  
+  return releaseMessage;
+};
     
     // --- Performance Management Logic ---
 
@@ -1258,27 +1445,24 @@ const getMemberGroupStatus = (member) => {
         const profit = ticketRevenue - baseCost;
 
         setMoney(prev => prev + profit);
-        setTotalFans(prev => (prev || 0) + fanGain);
-        setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + ticketRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
+               setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + ticketRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
         const performingMemberIds = performingMembers.map(m => m.id);
-        const applyMemberUpdate = (m) => {
-            if (performingMemberIds.some(id => String(id) === String(m.id))) {
-                return {
-                    ...m,
-                    stamina: Math.max(0, (m.stamina || 100) - staminaDrain),
-                    stress: Math.min(100, (m.stress || 0) + 40),
-                    morale: Math.min(100, m.morale + 10), 
-                    singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
-                    dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
-                    fans: m.fans + Math.floor(fanGain / performingMembers.length)
-                };
-            }
-            return m;
-        };
-        
-        setMembers(prev => prev.map(applyMemberUpdate));
-        setSisterGroups(prev => prev.map(sg => ({ ...sg, members: sg.members.map(m => applyMemberUpdate(m)) })));
+
+        // Use our new fan distribution function
+        distributeFans(fanGain, performingMemberIds);
+
+        // Update other stats for each performer
+        performingMemberIds.forEach(memberId => {
+            updateMemberState(memberId, m => ({
+                ...m,
+                stamina: Math.max(0, (m.stamina || 100) - staminaDrain),
+                stress: Math.min(100, (m.stress || 0) + 40),
+                morale: Math.min(100, m.morale + 10),
+                singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
+                dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
+            }));
+        });
 
         const newEntry = {
             id: Date.now(),
@@ -1335,26 +1519,24 @@ const getMemberGroupStatus = (member) => {
         const profit = totalRevenue - cost;
 
         setMoney(prev => prev + profit);
-        setTotalFans(prev => (prev || 0) + fanGain);
         setStatistics(prev => ({ ...prev, totalRevenue: (prev.totalRevenue || 0) + totalRevenue, totalConcerts: (prev.totalConcerts || 0) + 1 }));
 
         const performingMemberIds = performingMembers.map(m => m.id);
-        const applyMemberUpdate = (m) => {
-            if (performingMemberIds.some(id => String(id) === String(m.id))) {
-                    return {
-                        ...m,
-                        stamina: Math.max(0, (m.stamina || 100) - typeData.staminaDrain),
-                        stress: Math.min(100, (m.stress || 0) + (typeData.stressGain || 0)),
-                        morale: Math.min(100, m.morale + (typeData.category === 'Charity Stage' ? 15 : 5)), 
-                        singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
-                        dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
-                        fans: m.fans + Math.floor(fanGain / performingMembers.length)
-                    };
-            }
-            return m;
-        };
-        setMembers(prev => prev.map(applyMemberUpdate));
-        setSisterGroups(prev => prev.map(sg => ({ ...sg, members: sg.members.map(m => applyMemberUpdate(m)) })));
+        
+        // Use our new function for fan distribution
+        distributeFans(fanGain, performingMemberIds);
+
+        // Update other stats for each performer
+        performingMembers.forEach(member => {
+            updateMemberState(member.id, m => ({
+                ...m,
+                stamina: Math.max(0, (m.stamina || 100) - typeData.staminaDrain),
+                stress: Math.min(100, (m.stress || 0) + (typeData.stressGain || 0)),
+                morale: Math.min(100, m.morale + (typeData.category === 'Charity Stage' ? 15 : 5)),
+                singing: Math.min(100, m.singing + Math.floor(skillImprovement * 0.5)),
+                dancing: Math.min(100, m.dancing + Math.floor(skillImprovement * 0.5)),
+            }));
+        });
 
         const newEntry = {
             id: Date.now(),
@@ -1538,18 +1720,28 @@ const getMemberGroupStatus = (member) => {
       const cost = 50000;
       if (money < cost) return setMessage(`Handshake events cost ¥${cost.toLocaleString()}!`);
       
+      const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
+      if (availableMembers.length === 0) {
+          return setMessage("No members available for a handshake event.");
+      }
+
       setMoney(prev => prev - cost);
-      const fanGain = Math.floor((totalFans || 0) * 0.1); 
-      setTotalFans(prev => (prev || 0) + fanGain);
+      const fanGain = Math.floor((totalFans || 0) * 0.1);
+      const fanGainPerMember = availableMembers.length > 0 ? Math.floor(fanGain / availableMembers.length) : 0;
+
+      // This will now update ALL available members, including from sister groups
+      availableMembers.forEach(member => {
+        updateMemberState(member.id, m => ({
+            ...m,
+            fans: (m.fans || 0) + fanGainPerMember,
+            stamina: Math.max(0, (m.stamina || 100) - 50),
+            stress: Math.min(100, (m.stress || 0) + 25),
+            morale: Math.min(100, (m.morale || 0) + 5)
+        }));
+      });
       
-      setMembers(prev => (prev || []).map(m => m.isAvailable ? {
-          ...m,
-          stamina: Math.max(0, (m.stamina || 100) - 50),
-          stress: Math.min(100, (m.stress || 0) + 25),
-          morale: Math.min(100, (m.morale || 0) + 5)
-      } : m));
-      
-      setMessage(`Handshake event success! +${fanGain} fans, but members are exhausted.`);
+      // We no longer need the incorrect setTotalFans() call.
+      setMessage(`Handshake event success! +${fanGain.toLocaleString()} fans, but members are exhausted.`);
     };
     
     const startTrainingCamp = (memberId, skill) => {
@@ -1663,7 +1855,8 @@ const getMemberGroupStatus = (member) => {
 
       if (Math.random() < baseSuccess) {
           const fanGain = Math.floor((totalFans || 0) * 0.05 * fanBoostMultiplier);
-          setTotalFans(prev => (prev || 0) + fanGain);
+          const availableMemberIds = members.filter(m => m.isAvailable).map(m => m.id);
+          distributeFans(fanGain, availableMemberIds);
           setMessage(`${successMessage} +${fanGain.toLocaleString()} new fans!`);
       } else {
           const fanLoss = Math.floor((totalFans || 0) * 0.01);
@@ -2178,13 +2371,13 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
 
     return {
         // State
-        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
+        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
         // Firebase/Persistence
         db, auth, userId, isAuthReady, saveGame, loadGame,
         // Utilities
         startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
     };
 };
 
@@ -2192,13 +2385,13 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
 const App = () => {
     // Destructure everything from the custom hook
     const {
-        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, merchPrices, merchProdCost, activeTour, venues, performanceHistory, performanceTypes,
+        gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, merchPrices, merchProdCost, activeTour, venues, performanceHistory, performanceTypes,
         // Firebase/Persistence
         db, userId, isAuthReady, saveGame, loadGame,
         // Utilities
         startGame, getAllAvailableMembers, getMemberById, getFormattedDateForWeek, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
         // Logic
-        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, deleteTeam, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, confirmCreateTeam, confirmEditTeam, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+        trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, startLargeConcertPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdLargeConcert, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, auditionCandidates, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
     } = useIdolManager();
 
     // Local state for start screen inputs (not part of the main game state in the hook)
@@ -2656,101 +2849,121 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
       );
     };
 
-    const CreateSongModal = () => {
-        // --- Basic Song State ---
-        const { targetGroupId } = modalData;
-        const allGroups = [{ id: 'main', name: groupName, isSister: false }, ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name, isSister: true }))];
-        const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
-        const [songName, setSongName] = useState('');
-        const [tracks, setTracks] = useState([
-            { name: 'Title Track', type: 'title', members: [], center: null, lineup: {} },
-            { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }
-        ]);
-        const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
+const CreateSongModal = () => {
+    // --- Basic Song State ---
+    const { targetGroupId } = modalData;
+    const allGroups = [{ id: 'main', name: groupName, isSister: false }, ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name, isSister: true }))];
+    const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
+    const [songName, setSongName] = useState('');
+    const [tracks, setTracks] = useState([
+        { name: 'Title Track', type: 'title', members: [], center: null, lineup: {} },
+        { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }
+    ]);
+    const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
 
-        // --- New Step, Production, and Scheduling State ---
-        const [step, setStep] = useState('selection'); // 'selection' or 'production'
-        const [releaseWeek, setReleaseWeek] = useState(week + 4); // New state for release week
+    // --- UI/Filter State ---
+    const [filterKey, setFilterKey] = useState('All');
 
-        const productionTiers = {
-          training: {
-            standard: { name: 'Standard Practice', cost: 0, effect: 'Base skill gain from facilities.' },
-            workshop: { name: 'Specialized Workshop', cost: 50000, effect: '+5 Sing/Dance for Senbatsu.' },
-            overseas: { name: 'Intensive Camp', cost: 250000, effect: '+15 Sing/Dance for Senbatsu.' },
-            bootcamp: { name: 'Idol Bootcamp', cost: 400000, effect: '+20 Sing/Dance for Senbatsu, slight morale strain.' },
-            elite: { name: 'Elite Trainer Program', cost: 650000, effect: '+25 Sing/Dance & improved consistency.' },
-            oneOnOne: { name: '1-on-1 Master Coaching', cost: 900000, effect: '+30 Sing/Dance for selected members, very high efficiency.' }
-          },
-          song: {
-            inHouse: { name: 'In-house Team', cost: 0, effect: 'Standard song quality.' },
-            rookie: { name: 'Rookie Producer', cost: 50000, effect: '+5% Sales Potential.' },
-            external: { name: 'External Songwriter', cost: 100000, effect: '+10% Sales Potential.' },
-            trend: { name: 'Trend-focused Producer', cost: 180000, effect: '+15% Sales Potential, short-term hype boost.' },
-            famous: { name: 'Famous Producer', cost: 400000, effect: '+25% Sales & +10% Hype.' },
-            hitmaker: { name: 'Top-tier Hitmaker', cost: 750000, effect: '+40% Sales, strong chart performance.' }
-          },
-          mv: {
-            none: { name: 'No Music Video', cost: 0, effect: 'Minimal promotion.' },
-            practice: { name: 'Practice Room MV', cost: 20000, effect: '+5% Fan Gain.' },
-            performance: { name: 'Performance MV', cost: 60000, effect: '+8% Fan Gain & Performance Appeal.' },
-            location: { name: 'On-Location MV', cost: 150000, effect: '+15% Fan Gain & Hype.' },
-            storyline: { name: 'Storyline MV', cost: 300000, effect: '+20% Fan Gain, Emotional Impact.' },
-            cinematic: { name: 'Cinematic MV', cost: 600000, effect: '+30% Fan Gain, High Hype, Viral Chance.' },
-            blockbuster: { name: 'Blockbuster MV', cost: 1000000, effect: '+45% Fan Gain, Massive Hype, Guaranteed Media Buzz.' }
-          },
-          outfits: {
-            existing: { name: 'Use Existing Outfits', cost: 0, effect: 'No visual bonus.' },
-            recolor: { name: 'Reworked Outfits', cost: 40000, effect: 'Minor visual refresh.' },
-            custom: { name: 'New Custom Outfits', cost: 120000, effect: 'Boosts Morale & Visuals.' },
-            concept: { name: 'Concept-Specific Styling', cost: 200000, effect: '+10% Concept Immersion & Hype.' },
-            luxury: { name: 'Luxury Designer Outfits', cost: 450000, effect: 'Major visual boost, attracts brand deals.' }
-          },
-          promo: {
-            none: { name: 'Word of Mouth', cost: 0, effect: 'Base pre-release buzz.' },
-            social: { name: 'Social Media Ads', cost: 30000, effect: '+10% Pre-release Fans.' },
-            teaser: { name: 'Teaser Rollout', cost: 60000, effect: '+15% Pre-release Fans & Hype.' },
-            variety: { name: 'Variety Show Appearances', cost: 120000, effect: '+20% General Public Awareness.' },
-            blitz: { name: 'Full Media Blitz', cost: 200000, effect: '+25% Pre-release Fans & Chart Rank.' },
-            global: { name: 'Global Promotion Campaign', cost: 400000, effect: '+35% Pre-release Fans, Strong Overseas Charts.' }
-          }
-        };
+    // --- Production and Scheduling State ---
+    const [step, setStep] = useState('selection'); // 'selection' or 'production'
+    const [releaseWeek, setReleaseWeek] = useState(week + 4);
 
-        const [productionChoices, setProductionChoices] = useState({
-            training: 'standard', song: 'inHouse', mv: 'none', outfits: 'existing', promo: 'none'
-        });
+    const productionTiers = {
+      training: { standard: { name: 'Standard Practice', cost: 0, effect: 'Base skill gain from facilities.' }, workshop: { name: 'Specialized Workshop', cost: 50000, effect: '+5 Sing/Dance for Senbatsu.' }, overseas: { name: 'Intensive Camp', cost: 250000, effect: '+15 Sing/Dance for Senbatsu.' }, bootcamp: { name: 'Idol Bootcamp', cost: 400000, effect: '+20 Sing/Dance for Senbatsu, slight morale strain.' }, elite: { name: 'Elite Trainer Program', cost: 650000, effect: '+25 Sing/Dance & improved consistency.' }, oneOnOne: { name: '1-on-1 Master Coaching', cost: 900000, effect: '+30 Sing/Dance for selected members, very high efficiency.' } },
+      song: { inHouse: { name: 'In-house Team', cost: 0, effect: 'Standard song quality.' }, rookie: { name: 'Rookie Producer', cost: 50000, effect: '+5% Sales Potential.' }, external: { name: 'External Songwriter', cost: 100000, effect: '+10% Sales Potential.' }, trend: { name: 'Trend-focused Producer', cost: 180000, effect: '+15% Sales Potential, short-term hype boost.' }, famous: { name: 'Famous Producer', cost: 400000, effect: '+25% Sales & +10% Hype.' }, hitmaker: { name: 'Top-tier Hitmaker', cost: 750000, effect: '+40% Sales, strong chart performance.' } },
+      mv: { none: { name: 'No Music Video', cost: 0, effect: 'Minimal promotion.' }, practice: { name: 'Practice Room MV', cost: 20000, effect: '+5% Fan Gain.' }, performance: { name: 'Performance MV', cost: 60000, effect: '+8% Fan Gain & Performance Appeal.' }, location: { name: 'On-Location MV', cost: 150000, effect: '+15% Fan Gain & Hype.' }, storyline: { name: 'Storyline MV', cost: 300000, effect: '+20% Fan Gain, Emotional Impact.' }, cinematic: { name: 'Cinematic MV', cost: 600000, effect: '+30% Fan Gain, High Hype, Viral Chance.' }, blockbuster: { name: 'Blockbuster MV', cost: 1000000, effect: '+45% Fan Gain, Massive Hype, Guaranteed Media Buzz.' } },
+      outfits: { existing: { name: 'Use Existing Outfits', cost: 0, effect: 'No visual bonus.' }, recolor: { name: 'Reworked Outfits', cost: 40000, effect: 'Minor visual refresh.' }, custom: { name: 'New Custom Outfits', cost: 120000, effect: 'Boosts Morale & Visuals.' }, concept: { name: 'Concept-Specific Styling', cost: 200000, effect: '+10% Concept Immersion & Hype.' }, luxury: { name: 'Luxury Designer Outfits', cost: 450000, effect: 'Major visual boost, attracts brand deals.' } },
+      promo: { none: { name: 'Word of Mouth', cost: 0, effect: 'Base pre-release buzz.' }, social: { name: 'Social Media Ads', cost: 30000, effect: '+10% Pre-release Fans.' }, teaser: { name: 'Teaser Rollout', cost: 60000, effect: '+15% Pre-release Fans & Hype.' }, variety: { name: 'Variety Show Appearances', cost: 120000, effect: '+20% General Public Awareness.' }, blitz: { name: 'Full Media Blitz', cost: 200000, effect: '+25% Pre-release Fans & Chart Rank.' }, global: { name: 'Global Promotion Campaign', cost: 400000, effect: '+35% Pre-release Fans, Strong Overseas Charts.' } }
+    };
 
-        const totalProductionCost = Object.keys(productionChoices).reduce((total, key) => total + productionTiers[key][productionChoices[key]].cost, 10000);
-        
-        const handleProductionChange = (category, value) => setProductionChoices(prev => ({ ...prev, [category]: value }));
-        const updateTrackName = (index, newName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, name: newName } : track));
-        const toggleMember = (memberId) => setTracks(prev => prev.map((track, index) => { if (index !== selectedTrackIndex) return track; const memberIdStr = String(memberId); const isMemberSelected = track.members.map(String).includes(memberIdStr); let newMembers; let newLineup = { ...track.lineup }; if (isMemberSelected) { newMembers = track.members.filter(id => String(id) !== memberIdStr); delete newLineup[memberIdStr]; } else { newMembers = [...track.members.map(String), memberIdStr]; newLineup[memberIdStr] = '5th Row'; } let newCenter = track.center; if (!newMembers.includes(String(track.center))) newCenter = null; return { ...track, members: newMembers, center: newCenter, lineup: newLineup }; }));
-        const setCenter = (memberId) => setTracks(prev => prev.map((track, index) => { if (index === selectedTrackIndex) { const memberIdStr = String(memberId); if (track.members.map(String).includes(memberIdStr)) return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr }; } return track; }));
-        const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {} }]); setSelectedTrackIndex(tracks.length); };
-        const selectAllMembersForTrack = () => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, members: selectableMembers.map(m => m.id), lineup: selectableMembers.reduce((acc, m) => ({...acc, [m.id]: '5th Row'}), {}) } : track));
-        const deselectAllMembersForTrack = () => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, members: [], center: null, lineup: {} } : track));
-        const handleLineupChange = (memberId, row) => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
+    const [productionChoices, setProductionChoices] = useState({
+        training: 'standard', song: 'inHouse', mv: 'none', outfits: 'existing', promo: 'none'
+    });
 
-        let selectableMembers = [];
-        if (targetGroup === 'main') {
-            const mainMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable);
-            const sgMembers = getAllAvailableMembers(true).filter(m => m.isSister && m.isAvailable);
-            selectableMembers = [...mainMembers, ...sgMembers];
-        } else {
-            const sg = sisterGroups.find(s => s.name === targetGroup);
-            if (sg) {
-                selectableMembers = (sg.members || []).map(m => ({ ...m, id: `sg-${sg.id}-${m.id}`, name: `${m.name} (${sg.name})`, homeGroup: sg.name, isSister: true, groupId: sg.id })).filter(m => m.isAvailable);
-                const mainGroupKennin = members.filter(m => (m.kenninGroups || []).includes(targetGroup) && m.isAvailable).map(m => ({ ...m, isKennin: true }));
-                selectableMembers = [...selectableMembers, ...mainGroupKennin];
-            }
+    const totalProductionCost = Object.keys(productionChoices).reduce((total, key) => total + productionTiers[key][productionChoices[key]].cost, 10000);
+    
+    // --- Functions ---
+    const handleProductionChange = (category, value) => setProductionChoices(prev => ({ ...prev, [category]: value }));
+    const updateTrackName = (index, newName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, name: newName } : track));
+    const toggleMember = (memberId) => setTracks(prev => prev.map((track, index) => { if (index !== selectedTrackIndex) return track; const memberIdStr = String(memberId); const isMemberSelected = track.members.map(String).includes(memberIdStr); let newMembers; let newLineup = { ...track.lineup }; if (isMemberSelected) { newMembers = track.members.filter(id => String(id) !== memberIdStr); delete newLineup[memberIdStr]; } else { newMembers = [...track.members.map(String), memberIdStr]; newLineup[memberIdStr] = '5th Row'; } let newCenter = track.center; if (!newMembers.includes(String(track.center))) newCenter = null; return { ...track, members: newMembers, center: newCenter, lineup: newLineup }; }));
+    const setCenter = (memberId) => setTracks(prev => prev.map((track, index) => { if (index === selectedTrackIndex) { const memberIdStr = String(memberId); if (track.members.map(String).includes(memberIdStr)) return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr }; } return track; }));
+    const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {} }]); setSelectedTrackIndex(tracks.length); };
+    const handleLineupChange = (memberId, row) => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
+    
+    // --- Data Derivation and Filtering ---
+    let selectableMembers = [];
+    if (targetGroup === 'main') {
+        const mainMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable);
+        const sgMembers = getAllAvailableMembers(true).filter(m => m.isSister && m.isAvailable);
+        selectableMembers = [...mainMembers, ...sgMembers];
+    } else {
+        const sg = sisterGroups.find(s => s.name === targetGroup);
+        if (sg) {
+            selectableMembers = (sg.members || []).map(m => ({ ...m, id: `sg-${sg.id}-${m.id}`, name: `${m.name} (${sg.name})`, homeGroup: sg.name, isSister: true, groupId: sg.id })).filter(m => m.isAvailable);
+            const mainGroupKennin = members.filter(m => (m.kenninGroups || []).includes(targetGroup) && m.isAvailable).map(m => ({ ...m, isKennin: true }));
+            selectableMembers = [...selectableMembers, ...mainGroupKennin];
         }
-        const currentTrack = tracks[selectedTrackIndex];
-        const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
+    }
+    const currentTrack = tracks[selectedTrackIndex];
+    const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
 
-        const handleSchedule = () => {
-            if (money < totalProductionCost) return setMessage("Not enough money for this production!");
-            const songData = { songName: songName.trim(), tracks: tracks.map(t => ({ ...t, members: (t.members || []).map(String).filter(id => getMemberById(id)) })), targetGroupId: targetGroup };
-            scheduleNewSingle({ songData, productionData: productionChoices, releaseWeek });
-        };
+    // **BUG FIX**: Moved filtering logic here so the 'Toggle' button can use it.
+    const visibleRoster = selectableMembers.filter(member => {
+        if (filterKey === 'Unchosen') {
+            const isMemberInAnyTrack = tracks.some(track => track.members.map(String).includes(String(member.id)));
+            return !isMemberInAnyTrack;
+        }
+        if (filterKey === 'All') return true;
+
+        const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
+        const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
+        const memberTeamName = memberData?.teamName;
+
+        if (filterKey === 'main') return !member.isSister;
+        if (member.homeGroup === filterKey) return true;
+        if (memberTeamName && memberTeamName === filterKey) return true;
+        
+        return false;
+    });
+
+    // --- UPDATED Function ---
+    const handleToggleSelectAllFiltered = () => {
+        if (!currentTrack) return;
+        const visibleIds = visibleRoster.map(m => String(m.id));
+        const allCurrentlySelected = visibleIds.every(id => currentTrack.members.map(String).includes(id));
+        
+        setTracks(prev => prev.map((track, index) => {
+            if (index !== selectedTrackIndex) return track;
+            let newMembers;
+            let newLineup = { ...track.lineup };
+            if (allCurrentlySelected) {
+                newMembers = track.members.filter(id => !visibleIds.includes(String(id)));
+                visibleIds.forEach(id => delete newLineup[id]);
+            } else {
+                const newIdsToAdd = visibleIds.filter(id => !track.members.map(String).includes(id));
+                newMembers = [...track.members, ...newIdsToAdd];
+                newIdsToAdd.forEach(id => { if (!newLineup[id]) newLineup[id] = '5th Row'; });
+            }
+            let newCenter = track.center;
+            if (!newMembers.map(String).includes(String(track.center))) newCenter = null;
+            return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
+        }));
+    };
+
+    const getMemberWarningForSingle = (memberId) => {
+        const memberIdStr = String(memberId);
+        const otherTracks = tracks.filter((track, index) => index !== selectedTrackIndex && track.members.map(String).includes(memberIdStr));
+        if (otherTracks.length > 0) {
+            return `(In: ${otherTracks.map(t => t.name).join(', ')})`;
+        }
+        return null;
+    };
+    
+    const handleSchedule = () => {
+        if (money < totalProductionCost) return setMessage("Not enough money for this production!");
+        const songData = { songName: songName.trim(), tracks: tracks.map(t => ({ ...t, members: (t.members || []).map(String).filter(id => getMemberById(id)) })), targetGroupId: targetGroup };
+        scheduleNewSingle({ songData, productionData: productionChoices, releaseWeek });
+    };
         
         const PyramidVisualization = ({ lineup, members, center }) => {
             const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
@@ -2778,6 +2991,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
         const renderSelectionStep = () => (
             <>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* --- Left Column: Single/Track setup --- */}
                     <div className="lg:col-span-3 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-1 dark:text-gray-200">Target Group</h4>
@@ -2808,14 +3022,66 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                             </button>
                         </div>
                     </div>
+
+                    {/* --- Center Column: Selection & Lineup (UPDATED)--- */}
                     <div className="lg:col-span-5 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">1. Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
-                            <div className="flex gap-2 mb-2">
-                                <button onClick={selectAllMembersForTrack} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
-                                <button onClick={deselectAllMembersForTrack} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Deselect All</button>
+                            
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
+                                <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
+                                <button onClick={() => setFilterKey('main')} className={`px-3 py-1 text-xs rounded ${filterKey === 'main' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{groupName}</button>
+                                {sisterGroups.map(sg => (
+                                    <button key={sg.id} onClick={() => setFilterKey(sg.name)} className={`px-3 py-1 text-xs rounded ${filterKey === sg.name ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{sg.name}</button>
+                                ))}
+                                {(teams || []).map(team => (
+                                     <button key={team.id} onClick={() => setFilterKey(team.name)} className={`px-3 py-1 text-xs rounded ${filterKey === team.name ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{team.name}</button>
+                                ))}
                             </div>
-                            <MemberSelectionList members={selectableMembers} selectedIds={currentTrack?.members || []} toggleMember={toggleMember} teams={teams} sisterGroups={sisterGroups} groupName={groupName} />
+                            <button onClick={handleToggleSelectAllFiltered} className="w-full mb-2 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
+                            
+                            <div className="border rounded p-2 h-96 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-sm">
+                                {selectableMembers
+                                    .filter(member => {
+                                        // **BUG FIX STARTS HERE**
+                                        if (filterKey === 'Unchosen') {
+                                            // Check if the member is in ANY track of this single, not just the current one.
+                                            const isMemberInAnyTrack = tracks.some(track => track.members.map(String).includes(String(member.id)));
+                                            return !isMemberInAnyTrack;
+                                        }
+                                        // **BUG FIX ENDS HERE**
+
+                                        if (filterKey === 'All') return true;
+
+                                        const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
+                                        const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
+                                        const memberTeamName = memberData?.teamName;
+
+                                        if (filterKey === 'main') return !member.isSister;
+                                        if (member.homeGroup === filterKey) return true;
+                                        if (memberTeamName && memberTeamName === filterKey) return true;
+                                        
+                                        return false;
+                                    })
+                                    .map(member => {
+                                    const isSelected = currentTrack?.members.map(String).includes(String(member.id));
+                                    return (
+                                        <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium dark:text-gray-200">{member.name}</span>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Vo. {Math.round(member.singing)} Da. {Math.round(member.dancing)} Va. {Math.round(member.variety)} Fans: {Math.round(member.fans || 0).toLocaleString()}
+                                                    {getMemberWarningForSingle(member.id) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarningForSingle(member.id)}</span>}
+                                                </span>
+                                            </div>
+                                            <button onClick={() => toggleMember(member.id)} className={`px-2 py-1 text-xs rounded ${isSelected ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                                                {isSelected ? 'Remove' : 'Add'}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">2. Line-up & Center Assignment</h4>
@@ -2842,6 +3108,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                             </div>
                         </div>
                     </div>
+                    {/* --- Right Column: Visualizer --- */}
                     <div className="lg:col-span-4">
                          <h4 className="font-semibold mb-2 text-center lg:text-left dark:text-gray-200">3. Formation Visualizer</h4>
                          <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
@@ -2907,6 +3174,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
             </ModalWrapper>
         );
     };
+
     const PerformanceDetailsModal = () => {
       const performance = modalData;
       if (!performance) return null;
@@ -2992,15 +3260,15 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
       );
     };
 
-    const SingleDetailsModal = () => { 
+    const SingleDetailsModal = () => {
       const single = modalData;
       if (!single) return null;
-
+  
       const memberMap = getAllAvailableMembers(true).reduce((map, m) => {
           map[String(m.id)] = m;
           return map;
       }, {});
-
+  
       const productionTiers = {
           training: { standard: { name: 'Standard Practice', cost: 0 }, workshop: { name: 'Specialized Workshop', cost: 50000 }, overseas: { name: 'Intensive Camp', cost: 250000 } },
           song: { inHouse: { name: 'In-house Team', cost: 0 }, external: { name: 'External Songwriter', cost: 100000 }, famous: { name: 'Famous Producer', cost: 400000 } },
@@ -3008,25 +3276,25 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
           outfits: { existing: { name: 'Use Existing Outfits', cost: 0 }, custom: { name: 'New Custom Outfits', cost: 120000 } },
           promo: { none: { name: 'Word of Mouth', cost: 0 }, social: { name: 'Social Media Ads', cost: 30000 }, blitz: { name: 'Full Media Blitz', cost: 200000 } }
       };
-
+  
       const ProductionInfo = () => {
           if (!single.production) {
               return (
-                  <div className="p-3 border rounded-lg bg-gray-50 text-sm">
+                  <div className="p-3 border rounded-lg bg-gray-50 text-sm dark:text-gray-900">
                       <h4 className="font-semibold mb-2 flex items-center"><DollarSign size={16} className="mr-2"/> Production Details</h4>
-                      <p className="text-gray-500">No detailed production data for this older single.</p>
+                      <p className="text-gray-500 dark:text-gray-600">No detailed production data for this older single.</p>
                       <p className="font-bold mt-2">Base Release Cost: ¥10,000</p>
                   </div>
               );
           }
-
+  
           const totalCost = Object.keys(single.production).reduce((total, key) => {
               const choice = single.production[key];
               return total + (productionTiers[key]?.[choice]?.cost || 0);
           }, 10000);
-
+  
           return (
-              <div className="p-3 border rounded-lg bg-gray-50 text-xs">
+              <div className="p-3 border rounded-lg bg-gray-50 text-xs dark:text-gray-900">
                   <h4 className="font-semibold mb-2 flex items-center text-sm"><DollarSign size={16} className="mr-2"/> Production Summary</h4>
                   <ul className="space-y-1 list-disc list-inside">
                       {Object.keys(single.production).map(key => (
@@ -3039,7 +3307,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
               </div>
           );
       };
-
+  
       const TrackLineup = ({ track }) => {
           if (!track.lineup || !track.members) return null;
           const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
@@ -3048,31 +3316,31 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
               const row = track.lineup[String(memberId)];
               const member = memberMap[String(memberId)];
               if (member) {
-                  if (rows[row]) { rows[row].push(member); } 
+                  if (rows[row]) { rows[row].push(member); }
                   else { unassigned.push(member); }
               }
           });
           return (
             <div className="mt-3 pt-2 border-t text-xs space-y-1">
-                {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName => 
+                {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName =>
                     (rows[rowName] && rows[rowName].length > 0) ? (
                         <div key={rowName}>
-                            <span className="font-semibold text-gray-800">{rowName}:</span>
-                            <span className="text-gray-600 ml-1">{rows[rowName].map(m => m.name).join(', ')}</span>
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">{rowName}:</span>
+                            <span className="text-gray-600 dark:text-gray-400 ml-1">{rows[rowName].map(m => m.name).join(', ')}</span>
                         </div>
                     ) : null
                 )}
                 {unassigned.length > 0 && (
-                    <div><span className="font-semibold">Unassigned:</span><span className="text-gray-600 ml-1">{unassigned.map(m => m.name).join(', ')}</span></div>
+                    <div><span className="font-semibold">Unassigned:</span><span className="text-gray-600 dark:text-gray-400 ml-1">{unassigned.map(m => m.name).join(', ')}</span></div>
                 )}
             </div>
           );
       };
-
+      
       return (
           <ModalWrapper title={`${single.name} Single`} maxWidth="max-w-4xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
-                <div className="p-3 border rounded-lg bg-gray-50 space-y-1">
+                <div className="p-3 border rounded-lg bg-gray-50 space-y-1 dark:text-gray-900">
                     <p><strong>Released by:</strong> {single.targetGroup === 'main' ? groupName : single.targetGroup}</p>
                     <p><strong>Release Date:</strong> {getFormattedDateForWeek(single.releaseWeek)}</p>
                     <p><strong>Total Sales:</strong> {single.sales.toLocaleString()}</p>
@@ -3081,16 +3349,16 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                 <ProductionInfo />
               </div>
 
-              <h4 className="font-semibold text-lg mb-3 border-t pt-3 flex items-center"><Music size={18} className="mr-2"/> Track Listing ({single.totalTracks})</h4>
+              <h4 className="font-semibold text-lg mb-3 border-t pt-3 flex items-center dark:text-gray-100"><Music size={18} className="mr-2"/> Track Listing ({single.totalTracks})</h4>
               <div className="space-y-3">
                   {(single.tracks || []).map((track, index) => (
-                      <div key={index} className="p-4 border rounded-lg bg-white shadow-sm">
+                      <div key={index} className="p-4 border rounded-lg bg-white shadow-sm dark:bg-gray-800 dark:text-gray-200">
                           <div className="flex justify-between items-center">
                               <span className="font-bold text-base">{track.name}</span>
                               <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type.toUpperCase()}</span>
                           </div>
                           <p className="text-sm mt-2"><strong>Center:</strong> <span className="font-medium">{memberMap[String(track.center)]?.name || 'N/A'}</span></p>
-                          <p className="text-sm text-gray-700 mt-1"><strong>Senbatsu Count:</strong> <span className="font-medium">{(track.members || []).length}</span></p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1"><strong>Senbatsu Count:</strong> <span className="font-medium">{(track.members || []).length}</span></p>
                           <TrackLineup track={track} />
                       </div>
                   ))}
@@ -3695,205 +3963,193 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
         );
     };
     
-const CreateTeamModal = () => {
-    const [teamName, setTeamName] = useState('');
-    const [selectedMembers, setSelectedMembers] = useState([]);
-    const [selectedSetlistId, setSelectedSetlistId] = useState('');
+const TeamManagementModal = ({ isEditing = false, team = null }) => {
+    const [teamName, setTeamName] = useState(isEditing ? team.name : '');
+    const [selectedSetlist, setSelectedSetlist] = useState(isEditing && team ? team.currentSetlistId : '');
+    const [filterKey, setFilterKey] = useState('All');
     
-    // This is the line that's been changed
-    const availableMembers = getAllAvailableMembers(true);
-    
-    const selectAllMembers = () => {
-        setSelectedMembers(availableMembers.map(m => m.id));
-    };
+    const [selectedMembers, setSelectedMembers] = useState(isEditing ? team.members.map(id => ({ id, type: 'existing' })) : []);
+    const [pendingDecision, setPendingDecision] = useState(null);
 
-    const deselectAllMembers = () => {
-        setSelectedMembers([]);
-    };
+    const fullRoster = getMainGroupRoster();
 
-    const toggleMember = (memberId) => {
-        setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-            ? prev.filter(id => String(id) !== String(memberId))
-            : [...prev, memberId]
-        );
-    };
-    
-    const handleConfirm = () => {
-        if (!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId) {
-            return setMessage("Team needs a name, members, and a setlist.");
+    const handleAddMemberClick = (member) => {
+        if (selectedMembers.some(m => m.id === member.id)) return;
+        const isCurrentlyInAnotherTeam = isEditing ? (member.teamId && member.teamId !== team.id) : member.teamId;
+        if (isCurrentlyInAnotherTeam) {
+            setPendingDecision(member);
+        } else {
+            setSelectedMembers(prev => [...prev, { id: member.id, type: 'add' }]);
         }
-        
-        confirmCreateTeam({
-            name: teamName.trim(),
-            members: selectedMembers,
-            setlistId: parseInt(selectedSetlistId),
-        });
+    };
+    
+    const resolveDecision = (decisionType) => {
+        if (decisionType && pendingDecision) {
+            setSelectedMembers(prev => [...prev, { id: pendingDecision.id, type: decisionType }]);
+        }
+        setPendingDecision(null);
+    };
+
+    const removeMember = (memberId) => {
+        setSelectedMembers(prev => prev.filter(m => m.id !== memberId));
+    };
+    
+    const filteredRoster = fullRoster.filter(member => {
+        if (filterKey === 'All') return true;
+        if (filterKey === 'main') return !member.isSisterMember;
+        return member.isSisterMember && member.displayGroupName === filterKey;
+    });
+
+    const handleSelectAllFiltered = () => {
+        const filteredIds = filteredRoster.map(m => m.id);
+        const allCurrentlySelected = filteredIds.every(id => selectedMembers.some(sm => sm.id === id));
+        if (allCurrentlySelected) {
+            setSelectedMembers(prev => prev.filter(sm => !filteredIds.includes(sm.id)));
+        } else {
+            const newSelections = filteredIds
+                .filter(id => !selectedMembers.some(sm => sm.id === id))
+                .map(id => ({ id, type: 'add' }));
+            setSelectedMembers(prev => [...prev, ...newSelections]);
+        }
+    };
+    
+    const handleSave = () => {
+        const teamId = isEditing ? team.id : null;
+        saveTeam(teamId, teamName, selectedMembers, selectedSetlist);
+    };
+
+    const handleDelete = () => {
+        if (isEditing && window.confirm(`Are you sure you want to disband Team ${team.name}?`)) {
+            deleteTeam(team.id);
+        }
+    };
+
+    const getMemberWarning = (member) => {
+        const allTeams = [
+            ...(member.teamName ? [member.teamName] : []),
+            ...(member.concurrentTeams || []).map(t => t.name)
+        ];
+        if (allTeams.length === 0) return null;
+        const relevantTeams = isEditing ? allTeams.filter(tName => tName !== team.name) : allTeams;
+        if (relevantTeams.length === 0) return null;
+        return `(In ${relevantTeams.join(', ')})`;
     };
 
     return (
-        <ModalWrapper title={<span className="flex items-center"><Layers size={20} className="mr-2"/> Create New Team</span>} maxWidth="max-w-xl">
-            <p className="text-sm text-gray-600 mb-4">Create a new theater performance unit.</p>
-            
-            <h4 className="font-semibold mb-1">Team Name</h4>
-            <input 
-                type="text" 
-                value={teamName} 
-                onChange={(e) => setTeamName(e.target.value)}
-                className="w-full p-2 border rounded mb-3"
-                placeholder="e.g., Team A"
-            />
-            
-            <h4 className="font-semibold mb-1">Select Setlist</h4>
-            <select 
-                value={selectedSetlistId}
-                onChange={(e) => setSelectedSetlistId(e.target.value)}
-                className="w-full p-2 border rounded mb-3"
-            >
-                <option value="">-- Select a Setlist --</option>
-                {(allSetlists || []).map(sl => (
-                    <option key={sl.id} value={sl.id}>{sl.name} (Theme: {sl.theme})</option>
-                ))}
-            </select>
+        <ModalWrapper title={isEditing ? `Edit Team: ${team.name}` : "Create New Team"}>
+            {pendingDecision && <ConcurrentPositionModal member={pendingDecision} onResolve={resolveDecision} />}
+            <div className="space-y-3 text-sm">
+                <input type="text" placeholder="Team Name" value={teamName} onChange={e => setTeamName(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700" />
+                
+                {/* FINAL BUG FIX: Convert the selected value to a Number to fix data type mismatch. */}
+                <select value={selectedSetlist} onChange={e => setSelectedSetlist(Number(e.target.value))} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700">
+                    <option value="">-- Select a Setlist --</option>
+                    {allSetlists.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
 
-            <h4 className="font-semibold mb-1">Select Members ({selectedMembers.length})</h4>
-            <div className="flex gap-2 mb-2">
-                <button
-                    onClick={selectAllMembers}
-                    className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                >
-                    Select All
-                </button>
-                <button
-                    onClick={deselectAllMembers}
-                    className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                >
-                    Deselect All
-                </button>
+                <div>
+                    <h3 className="font-semibold mb-2">Select Members ({selectedMembers.length})</h3>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
+                        <button onClick={() => setFilterKey('main')} className={`px-3 py-1 text-xs rounded ${filterKey === 'main' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{groupName}</button>
+                        {sisterGroups.map(sg => (
+                            <button key={sg.id} onClick={() => setFilterKey(sg.name)} className={`px-3 py-1 text-xs rounded ${filterKey === sg.name ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{sg.name}</button>
+                        ))}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-2">
+                        <button onClick={handleSelectAllFiltered} className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
+                    </div>
+
+                    <div className="border rounded p-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                        {filteredRoster.map(member => {
+                            const isSelected = selectedMembers.some(m => m.id === member.id);
+                            return (
+                                <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium">{member.name}</span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            Vo. {Math.round(member.singing)} Da. {Math.round(member.dancing)} Va. {Math.round(member.variety)}
+                                            {getMemberWarning(member) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarning(member)}</span>}
+                                        </span>
+                                    </div>
+                                    <button onClick={() => isSelected ? removeMember(member.id) : handleAddMemberClick(member)} className={`px-2 py-1 text-xs rounded ${isSelected ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                                        {isSelected ? 'Remove' : 'Add'}
+                                    </button>
+                                </div>
+                            )
+                        })}
+                        {filteredRoster.length === 0 && <p className="text-center text-gray-500 italic py-4">No members in this group.</p>}
+                    </div>
+                </div>
             </div>
-            <MemberSelectionList 
-    members={availableMembers} 
-    selectedIds={selectedMembers} 
-    toggleMember={toggleMember} 
-    teams={teams}
-    sisterGroups={sisterGroups}
-    groupName={groupName}
-/>
 
-            <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                <button onClick={handleConfirm} disabled={!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
-                    Create Team
-                </button>
+            <div className={`flex ${isEditing ? 'justify-between' : 'justify-end'} items-center mt-4`}>
+                {isEditing && (
+                    <button onClick={handleDelete} className="p-2 bg-red-600 text-white rounded font-semibold">Disband Team</button>
+                )}
+                <div className="flex gap-2">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded">Cancel</button>
+                    <button onClick={handleSave} className="p-2 bg-blue-500 text-white rounded font-semibold">{isEditing ? 'Save Changes' : 'Create Team'}</button>
+                </div>
             </div>
         </ModalWrapper>
     );
 };
-    
-    const EditTeamModal = () => {
-        const team = modalData;
-        const [teamName, setTeamName] = useState(team?.name || '');
-        const [selectedMembers, setSelectedMembers] = useState(team?.members || []);
-        const [selectedSetlistId, setSelectedSetlistId] = useState(team?.currentSetlistId || '');
-        
-        // Use getAllAvailableMembers to include sister group members
-        const availableMembers = getAllAvailableMembers(true);
-        
-        const toggleMember = (memberId) => {
-            setSelectedMembers(prev => prev.map(String).includes(String(memberId))
-                ? prev.filter(id => String(id) !== String(memberId))
-                : [...prev, memberId]
-            );
-        };
 
-        const selectAllMembers = () => {
-            setSelectedMembers(availableMembers.map(m => m.id));
-        };
-    
-        const deselectAllMembers = () => {
-            setSelectedMembers([]);
-        };
-        
-        const handleConfirm = () => {
-            if (!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId) {
-                return setMessage("Team needs a name, members, and a setlist.");
-            }
-            
-            confirmEditTeam({
-                id: team.id,
-                name: teamName.trim(),
-                members: selectedMembers,
-                setlistId: parseInt(selectedSetlistId),
-            });
-        };
-        
-        const handleDelete = () => {
-            deleteTeam(team.id);
-        }
+const ConcurrentPositionModal = ({ member, onResolve }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-sm mx-4">
+            <h3 className="text-lg font-bold mb-2">Team Assignment for {member.name}</h3>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">This member is already in <b>Team {member.teamName}</b>. How do you want to assign them to the new team?</p>
+            <div className="flex justify-center gap-4">
+                <button onClick={() => onResolve('shuffle')} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">Shuffle</button>
+                <button onClick={() => onResolve('concurrent')} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold">Add Concurrent</button>
+                <button onClick={() => onResolve(null)} className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500">Cancel</button>
+            </div>
+             <div className="text-left text-xs text-gray-500 dark:text-gray-400 mt-4 bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
+                <p><b>Shuffle:</b> Moves the member. They will leave their old team and join the new one.</p>
+                <p className="mt-1"><b>Add Concurrent:</b> The member will hold a "kennin" position, being active in both teams.</p>
+            </div>
+        </div>
+    </div>
+);
 
-        return (
-            <ModalWrapper title={<span className="flex items-center"><Edit size={20} className="mr-2"/> Edit Team: {team.name}</span>} maxWidth="max-w-xl">
-                <p className="text-sm text-gray-600 mb-4">Modify the unit name, roster, and setlist.</p>
-                
-                <h4 className="font-semibold mb-1">Team Name</h4>
-                <input 
-                    type="text" 
-                    value={teamName} 
-                    onChange={(e) => setTeamName(e.target.value)}
-                    className="w-full p-2 border rounded mb-3"
-                    placeholder="e.g., Team A"
-                />
-                
-                <h4 className="font-semibold mb-1">Select Setlist</h4>
-                <select 
-                    value={selectedSetlistId}
-                    onChange={(e) => setSelectedSetlistId(e.target.value)}
-                    className="w-full p-2 border rounded mb-3"
-                >
-                    <option value="">-- Select a Setlist --</option>
-                    {(allSetlists || []).map(sl => (
-                        <option key={sl.id} value={sl.id}>{sl.name} (Theme: {sl.theme})</option>
-                    ))}
-                </select>
+const TeamDetailsModal = ({ team }) => {
+    const fullRoster = getMainGroupRoster();
+    const reversedHistory = [...(team.history || [])].reverse();
 
-                <h4 className="font-semibold mb-1">Select Members ({selectedMembers.length})</h4>
-                <div className="flex gap-2 mb-2">
-                    <button
-                        onClick={selectAllMembers}
-                        className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                    >
-                        Select All
-                    </button>
-                    <button
-                        onClick={deselectAllMembers}
-                        className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                    >
-                        Deselect All
-                    </button>
-                </div>
-                <MemberSelectionList 
-    members={availableMembers} 
-    selectedIds={selectedMembers} 
-    toggleMember={toggleMember} 
-    teams={teams}
-    sisterGroups={sisterGroups}
-    groupName={groupName}
-/>
-
-                <div className="flex justify-between gap-2 mt-4 pt-4 border-t">
-                    <button onClick={handleDelete} className="p-2 bg-red-500 text-white rounded flex items-center gap-1">
-                        <Trash2 size={16}/> Disband
-                    </button>
-                    <div className='flex gap-2'>
-                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                        <button onClick={handleConfirm} disabled={!teamName.trim() || selectedMembers.length === 0 || !selectedSetlistId} className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400">
-                            Save Changes
-                        </button>
+    return (
+        <ModalWrapper title={`Team Details: ${team.name}`}>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                <div>
+                    <h4 className="font-semibold text-lg mb-2 border-b pb-1">Current Members ({team.members.length})</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-sm">
+                        {team.members.map(memberId => {
+                            const member = fullRoster.find(m => m.id === memberId);
+                            return <p key={memberId}>{member ? member.name : 'Unknown Member'}</p>;
+                        })}
                     </div>
                 </div>
-            </ModalWrapper>
-        );
-    };
-    
+                <div>
+                    <h4 className="font-semibold text-lg mb-2 border-b pb-1">Team History</h4>
+                    <div className="space-y-3">
+                        {reversedHistory.map((entry, index) => (
+                            <div key={index} className="text-sm">
+                                <p className="font-semibold">{entry.event}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Week {entry.week}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="flex justify-end mt-4 pt-2 border-t">
+                <button onClick={() => setShowModal(null)} className="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded font-semibold">Close</button>
+            </div>
+        </ModalWrapper>
+    );
+};
+
     const MoveMemberModal = ({ member, setShowModal }) => {
         // --- SETUP: Unified UI and Logic ---
         if (!member) return null;
@@ -4056,57 +4312,57 @@ const CreateTeamModal = () => {
         );
     };
 
-    const MediaJobModal = () => {
-        // Need to filter members to exclude current Kennin members in the main roster to avoid redundancy 
-        // in the list if the user selected a Kennin member in the roster view.
-        const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
-        
-        return (
-            <ModalWrapper title={<span className="flex items-center"><Mic size={20} className="mr-2"/> Send Member to Media Job</span>}>
-                <p className="text-sm text-gray-600 mb-4">Select a member and a strategy for a solo media appearance. Cost: ¥1,000.</p>
-                
-                <h4 className="font-semibold mb-1">Select Member</h4>
-                <select 
-                    value={selectedMember?.id || ''}
-                    onChange={(e) => setSelectedMember(members.find(m => String(m.id) === e.target.value) || null)}
-                    className="w-full p-2 border rounded mb-3"
-                >
-                    <option value="">-- Select Available Main Member --</option>
-                    {availableMainMembers.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} (Variety: {m.variety})</option>
-                    ))}
-                </select>
-                
-                {selectedMember && (
-                    <div className='space-y-3 mt-3'>
-                        <p className="text-sm font-semibold">Choose Strategy:</p>
-                        <button 
-                            onClick={() => startMediaJob(selectedMember.id, 'safe')} 
-                            className="w-full p-3 bg-green-100 text-green-800 rounded border-l-4 border-green-500 hover:bg-green-200 transition-colors"
-                        >
-                            Safe & Wholesome (+20% Success, Low Fan Gain)
-                        </button>
-                        <button 
-                            onClick={() => startMediaJob(selectedMember.id, 'standard')} 
-                            className="w-full p-3 bg-blue-100 text-blue-800 rounded border-l-4 border-blue-500 hover:bg-blue-200 transition-colors"
-                        >
-                            Standard Interview (Normal Risk/Reward)
-                        </button>
-                        <button 
-                            onClick={() => startMediaJob(selectedMember.id, 'risky')} 
-                            className="w-full p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors"
-                        >
-                            Risky & Controversial (-10% Success, High Risk/Reward)
-                        </button>
-                    </div>
-                )}
-                
-                <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
+const MediaJobModal = () => {
+    // FIX: This now correctly defines the variable used by the dropdown below.
+    const availableMainMembers = members.filter(m => m.isAvailable);
+    
+    return (
+        <ModalWrapper title={<span className="flex items-center"><Mic size={20} className="mr-2"/> Send Member to Media Job</span>}>
+            <p className="text-sm text-gray-600 mb-4">Select a member and a strategy for a solo media appearance. Cost: ¥1,000.</p>
+            
+            <h4 className="font-semibold mb-1">Select Member</h4>
+            <select 
+                // FIX: Use getMemberById to correctly find any member, though this list is just main members.
+                value={selectedMember?.id || ''}
+                onChange={(e) => setSelectedMember(getMemberById(e.target.value) || null)}
+                className="w-full p-2 border rounded mb-3"
+            >
+                <option value="">-- Select Available Main Member --</option>
+                {availableMainMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} (Variety: {m.variety})</option>
+                ))}
+            </select>
+            
+            {selectedMember && (
+                <div className='space-y-3 mt-3'>
+                    <p className="text-sm font-semibold">Choose Strategy:</p>
+                    <button 
+                        onClick={() => startMediaJob(selectedMember.id, 'safe')} 
+                        className="w-full p-3 bg-green-100 text-green-800 rounded border-l-4 border-green-500 hover:bg-green-200 transition-colors"
+                    >
+                        Safe & Wholesome (+20% Success, Low Fan Gain)
+                    </button>
+                    <button 
+                        onClick={() => startMediaJob(selectedMember.id, 'standard')} 
+                        className="w-full p-3 bg-blue-100 text-blue-800 rounded border-l-4 border-blue-500 hover:bg-blue-200 transition-colors"
+                    >
+                        Standard Interview (Normal Risk/Reward)
+                    </button>
+                    <button 
+                        onClick={() => startMediaJob(selectedMember.id, 'risky')} 
+                        className="w-full p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors"
+                    >
+                        Risky & Controversial (-10% Success, High Risk/Reward)
+                    </button>
                 </div>
-            </ModalWrapper>
-        );
-    };
+            )}
+            
+            <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
+            </div>
+        </ModalWrapper>
+    );
+};
 
     const GroupMediaModal = () => {
         const jobs = [
@@ -4776,14 +5032,17 @@ if (!gameStarted) {
               <h3 className="text-base font-bold mb-2 flex items-center"><Users size={18} className="mr-2"/> Theater Teams & Setlists</h3>
               <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto mb-1.5">
                 {(teams || []).map(team => (
-                  <div key={team.id} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 flex justify-between items-center">
-                    <div>
-                      <span className="font-semibold text-sm">{team.name} ({team.members.length} members)</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-300">
-                        Setlist: {(allSetlists || []).find(s => s.id === team.currentSetlistId)?.name || 'None'}
-                      </p>
-                    </div>
-                    <button onClick={() => editTeam(team.id)} className="p-1 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={16}/></button>
+                  <div key={team.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
+                      <div>
+                          <h4 className="font-bold text-lg">{team.name} ({team.members.length} members)</h4>
+                          <p className="text-xd text-gray-500 dark:text-gray-400">
+                              Setlist: {allSetlists.find(s => s.id === team.currentSetlistId)?.name || 'None'}
+                          </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <button onClick={() => showTeamDetails(team)} className="px-3 py-2 text-sm bg-blue-500 text-white rounded font-semibold hover:bg-blue-600">Details</button>
+                          <button onClick={() => editTeam(team.id)} className="p-2 bg-yellow-400 text-white rounded hover:bg-yellow-500"><Edit size={18}/></button>
+                      </div>
                   </div>
                 ))}
               </div>
@@ -4814,6 +5073,7 @@ if (!gameStarted) {
                       </button>
                   </div>
 
+
                   {/* Sister Group Cards */}
                   {(sisterGroups || []).map(sg => (
                       <div key={sg.id} className="p-1.5 border rounded bg-gray-50 dark:bg-gray-700 flex justify-between items-center">
@@ -4842,7 +5102,30 @@ if (!gameStarted) {
                 Establish Sister Group (¥250k)
               </button>
             </div>
-            
+
+            {/* Push Member Management */}
+            <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300 md:col-span-2">
+              <h3 className="text-base font-bold mb-2 flex items-center"><TrendingUp size={18} className="mr-2 text-green-500"/> Push Member Management</h3>
+              <p className="text-xs text-gray-500 mb-2">Select members to receive a "push". Pushed members will receive a larger share of fans from group activities.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                {getMainGroupRoster().map(member => (
+                  <div key={member.rosterId || member.id}>
+                    <label className="flex items-center p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
+                        <input 
+                            type="checkbox"
+                            checked={pushedMembers.map(String).includes(String(member.id))}
+                            onChange={() => handleTogglePushMember(member.id)}
+                            className="mr-2 form-checkbox h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <span className="text-sm font-medium">{member.name}</span>
+                    </label>
+                  </div>
+                ))}
+                {getMainGroupRoster().length === 0 && <p className="text-gray-500 italic col-span-full text-center">Recruit members to select them for a push.</p>}
+              </div>
+            </div>
+
+
             {/* App Settings */}
             <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
               <h3 className="text-base font-bold mb-2 flex items-center"><Sparkles size={18} className="mr-2"/> App Settings</h3>
@@ -4855,6 +5138,7 @@ if (!gameStarted) {
             </div>
           </div>
         )}
+
 
 {/* ----- DISCOGRAPHY TAB ----- */}
 {currentTab === 'discography' && (
@@ -5249,9 +5533,10 @@ if (!gameStarted) {
         {showModal === 'theaterShowPrep' && <TheaterShowPrepModal />} 
         {/* Removed: LargeConcertModal (Deprecated) */}
         {showModal === 'rename' && modalData && <RenameMemberModal />}
-      {showModal === 'moveMember' && <MoveMemberModal member={modalData} setShowModal={setShowModal} />}
-        {showModal === 'createTeam' && <CreateTeamModal />}
-        {showModal === 'editTeam' && modalData && <EditTeamModal />}
+        {showModal === 'moveMember' && <MoveMemberModal member={modalData} setShowModal={setShowModal} />}
+        {showModal === 'createTeam' && <TeamManagementModal isEditing={false} />}
+        {showModal === 'editTeam' && modalData && <TeamManagementModal isEditing={true} team={modalData} />}
+        {showModal === 'teamDetails' && modalData && <TeamDetailsModal team={modalData} />}
         {showModal === 'saveGame' && <SaveGameModal />}
         {showModal === 'loadGame' && <LoadGameModal />}
         {showModal === 'mediaJob' && <MediaJobModal />}
