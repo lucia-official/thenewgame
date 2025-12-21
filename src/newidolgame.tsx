@@ -19,6 +19,17 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, doc, setDoc, getDoc, setLogLevel } from 'firebase/firestore';
 
 
+// --- NEW: Global Fan Calculation Helper ---
+const getTotalFansForMember = (member) => {
+    if (!member || !member.fans) return 0;
+    // Handle old format (number) and new format (object) for safety
+    if (typeof member.fans === 'number') {
+        return member.fans;
+    }
+    return (member.fans.hardcore || 0) + (member.fans.casual || 0);
+};
+
+
 // --- Custom Hook for Game Logic and State Management ---
 const useIdolManager = () => {
     // --- FIREBASE/STATE PERSISTENCE ---
@@ -163,6 +174,8 @@ const useIdolManager = () => {
     const [events, setEvents] = useState([]);
     const [sponsorships, setSponsorships] = useState([]);
     const [showModal, setShowModal] = useState(null);
+    const [mediaJobDoneThisWeek, setMediaJobDoneThisWeek] = useState(false);
+    const [groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek] = useState(false);
     const [difficulty, setDifficulty] = useState('local');
     const [internationalMarkets, setInternationalMarkets] = useState({ asia: false, west: false });
     const [outfits, setOutfits] = useState([]);
@@ -400,11 +413,26 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setGroupName(data.groupName || "");
       setMoney(data.money || 0);
       setWeek(data.week || 1);
-      setMembers(JSON.parse(data.members || "[]"));
+      const loadedMembers = JSON.parse(data.members || "[]").map(member => {
+        // Migration: If fans is a number, convert to the new object structure
+        if (typeof member.fans === 'number' || !member.fans) {
+          const fanCount = typeof member.fans === 'number' ? member.fans : 0;
+          return {
+            ...member,
+            fans: {
+              hardcore: Math.floor(fanCount * 0.2),
+              casual: fanCount - Math.floor(fanCount * 0.2)
+            }
+          };
+        }
+        // If it's already an object, return as is
+        return member;
+      });
+      setMembers(loadedMembers);
       setTotalFans(data.totalFans || 0);
       setSongs(JSON.parse(data.songs || "[]"));
       setTeams(JSON.parse(data.teams || "[]"));
-            setTheaters(JSON.parse(data.theaters || "[]"));
+        setTheaters(JSON.parse(data.theaters || "[]"));
       // --- MIGRATION LOGIC FOR OLD SAVES ---
       const loadedBuildings = JSON.parse(data.buildings || "{}");
       if (loadedBuildings.hasOwnProperty('theater')) {
@@ -427,7 +455,24 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
           // This is a NEW save file, or a fresh game.
           setBuildings(loadedBuildings);
       }
-      setSisterGroups(JSON.parse(data.sisterGroups || "[]"));
+      const loadedSisterGroups = JSON.parse(data.sisterGroups || "[]").map(sg => {
+        if (!sg.members) return sg;
+        const migratedMembers = sg.members.map(member => {
+          if (typeof member.fans === 'number' || !member.fans) {
+            const fanCount = typeof member.fans === 'number' ? member.fans : 0;
+            return {
+              ...member,
+              fans: {
+                hardcore: Math.floor(fanCount * 0.2),
+                casual: fanCount - Math.floor(fanCount * 0.2)
+              }
+            };
+          }
+          return member;
+        });
+        return { ...sg, members: migratedMembers };
+      });
+      setSisterGroups(loadedSisterGroups);
       setRivalGroups(JSON.parse(data.rivalGroups || "[]"));
       setAchievements(JSON.parse(data.achievements || "[]"));
       setHallOfFame(JSON.parse(data.hallOfFame || "[]"));
@@ -483,6 +528,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
         const fNameIndex = Math.floor(Math.random() * availableFirstNames.length);
         const firstName = availableFirstNames.splice(fNameIndex, 1)[0];
         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const initialFans = Math.floor(Math.random() * 200) + 100;
         
         return {
           id: i + 1,
@@ -494,14 +540,16 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
           stamina: 100,
           morale: 80,
           stress: 0,
-          fans: Math.floor(Math.random() * 200) + 100,
+          fans: {
+            hardcore: Math.floor(initialFans * 0.2),
+            casual: initialFans - Math.floor(initialFans * 0.2),
+          },
           position: i === 0 ? 'center' : i < 3 ? 'front' : 'back',
           talent: ['vocal', 'dance', 'variety'][i % 3],
           personality: ['cheerful', 'shy', 'confident'][i % 3],
           relationships: {},
           birthday: { month: (i % 12) + 1, day: (i * 3) + 1 },
           equippedOutfit: null,
-          socialFollowers: Math.floor(Math.random() * 5000) + 1000,
           scandals: 0,
           age: 10 + i,
           yearsActive: 0,
@@ -665,9 +713,9 @@ const getMemberGroupStatus = (member) => {
   return parts.join(" | ");
 };
 
-    const getMemberRank = (member) => [...(members || [])].sort((a, b) => (b.fans || 0) - (a.fans || 0)).findIndex(m => m.id === member.id) + 1;
+    const getMemberRank = (member) => [...(members || [])].sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a)).findIndex(m => m.id === member.id) + 1;
 
-const distributeFans = (amount, memberIds) => {
+const distributeFans = (amount, memberIds, conversionRate = 0.1) => {
   if (!memberIds || memberIds.length === 0) return;
 
   const pushedMemberIds = memberIds.filter(id => pushedMembers.map(String).includes(String(id)));
@@ -679,8 +727,6 @@ const distributeFans = (amount, memberIds) => {
     const distribute = (pool, ids) => {
         if (ids.length === 0 || pool === 0) return;
         
-        // By cubing the random number, we create a much more uneven distribution.
-        // Most members will get a small amount, but a lucky few with high random numbers will get a huge boost.
         const weights = ids.map(() => Math.pow(Math.random(), 3));
         const totalWeight = weights.reduce((sum, w) => sum + w, 0);
     
@@ -688,22 +734,37 @@ const distributeFans = (amount, memberIds) => {
         ids.forEach((memberId, index) => {
           const fanGain = totalWeight > 0 ? Math.floor((weights[index] / totalWeight) * pool) : Math.floor(pool / ids.length);
           totalGained += fanGain;
+
+          const hardcoreGain = Math.floor(fanGain * conversionRate);
+          const casualGain = fanGain - hardcoreGain;
+
           updateMemberState(memberId, m => ({
             ...m,
-            fans: (m.fans || 0) + fanGain
+            fans: {
+              hardcore: (m.fans.hardcore || 0) + hardcoreGain,
+              casual: (m.fans.casual || 0) + casualGain,
+            }
           }));
         });
     
         const remainder = pool - totalGained;
         if (remainder > 0 && ids.length > 0) {
-            updateMemberState(ids[0], m => ({ ...m, fans: (m.fans || 0) + remainder }));
+            const hardcoreGain = Math.floor(remainder * conversionRate);
+            const casualGain = remainder - hardcoreGain;
+            updateMemberState(ids[0], m => ({ 
+                ...m, 
+                fans: {
+                  hardcore: (m.fans.hardcore || 0) + hardcoreGain,
+                  casual: (m.fans.casual || 0) + casualGain,
+                }
+            }));
         }
     };
 
   distribute(pushedFanPool, pushedMemberIds);
   distribute(regularFanPool, regularMemberIds);
   
-  let notificationMessage = `Gained ${amount.toLocaleString()} fans!`;
+  let notificationMessage = `Gained ${amount.toLocaleString()} new fans!`;
   if (pushedMemberIds.length > 0) {
       notificationMessage += ` Pushed members received a major boost.`
   }
@@ -1414,158 +1475,184 @@ const deleteTeam = (teamId) => {
         setMessage(`Production for "${songData.songName}" scheduled for Week ${releaseWeek}! Cost: ¥${totalCost.toLocaleString()}`);
     };
 
-const executeSongRelease = (singleToRelease) => {
-  const { songData, productionData } = singleToRelease;
-  
-  const titleTrack = songData.tracks[0];
-  const senbatsuMemberIds = titleTrack.members.map(String);
-  const isSisterSong = songData.targetGroupId !== 'main';
-  const targetGroupName = songData.targetGroupId;
-
-  // Apply Production Bonuses to a temporary copy of members to calculate sales correctly
-  let updatedMembers = [...members];
-  let updatedSisterGroups = [...sisterGroups];
-
-  const applyBonuses = (member) => {
-    const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
-    const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
-    return {
-      ...member,
-      singing: Math.min(100, (member.singing || 0) + trainingBuff),
-      dancing: Math.min(100, (member.dancing || 0) + trainingBuff),
-      morale: Math.min(100, (member.morale || 0) + moraleBuff)
-    };
-  };
-
-  if (isSisterSong) {
-    updatedSisterGroups = sisterGroups.map(sg => {
-      if (sg.name === targetGroupName) {
-        return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
-      }
-      return sg;
-    });
-  } else {
-    updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
-  }
-  
-  const allMembersAfterBonuses = [
-    ...updatedMembers,
-    ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
-  ];
-  
-  const avgSkill = senbatsuMemberIds.reduce((sum, memberId) => {
-      const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
-      return sum + (member ? ((member.singing || 0) + (member.dancing || 0)) / 2 : 0);
-  }, 0) / (senbatsuMemberIds.length || 1);
-  
-  const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
-  const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
-  const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
-
-  const sales = Math.floor(avgSkill * 1000 * (salesMultipliers[productionData.song] || 1));
-  const newFansTotal = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
-  const revenue = sales * 15;
-
-  // --- NEW FAN DISTRIBUTION LOGIC ---
-  const fanGains = {};
-  const rowWeights = { '1st Row': 5, '2nd Row': 4, '3rd Row': 3, '4th Row': 2, '5th Row': 1 };
-  
-  // Create a controlled "luck modifier" for each member. This adds variance without breaking the hierarchy.
-  // It results in a multiplier between 0.7 (a bit unlucky) and 1.3 (a bit lucky).
-  const luckModifiers = senbatsuMemberIds.map(() => 0.7 + (Math.random() * 0.6));
-
-  const memberWeights = senbatsuMemberIds.map((memberId, index) => {
-      const member = allMembersAfterBonuses.find(m => String(m.id) === memberId);
-      if (!member) return { id: memberId, weight: 0 };
+    const executeSongRelease = (singleToRelease) => {
+      const { songData, productionData } = singleToRelease;
       
-      const isPushed = pushedMembers.map(String).includes(memberId);
-      const isCenter = String(titleTrack.center) === memberId;
-      const row = titleTrack.lineup[memberId];
-      
-      let weight = rowWeights[row] || 1;
-      if (isCenter) weight = 7; // Center gets the highest weight
-      if (isPushed) weight *= 2; // Pushed members get a 2x multiplier
-      
-      // Combine the base weight with the controlled luck modifier
-      const finalWeight = weight * luckModifiers[index];
+      const titleTrack = songData.tracks[0];
+      const senbatsuMemberIds = titleTrack.members.map(String);
+      const isSisterSong = songData.targetGroupId !== 'main';
+      const targetGroupName = songData.targetGroupId;
 
-      return { id: memberId, weight: finalWeight };
-  });
+      let updatedMembers = [...members];
+      let updatedSisterGroups = [...sisterGroups];
 
-  const totalWeight = memberWeights.reduce((sum, member) => sum + member.weight, 0);
-
-  let distributedFans = 0;
-  if (totalWeight > 0) {
-    memberWeights.forEach(({ id, weight }) => {
-        const gain = Math.floor((weight / totalWeight) * newFansTotal);
-        fanGains[id] = gain;
-        distributedFans += gain;
-    });
-  }
-
-  // Distribute remainder to the center
-  const remainder = newFansTotal - distributedFans;
-  if (remainder > 0 && titleTrack.center) {
-      fanGains[String(titleTrack.center)] = (fanGains[String(titleTrack.center)] || 0) + remainder;
-  }
-  // --- END NEW FAN DISTRIBUTION LOGIC ---
-
-  const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
-  
-  const updateMemberHistoryAndFans = (m, sg = null) => {
-      const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
-      const fanGainForMember = fanGains[memberId] || 0;
-
-      const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
-      if (participatedTracks.length === 0) {
-          return m; // No changes if not in any track
-      }
-
-      let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: sg ? sg.name : groupName }));
-      const isTitleCenter = String(songData.tracks[0].center) === memberId;
-      const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
-      
-      return { 
-          ...m, 
-          fans: (m.fans || 0) + fanGainForMember, // FANS ARE ADDED HERE
-          singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: sg ? sg.name : groupName }] : [])], 
-          songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: sg ? sg.name : groupName, row: t.lineup[memberId] }))], 
-          centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
+      const applyBonuses = (member) => {
+        const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
+        const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
+        return {
+          ...member,
+          singing: Math.min(100, (member.singing || 0) + trainingBuff),
+          dancing: Math.min(100, (member.dancing || 0) + trainingBuff),
+          morale: Math.min(100, (member.morale || 0) + moraleBuff)
+        };
       };
-  };
 
-  if (isSisterSong) {
-      setSisterGroups(prev => prev.map(sg => {
-          let membersToUpdate = sg.members || [];
-          // Apply bonuses first
+      if (isSisterSong) {
+        updatedSisterGroups = sisterGroups.map(sg => {
           if (sg.name === targetGroupName) {
-              membersToUpdate = updatedSisterGroups.find(usg => usg.id === sg.id)?.members || membersToUpdate;
-          }
-          // Then apply history and fan gains
-          const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
-          const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs.slice();
-
-          return { ...sg, songs: sgSongs, members: finalMembers };
-      }));
-  } else {
-      setSongs(prev => [...(prev || []), newSong]);
-      setMembers(prev => updatedMembers.map(m => updateMemberHistoryAndFans(m)));
-      setSisterGroups(prev => prev.map(sg => {
-          if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
-              return { ...sg, members: sg.members.map(m => updateMemberHistoryAndFans(m, sg)) };
+            return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
           }
           return sg;
-      }));
-  }
+        });
+      } else {
+        updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
+      }
+      
+      const allMembersAfterBonuses = [
+        ...updatedMembers,
+        ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
+      ];
+      
+      const senbatsuMembers = allMembersAfterBonuses.filter(m => senbatsuMemberIds.includes(String(m.id)));
+      
+      const fanSales = senbatsuMembers.reduce((sum, m) => {
+        const hardcoreSales = (m.fans?.hardcore || 0) * 0.9; // 90% purchase rate for hardcore fans
+        const casualSales = (m.fans?.casual || 0) * 0.25; // 25% purchase rate for casual fans
+        return sum + hardcoreSales + casualSales;
+      }, 0);
 
-  setMoney(prev => prev + revenue);
-  
-  const releaseMessage = `RELEASED: \"${songData.songName}\"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFansTotal.toLocaleString()}`;
-  
-  addNotification({ type: 'success', message: releaseMessage });
-  
-  return releaseMessage;
-};
+      const avgSkill = senbatsuMembers.reduce((sum, m) => {
+          return sum + (m ? ((m.singing || 0) + (m.dancing || 0)) / 2 : 0);
+      }, 0) / (senbatsuMembers.length || 1);
+
+      const skillSales = avgSkill * 500; // Skill adds a bonus on top of fan sales
+
+      const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
+      const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
+      const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
+
+      const baseSales = fanSales + skillSales;
+      const sales = Math.floor(baseSales * (salesMultipliers[productionData.song] || 1));
+      const newFansTotal = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
+      const revenue = sales * 15;
+
+      // --- NEW MULTI-TRACK FAN DISTRIBUTION LOGIC ---
+
+      const calculateFanDistribution = (track, fanPool, memberRoster, pushedMembersList) => {
+          if (!track || !track.members || track.members.length === 0 || fanPool === 0) {
+              return {};
+          }
+          const trackMemberIds = track.members.map(String);
+          const trackMembers = memberRoster.filter(m => trackMemberIds.includes(String(m.id)));
+          const rowWeights = { '1st Row': 5, '2nd Row': 4, '3rd Row': 3, '4th Row': 2, '5th Row': 1 };
+          const luckModifiers = trackMembers.map(() => 0.7 + (Math.random() * 0.6));
+          const memberWeights = trackMembers.map((member, index) => {
+              const isPushed = pushedMembersList.map(String).includes(String(member.id));
+              const isCenter = String(track.center) === String(member.id);
+              const row = track.lineup[String(member.id)];
+              let weight = rowWeights[row] || 1;
+              if (isCenter) weight = 7;
+              if (isPushed) weight *= 2;
+              const finalWeight = weight * luckModifiers[index];
+              return { id: String(member.id), weight: finalWeight };
+          });
+          const totalWeight = memberWeights.reduce((sum, member) => sum + member.weight, 0);
+          const gains = {};
+          let distributedFans = 0;
+          if (totalWeight > 0) {
+              memberWeights.forEach(({ id, weight }) => {
+                  const gain = Math.floor((weight / totalWeight) * fanPool);
+                  gains[id] = gain;
+                  distributedFans += gain;
+              });
+          }
+          const remainder = fanPool - distributedFans;
+          if (remainder > 0 && track.center) {
+              gains[String(track.center)] = (gains[String(track.center)] || 0) + remainder;
+          }
+          return gains;
+      };
+
+      const titleTrackFans = Math.floor(newFansTotal * 0.6);
+      const bSideFansTotal = newFansTotal - titleTrackFans;
+      const bSideTracks = songData.tracks.slice(1);
+      
+      const titleTrackGains = calculateFanDistribution(titleTrack, titleTrackFans, allMembersAfterBonuses, pushedMembers);
+      const finalFanGains = { ...titleTrackGains };
+
+      if (bSideTracks.length > 0 && bSideFansTotal > 0) {
+          const fansPerBSide = Math.floor(bSideFansTotal / bSideTracks.length);
+          bSideTracks.forEach(bSideTrack => {
+              const bSideTrackGains = calculateFanDistribution(bSideTrack, fansPerBSide, allMembersAfterBonuses, pushedMembers);
+              for (const memberId in bSideTrackGains) {
+                  finalFanGains[memberId] = (finalFanGains[memberId] || 0) + bSideTrackGains[memberId];
+              }
+          });
+      }
+      
+      // --- END NEW FAN DISTRIBUTION LOGIC ---
+
+      const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
+      
+      const updateMemberHistoryAndFans = (m, sg = null) => {
+          const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
+          const fanGainForMember = finalFanGains[memberId] || 0;
+
+          const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
+          if (participatedTracks.length === 0 && fanGainForMember === 0) {
+              return m;
+          }
+          
+          const releasingGroupName = isSisterSong ? (sisterGroups.find(g => String(g.id) === targetGroupName)?.name || 'Unknown Group') : groupName;
+
+          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: releasingGroupName }));
+          const isTitleCenter = String(songData.tracks[0].center) === memberId;
+          const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
+          
+          // --- THIS IS THE FIX ---
+          // It now correctly adds new fans to the hardcore/casual object
+          const hardcoreGain = Math.floor(fanGainForMember * 0.15);
+          const casualGain = fanGainForMember - hardcoreGain;
+
+          return { 
+              ...m, 
+              fans: {
+                hardcore: (m.fans?.hardcore || 0) + hardcoreGain,
+                casual: (m.fans?.casual || 0) + casualGain
+              },
+              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: releasingGroupName }] : [])], 
+              songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: releasingGroupName, row: t.lineup[memberId] }))], 
+              centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
+          };
+      };
+
+      if (isSisterSong) {
+          setSisterGroups(prev => prev.map(sg => {
+              let membersToUpdate = sg.members || [];
+              if (sg.name === targetGroupName) {
+                  membersToUpdate = updatedSisterGroups.find(usg => usg.id === sg.id)?.members || membersToUpdate;
+              }
+              const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
+              const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs.slice();
+
+              return { ...sg, songs: sgSongs, members: finalMembers };
+          }));
+      } else {
+          setSongs(prev => [...(prev || []), newSong]);
+          setMembers(prev => updatedMembers.map(m => updateMemberHistoryAndFans(m)));
+          setSisterGroups(prev => prev.map(sg => {
+              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
+                  return { ...sg, members: sg.members.map(m => updateMemberHistoryAndFans(m, sg)) };
+              }
+              return sg;
+          }));
+      }
+
+      setMoney(prev => prev + revenue);
+      const releaseMessage = `RELEASED: \"${songData.songName}\"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFansTotal.toLocaleString()}`;
+      addNotification({ type: 'success', message: releaseMessage });
+      return releaseMessage;
+    };
     
     // --- Performance Management Logic ---
 
@@ -1922,32 +2009,53 @@ const executeSongRelease = (singleToRelease) => {
       setMessage(`Produced ${amount} ${item}.`);
     };
     
-    const startHandshakeEvent = () => {
+    const startHandshakeEvent = (selectedMemberIds) => {
       const cost = 50000;
       if (money < cost) return setMessage(`Handshake events cost ¥${cost.toLocaleString()}!`);
       
-      const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
-      if (availableMembers.length === 0) {
-          return setMessage("No members available for a handshake event.");
+      const participatingMembers = selectedMemberIds.map(id => getMemberById(id)).filter(m => m && m.isAvailable);
+      
+      if (participatingMembers.length === 0) {
+          return setMessage("No members were selected for the handshake event.");
       }
 
       setMoney(prev => prev - cost);
-      const fanGain = Math.floor((totalFans || 0) * 0.1);
-      const fanGainPerMember = availableMembers.length > 0 ? Math.floor(fanGain / availableMembers.length) : 0;
+      
+      let totalConvertedFans = 0;
+      let totalNewFans = 0;
 
-      // This will now update ALL available members, including from sister groups
-      availableMembers.forEach(member => {
-        updateMemberState(member.id, m => ({
+      participatingMembers.forEach(member => {
+        const currentCasual = member.fans?.casual || 0;
+        
+        // Convert 30% of this member's casual fans to hardcore fans
+        const fansToConvert = Math.floor(currentCasual * 0.3);
+        
+        // Gain new casual fans: a base of 20 + 5% of their total fans
+        const newCasualFans = Math.floor(getTotalFansForMember(member) * 0.05) + 20;
+
+        totalConvertedFans += fansToConvert;
+        totalNewFans += newCasualFans;
+
+        updateMemberState(member.rosterId || member.id, m => {
+          const casual = m.fans?.casual || 0;
+          const hardcore = m.fans?.hardcore || 0;
+          return {
             ...m,
-            fans: (m.fans || 0) + fanGainPerMember,
+            fans: {
+              hardcore: hardcore + fansToConvert,
+              casual: Math.max(0, casual - fansToConvert) + newCasualFans,
+            },
             stamina: Math.max(0, (m.stamina || 100) - 50),
             stress: Math.min(100, (m.stress || 0) + 25),
             morale: Math.min(100, (m.morale || 0) + 5)
-        }));
+          };
+        });
       });
       
-      // We no longer need the incorrect setTotalFans() call.
-      setMessage(`Handshake event success! +${fanGain.toLocaleString()} fans, but members are exhausted.`);
+      const successMessage = `Handshake event success! Converted ${totalConvertedFans.toLocaleString()} fans to hardcore and gained ${totalNewFans.toLocaleString()} new casual fans.`;
+      addNotification({ type: 'Fans', message: successMessage });
+      setMessage(successMessage);
+      setShowModal(null);
     };
     
     const startTrainingCamp = (memberId, skill) => {
@@ -2014,10 +2122,13 @@ const executeSongRelease = (singleToRelease) => {
       setShowModal(null);
     };
     
-    const startGroupMediaJob = (jobType) => {
+    const startGroupMediaJob = (jobType, selectedMemberIds) => {
       const cost = 20000;
+      // Safety checks, though the modal should prevent these.
+      if (groupMediaJobDoneThisWeek) return setMessage("You can only do one group media job per week.");
       if (money < cost) return setMessage(`This job costs ¥${cost.toLocaleString()}.`);
-      const availableMembers = members.filter(m => m.isAvailable).length;
+
+      const performingMembers = selectedMemberIds.map(id => getMemberById(id)).filter(m => m && m.isAvailable);
       
       let requiredMembers = 0;
       let fanBoostMultiplier = 1;
@@ -2039,42 +2150,78 @@ const executeSongRelease = (singleToRelease) => {
               requiredMembers = 5;
               successMessage += 'Group variety appearance was a hit!';
               break;
+          case 'web_series':
+              fanBoostMultiplier = 1.2;
+              requiredMembers = 4;
+              successMessage += 'The sponsored web series was a success!';
+              break;
           default:
                return setMessage('Invalid job type.');
       }
       
-      if (availableMembers < requiredMembers) {
-          return setMessage(`Job requires ${requiredMembers} available members. Only ${availableMembers} available.`);
+      if (performingMembers.length < requiredMembers) {
+          return setMessage(`Job requires ${requiredMembers} members. Only ${performingMembers.length} were selected or available.`);
       }
 
       setMoney(prev => prev - cost);
+      setGroupMediaJobDoneThisWeek(true);
       
-      const avgSkill = members.filter(m => m.isAvailable).reduce((sum, m) => sum + (m.variety || 0), 0) / availableMembers;
+      const avgSkill = performingMembers.reduce((sum, m) => sum + (m.variety || 0), 0) / performingMembers.length;
       const baseSuccess = avgSkill / 100;
-
-      setMembers(prev => (prev || []).map(m => m.isAvailable ? {
-          ...m,
-          stamina: Math.max(0, (m.stamina || 100) - 20),
-          stress: Math.min(100, (m.stress || 0) + 15),
-          morale: Math.max(0, (m.morale || 0) - 15)
-      } : m));
+      const performingMemberIds = performingMembers.map(m => m.rosterId || m.id);
 
       if (Math.random() < baseSuccess) {
-          const fanGain = Math.floor((totalFans || 0) * 0.05 * fanBoostMultiplier);
-          const availableMemberIds = members.filter(m => m.isAvailable).map(m => m.id);
-          distributeFans(fanGain, availableMemberIds);
-          setMessage(`${successMessage} +${fanGain.toLocaleString()} new fans!`);
+          // SUCCESS LOGIC
+          const baseFanGain = 5000;
+          const fanGain = Math.floor(baseFanGain * fanBoostMultiplier * (1 + (avgSkill / 100)));
+          
+          distributeFans(fanGain, performingMemberIds);
+          
+          performingMemberIds.forEach(memberId => {
+            updateMemberState(memberId, m => ({ ...m, morale: Math.min(100, (m.morale || 0) + 10) }));
+          });
+
+          const finalMessage = `${successMessage} Gained a total of ${fanGain.toLocaleString()} new fans!`;
+          setMessage(finalMessage);
+          addNotification({ type: 'Fans', message: finalMessage });
+
       } else {
-          const fanLoss = Math.floor((totalFans || 0) * 0.01);
-          setTotalFans(prev => Math.max(100, (prev || 0) - fanLoss));
-          setMessage('Failure! The group appearance was criticized. Lost fans and morale.');
+          // FAILURE LOGIC (FIXED)
+          const fanLosses = performingMembers.map(member => {
+              const casualFans = member.fans?.casual || 0;
+              const loss = Math.min(casualFans, 500); // Each member loses up to 500 casual fans
+              return { id: member.rosterId || member.id, loss };
+          });
+
+          const totalFansLost = fanLosses.reduce((sum, current) => sum + current.loss, 0);
+
+          fanLosses.forEach(({ id, loss }) => {
+              if (loss > 0) {
+                  updateMemberState(id, m => ({
+                      ...m,
+                      fans: {
+                          hardcore: m.fans?.hardcore || 0,
+                          casual: Math.max(0, (m.fans?.casual || 0) - loss)
+                      },
+                      morale: Math.max(0, (m.morale || 0) - 15)
+                  }));
+              }
+          });
+          
+          const finalMessage = `Failure! The group appearance was criticized. Lost ${totalFansLost.toLocaleString()} casual fans and member morale dropped.`;
+          setMessage(finalMessage);
+          addNotification({ type: 'alert', message: finalMessage });
       }
       setShowModal(null);
     };
 
 
     const nextWeek = () => {
-     setHasPerformedThisWeek(false);
+
+    setMediaJobDoneThisWeek(false);
+    setGroupMediaJobDoneThisWeek(false);
+
+    setHasPerformedThisWeek(false);
       if (activeTour) return progressTour();
       
       const scandalRoll = Math.random();
@@ -2313,68 +2460,52 @@ const executeSongRelease = (singleToRelease) => {
       
       setMoney(prev => (prev || 0) + income);
 
-        // --- NEW: Monthly Financial Drain & Fan Churn ---
-        let expenseNotification = '';
-        // This logic triggers on the last week of every "month" (every 4 weeks)
-        if (newWeek > 0 && newWeek % 4 === 0) {
-            // 1. Member Salaries
-            const allMembersForSalary = [...members, ...sisterGroups.flatMap(sg => sg.members || [])];
-            const totalSalaries = allMembersForSalary.reduce((sum, member) => {
-                const baseSalary = 2000; // Base salary per month
-                const skillBonus = Math.floor(((member.singing || 0) + (member.dancing || 0) + (member.variety || 0)) * 5);
-                const fanBonus = Math.floor((member.fans || 0) / 50);
-                return sum + baseSalary + skillBonus + fanBonus;
-            }, 0);
+            // --- NEW: Monthly Financial Drain & Fan Churn ---
+            let expenseNotification = '';
+            // This logic triggers on the last week of every "month" (every 4 weeks)
+            if (newWeek > 0 && newWeek % 4 === 0) {
+                // 1. Member Salaries
+                const allMembersForSalary = [...members, ...sisterGroups.flatMap(sg => sg.members || [])];
+                const totalSalaries = allMembersForSalary.reduce((sum, member) => {
+                    const baseSalary = 2000; // Base salary per month
+                    const skillBonus = Math.floor(((member.singing || 0) + (member.dancing || 0) + (member.variety || 0)) * 5);
+                    const fanBonus = Math.floor(getTotalFansForMember(member) / 50); // <-- THE FIX
+                    return sum + baseSalary + skillBonus + fanBonus;
+                }, 0);
 
-            // 2. Facility Maintenance
-            const theaterMaintenance = theaters.reduce((sum, t) => sum + (t.level * 20000), 0);
-            const roomMaintenance = (buildings.practiceRooms.vocal + buildings.practiceRooms.dance + buildings.practiceRooms.variety) * 5000;
-            const totalMaintenance = theaterMaintenance + roomMaintenance;
-            
-            const monthlyExpenses = totalSalaries + totalMaintenance;
-
-            // 3. Fan Churn (Increased to 2% and uses a better distribution method)
-            const fanChurnTotal = Math.ceil((totalFans || 0) * 0.02); 
-
-            // 4. Apply Drains
-            setMoney(prev => prev - monthlyExpenses);
-
-            // --- REVISED & FIXED: Distribute Fan Loss Proportionally ---
-            let totalFansActuallyLost = 0;
-            const fanLossAppliedMembers = new Map();
-
-            // Create a single list of all members with unique IDs to process them all at once
-            const allGameMembers = [
-                ...members.map(m => ({ ...m, uniqueId: String(m.id) })), 
-                ...sisterGroups.flatMap(sg => (sg.members || []).map(m => ({ ...m, uniqueId: `sg-${sg.id}-${m.id}`, sgId: sg.id })))
-            ];
-
-            // First, calculate the loss for every member and update them in a temporary map
-            allGameMembers.forEach(member => {
-                let lossForMember = 0;
-                if (totalFans > 0 && (member.fans || 0) > 0) {
-                    const fanProportion = (member.fans || 0) / totalFans;
-                    // Use Math.ceil to ensure members with few fans still lose at least one, making the effect visible
-                    lossForMember = Math.ceil(fanProportion * fanChurnTotal);
-                }
+                // 2. Building Upkeep
+                const practiceRoomUpkeep = ((buildings.practiceRooms?.vocal || 0) + (buildings.practiceRooms?.dance || 0) + (buildings.practiceRooms?.variety || 0)) * 1000;
+                const theaterUpkeep = (theaters || []).reduce((sum, t) => sum + (t.maintenance || 5000), 0);
+                const totalUpkeep = practiceRoomUpkeep + theaterUpkeep;
                 
-                const newFans = Math.max(0, (member.fans || 0) - lossForMember);
-                totalFansActuallyLost += ((member.fans || 0) - newFans);
-                
-                fanLossAppliedMembers.set(member.uniqueId, { ...member, fans: newFans });
-            });
-            
-            // Now, apply the updates from the map back to the state
-            setMembers(prevMembers => prevMembers.map(m => fanLossAppliedMembers.get(String(m.id)) || m));
-            setSisterGroups(prevSGs => prevSGs.map(sg => ({
-                ...sg,
-                members: (sg.members || []).map(m => fanLossAppliedMembers.get(`sg-${sg.id}-${m.id}`) || m)
-            })));
-            // --- END REVISED FAN LOSS ---
+                const monthlyExpenses = totalSalaries + totalUpkeep;
 
-            expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()} (Salaries & Upkeep). Lost ${totalFansActuallyLost.toLocaleString()} fans due to churn.`;
-            addNotification({ type: 'info', message: expenseNotification });
-        }
+                setMoney(prev => prev - monthlyExpenses);
+
+                // --- Hardcore/Casual Fan Churn Logic ---
+                let totalFansActuallyLost = 0;
+                const updateMemberFansForChurn = (member) => {
+                  if (!member.fans || typeof member.fans !== 'object') return member;
+                  const casualFans = member.fans.casual || 0;
+                  const hardcoreFans = member.fans.hardcore || 0;
+                  const fansLost = Math.ceil(casualFans * 0.05); // 5% of casual fans churn
+                  totalFansActuallyLost += fansLost;
+                  return {
+                    ...member,
+                    fans: { hardcore: hardcoreFans, casual: Math.max(0, casualFans - fansLost) }
+                  };
+                };
+                
+                setMembers(prev => prev.map(m => updateMemberFansForChurn(m)));
+                setSisterGroups(prev => prev.map(sg => ({
+                    ...sg,
+                    members: (sg.members || []).map(m => updateMemberFansForChurn(m))
+                })));
+                
+                expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()} (Salaries & Upkeep). Lost ${totalFansActuallyLost.toLocaleString()} fans due to churn.`;
+                addNotification({ type: 'info', message: expenseNotification });
+            }
+            // --- END MONTHLY LOGIC ---
         // --- END NEW ---
       
       let campMessage = '';
@@ -2613,14 +2744,13 @@ if (newWeek > 52 && newWeek % 52 === 1) { // Triggers on week 53, 105, 157, etc.
                 stamina: 100,
                 morale: 100,
                 stress: 0,
-                fans: 0,
+                fans: { hardcore: 0, casual: 0 },
                 potential: candidate.potential,
                 personality: candidate.personality,
                 position: 'under',
                 relationships: {},
                 birthday: { month: 1, day: 1 },
                 equippedOutfit: null,
-                socialFollowers: 500,
                 scandals: 0,
                 age: Math.floor(Math.random() * 5) + 14, // 14-18
                 yearsActive: 0,
@@ -2739,7 +2869,7 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
 
     return {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
@@ -2752,7 +2882,7 @@ const App = () => {
     // Destructure everything from the custom hook
     const {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
@@ -2784,10 +2914,10 @@ trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgrad
     };
 
     useEffect(() => {
-    const mainFans = (members || []).reduce((sum, m) => sum + (m.fans || 0), 0);
-    const sisterFans = (sisterGroups || []).flatMap(sg => sg.members || []).reduce((sum, m) => sum + (m.fans || 0), 0);
-    setTotalFans(mainFans + sisterFans);
-}, [members, sisterGroups]);
+        const mainFans = (members || []).reduce((sum, m) => sum + getTotalFansForMember(m), 0);
+        const sisterFans = (sisterGroups || []).flatMap(sg => sg.members || []).reduce((sum, m) => sum + getTotalFansForMember(m), 0);
+        setTotalFans(mainFans + sisterFans);
+    }, [members, sisterGroups]);
 
 
     // Utility function to generate a random name for the startup screen
@@ -3135,55 +3265,69 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
 
       const handleChoice = (choice) => {
           let messageText = '';
-          let fanChange = 0;
-          let groupFanChange = 0;
           let moraleChange = 0;
+          let fanChanges = { hardcore: 0, casual: 0 };
           
+          const currentFans = member.fans || { hardcore: 0, casual: 0 };
           const roll = Math.random();
 
           if (choice === 'apologize') {
-              fanChange = -Math.floor(member.fans * 0.1);
+              // Lose 20% of casual fans, but only 5% of hardcore fans.
+              fanChanges.casual = -Math.floor(currentFans.casual * 0.20);
+              fanChanges.hardcore = -Math.floor(currentFans.hardcore * 0.05);
               moraleChange = -20;
-              groupFanChange = -Math.floor(totalFans * 0.01);
               messageText = `${member.name} publicly apologizes. The situation stabilizes, but her reputation is damaged.`;
-              setMembers(prev => prev.map(m => m.id === member.id ? { ...m, isAvailable: false, returningWeek: week + 4 } : m));
+              // Member is suspended for 4 weeks.
+              updateMemberState(member.id, m => ({ ...m, isAvailable: false, returningWeek: week + 4 }));
           } else if (choice === 'deny') {
-              if (roll > 0.5) {
-                  fanChange = Math.floor(member.fans * 0.05);
+              if (roll > 0.5) { // Denial succeeds
+                  // Gain a small amount of new casual fans.
+                  fanChanges.casual = Math.floor(getTotalFansForMember(member) * 0.1);
                   moraleChange = 10;
-                  groupFanChange = Math.floor(totalFans * 0.02);
                   messageText = `Success! The public believes the denial. ${member.name}'s image is strengthened.`;
-              } else {
-                  fanChange = -Math.floor(member.fans * 0.3);
+              } else { // Denial fails catastrophically
+                  // Lose 50% of casual fans and a painful 25% of hardcore fans.
+                  fanChanges.casual = -Math.floor(currentFans.casual * 0.50);
+                  fanChanges.hardcore = -Math.floor(currentFans.hardcore * 0.25);
                   moraleChange = -50;
-                  groupFanChange = -Math.floor(totalFans * 0.05);
                   messageText = `Disaster! The denial was proven false. ${member.name} is seen as a liar, causing massive backlash.`;
               }
           } else { // 'ignore'
-              if (roll > 0.8) {
+              if (roll > 0.8) { // Get away with it
                   messageText = `Surprisingly, the scandal blew over with no major impact.`;
-              } else {
-                  fanChange = -Math.floor(member.fans * 0.15);
+              } else { // Ignoring it fails
+                  // Lose 25% of casual fans. Hardcore fans don't leave, but they don't grow.
+                  fanChanges.casual = -Math.floor(currentFans.casual * 0.25);
                   moraleChange = -30;
-                  groupFanChange = -Math.floor(totalFans * 0.02);
-                  messageText = `Ignoring it was a mistake. The scandal festered, damaging ${member.name}'s and the group's reputation.`;
+                  messageText = `Ignoring it was a mistake. The scandal festered, damaging ${member.name}'s reputation.`;
               }
           }
 
-          setMembers(prev => prev.map(m => {
-              if (m.id === member.id) {
-                  return { ...m, fans: Math.max(0, m.fans + fanChange), morale: Math.max(0, Math.min(100, m.morale + moraleChange)) };
-              }
-              return m;
-          }));
-
-          setTotalFans(prev => Math.max(0, prev + groupFanChange));
+          updateMemberState(member.id, m => {
+              const currentHC = m.fans?.hardcore || 0;
+              const currentC = m.fans?.casual || 0;
+              return { 
+                  ...m, 
+                  fans: {
+                      hardcore: Math.max(0, currentHC + fanChanges.hardcore),
+                      casual: Math.max(0, currentC + fanChanges.casual),
+                  },
+                  morale: Math.max(0, Math.min(100, (m.morale || 0) + moraleChange)) 
+              };
+          });
           
-          // **THE FIX: Build a detailed message with gains and losses**
           let details = [];
-          if (fanChange !== 0) details.push(`Fans: ${fanChange > 0 ? '+' : ''}${fanChange.toLocaleString()}`);
-          if (moraleChange !== 0) details.push(`Morale: ${moraleChange > 0 ? '+' : ''}${moraleChange}`);
-          if (groupFanChange !== 0) details.push(`Group Fans: ${groupFanChange > 0 ? '+' : ''}${groupFanChange.toLocaleString()}`);
+          if (fanChanges.hardcore !== 0) {
+              const sign = fanChanges.hardcore > 0 ? '+' : '';
+              details.push(`Hardcore Fans: ${sign}${fanChanges.hardcore.toLocaleString()}`);
+          }
+          if (fanChanges.casual !== 0) {
+              const sign = fanChanges.casual > 0 ? '+' : '';
+              details.push(`Casual Fans: ${sign}${fanChanges.casual.toLocaleString()}`);
+          }
+          if (moraleChange !== 0) {
+              details.push(`Morale: ${moraleChange > 0 ? '+' : ''}${moraleChange}`);
+          }
 
           let finalMessage = messageText;
           if (details.length > 0) {
@@ -3207,7 +3351,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
               
                   <h5 className="font-semibold mb-2">Choose your action:</h5>
                   <div className="grid grid-cols-1 gap-3">
-                      <button onClick={() => handleChoice('apologize')} className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors">1. Public Apology & Punishment</button>
+                      <button onClick={() => handleChoice('apologize')} className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors">1. Public Apology & Hiatus</button>
                       <button onClick={() => handleChoice('deny')} className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors">2. Strong Denial (High Risk)</button>
                       <button onClick={() => handleChoice('ignore')} className="p-3 bg-gray-200 text-gray-800 rounded font-bold border-l-4 border-gray-500 hover:bg-gray-300 transition-colors">3. Ignore It</button>
                   </div>
@@ -3439,7 +3583,7 @@ const CreateSongModal = () => {
                                             <div className="flex flex-col">
                                                 <span className="font-medium dark:text-gray-200">{member.name}</span>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Vo. {Math.round(member.singing)} Da. {Math.round(member.dancing)} Va. {Math.round(member.variety)} Fans: {Math.round(member.fans || 0).toLocaleString()}
+                                                    Vo. {Math.round(member.singing)} Da. {Math.round(member.dancing)} Va. {Math.round(member.variety)} Fans: {getTotalFansForMember(member).toLocaleString()}
                                                     {getMemberWarningForSingle(member.id) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarningForSingle(member.id)}</span>}
                                                 </span>
                                             </div>
@@ -3637,13 +3781,15 @@ const CreateSongModal = () => {
           return map;
       }, {});
   
+      // --- CORRECTED TIER LIST ---
       const productionTiers = {
-          training: { standard: { name: 'Standard Practice', cost: 0 }, workshop: { name: 'Specialized Workshop', cost: 50000 }, overseas: { name: 'Intensive Camp', cost: 250000 } },
-          song: { inHouse: { name: 'In-house Team', cost: 0 }, external: { name: 'External Songwriter', cost: 100000 }, famous: { name: 'Famous Producer', cost: 400000 } },
-          mv: { none: { name: 'No Music Video', cost: 0 }, practice: { name: 'Practice Room MV', cost: 20000 }, location: { name: 'On-Location MV', cost: 150000 }, cinematic: { name: 'Cinematic MV', cost: 600000 } },
-          outfits: { existing: { name: 'Use Existing Outfits', cost: 0 }, custom: { name: 'New Custom Outfits', cost: 120000 } },
-          promo: { none: { name: 'Word of Mouth', cost: 0 }, social: { name: 'Social Media Ads', cost: 30000 }, blitz: { name: 'Full Media Blitz', cost: 200000 } }
+          training: { standard: { name: 'Standard', cost: 0 }, workshop: { name: 'Workshop', cost: 50000 }, overseas: { name: 'Overseas', cost: 150000 }, bootcamp: { name: 'Bootcamp', cost: 250000 }, elite: { name: 'Elite', cost: 500000 }, oneOnOne: { name: 'One-on-One', cost: 1000000 } },
+          song: { inHouse: { name: 'In-house', cost: 0 }, rookie: { name: 'Rookie', cost: 25000 }, external: { name: 'External', cost: 75000 }, trend: { name: 'Trend-setter', cost: 150000 }, famous: { name: 'Famous', cost: 300000 }, hitmaker: { name: 'Hitmaker', cost: 750000 } },
+          mv: { none: { name: 'None', cost: 0 }, practice: { name: 'Practice', cost: 10000 }, performance: { name: 'Performance', cost: 30000 }, location: { name: 'Location', cost: 75000 }, storyline: { name: 'Storyline', cost: 200000 }, cinematic: { name: 'Cinematic', cost: 500000 }, blockbuster: { name: 'Blockbuster', cost: 1500000 } },
+          outfits: { default: { name: 'Default', cost: 0 }, custom: { name: 'Custom', cost: 15000 }, concept: { name: 'Concept', cost: 50000 }, luxury: { name: 'Luxury', cost: 120000 } },
+          promo: { none: { name: 'None', cost: 0 }, social: { name: 'Social', cost: 5000 }, teaser: { name: 'Teaser', cost: 20000 }, variety: { name: 'Variety', cost: 80000 }, blitz: { name: 'Blitz', cost: 200000 }, global: { name: 'Global', cost: 500000 } }
       };
+      // --- END CORRECTION ---
   
       const ProductionInfo = () => {
           if (!single.production) {
@@ -3705,11 +3851,14 @@ const CreateSongModal = () => {
           );
       };
       
+      // --- CORRECTED GROUP NAME LOGIC ---
+      const releasingGroupName = single.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(single.targetGroup))?.name || single.targetGroup);
+
       return (
           <ModalWrapper title={`${single.name} Single`} maxWidth="max-w-4xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
                 <div className="p-3 border rounded-lg bg-gray-50 space-y-1 dark:text-gray-900">
-                    <p><strong>Released by:</strong> {single.targetGroup === 'main' ? groupName : single.targetGroup}</p>
+                    <p><strong>Released by:</strong> {releasingGroupName}</p>
                     <p><strong>Release Date:</strong> {getFormattedDateForWeek(single.releaseWeek)}</p>
                     <p><strong>Total Sales:</strong> {single.sales.toLocaleString()}</p>
                     <p><strong>Total Revenue:</strong> <span className="font-bold text-green-600">¥{single.revenue.toLocaleString()}</span></p>
@@ -4936,97 +5085,254 @@ const TeamDetailsModal = ({ team }) => {
         );
     };
 
-const MediaJobModal = () => {
-    // FIX: This now correctly defines the variable used by the dropdown below.
-    const availableMainMembers = members.filter(m => m.isAvailable);
-    
-    return (
-        <ModalWrapper title={<span className="flex items-center"><Mic size={20} className="mr-2"/> Send Member to Media Job</span>}>
-            <p className="text-sm text-gray-600 mb-4">Select a member and a strategy for a solo media appearance. Cost: ¥1,000.</p>
-            
-            <h4 className="font-semibold mb-1">Select Member</h4>
-            <select 
-                // FIX: Use getMemberById to correctly find any member, though this list is just main members.
-                value={selectedMember?.id || ''}
-                onChange={(e) => setSelectedMember(getMemberById(e.target.value) || null)}
-                className="w-full p-2 border rounded mb-3"
-            >
-                <option value="">-- Select Available Main Member --</option>
-                {availableMainMembers.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} (Variety: {m.variety})</option>
-                ))}
-            </select>
-            
-            {selectedMember && (
-                <div className='space-y-3 mt-3'>
-                    <p className="text-sm font-semibold">Choose Strategy:</p>
-                    <button 
-                        onClick={() => startMediaJob(selectedMember.id, 'safe')} 
-                        className="w-full p-3 bg-green-100 text-green-800 rounded border-l-4 border-green-500 hover:bg-green-200 transition-colors"
-                    >
-                        Safe & Wholesome (+20% Success, Low Fan Gain)
-                    </button>
-                    <button 
-                        onClick={() => startMediaJob(selectedMember.id, 'standard')} 
-                        className="w-full p-3 bg-blue-100 text-blue-800 rounded border-l-4 border-blue-500 hover:bg-blue-200 transition-colors"
-                    >
-                        Standard Interview (Normal Risk/Reward)
-                    </button>
-                    <button 
-                        onClick={() => startMediaJob(selectedMember.id, 'risky')} 
-                        className="w-full p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors"
-                    >
-                        Risky & Controversial (-10% Success, High Risk/Reward)
-                    </button>
-                </div>
-            )}
-            
-            <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
-            </div>
-        </ModalWrapper>
-    );
-};
+    const MediaJobModal = () => {
+      if (showModal !== 'mediaJob') return null;
+
+      const [selectedMemberId, setSelectedMemberId] = useState('');
+      const [strategy, setStrategy] = useState('normal');
+      
+      const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
+
+      const handleConfirm = () => {
+          if (!selectedMemberId) return;
+          
+          const memberObject = getMemberById(selectedMemberId);
+          if (!memberObject) return; 
+
+          setMediaJobDoneThisWeek(true);
+
+          let successChance = 0.75;
+          if (strategy === 'safe') successChance = 0.9;
+          if (strategy === 'risky') successChance = 0.5;
+          
+          const roll = Math.random();
+          let notificationMsg = '';
+          
+          if (roll < successChance) {
+              let fanGain = 500 + Math.floor((memberObject.variety || 0) * 10);
+              if (strategy === 'risky') fanGain *= 2.5;
+              if (strategy === 'safe') fanGain *= 0.6;
+              fanGain = Math.floor(fanGain);
+              
+              notificationMsg = `Success! ${memberObject.name}'s media job was well-received, gaining ${fanGain.toLocaleString()} new casual fans.`;
+              updateMemberState(selectedMemberId, m => ({ 
+                  ...m, 
+                  fans: { 
+                      hardcore: m.fans?.hardcore || 0,
+                      casual: (m.fans?.casual || 0) + fanGain 
+                  },
+                  morale: Math.min(100, (m.morale || 0) + 5)
+              }));
+          } else {
+              let fanLoss = 250;
+              if (strategy === 'risky') fanLoss = 2000;
+              
+              notificationMsg = `Failure... ${memberObject.name}'s media job flopped, losing ${fanLoss.toLocaleString()} casual fans.`;
+              updateMemberState(selectedMemberId, m => ({ 
+                  ...m, 
+                  fans: { 
+                      hardcore: m.fans?.hardcore || 0,
+                      casual: Math.max(0, (m.fans?.casual || 0) - fanLoss)
+                  },
+                  morale: Math.max(0, (m.morale || 0) - 10)
+              }));
+          }
+
+          addNotification({ type: 'Fans', message: notificationMsg });
+          setMessage(notificationMsg);
+          setShowModal(null);
+      };
+      
+      return (
+          <ModalWrapper title="Solo Media Appearance" maxWidth="max-w-md">
+              <div className="p-1">
+                  <p className="mb-4">Send a member on a solo media job. This can only be done once per week.</p>
+                  
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Member:</label>
+                      <select value={selectedMemberId} onChange={e => setSelectedMemberId(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+                          <option value="" disabled>-- Select a Member --</option>
+                          {availableMembers.map(member => (
+                              <option key={member.id} value={member.id}>{member.name} ({member.groupName || groupName})</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Strategy:</label>
+                      <select value={strategy} onChange={e => setStrategy(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+                          <option value="safe">Safe (Low risk, low reward)</option>
+                          <option value="normal">Normal (Standard risk & reward)</option>
+                          <option value="risky">Risky (High risk, high reward)</option>
+                      </select>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 mt-6">
+                      <button onClick={() => setShowModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancel</button>
+                      <button onClick={handleConfirm} disabled={!selectedMemberId} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800">Confirm Job</button>
+                  </div>
+              </div>
+          </ModalWrapper>
+      );
+    };
 
     const GroupMediaModal = () => {
-        const jobs = [
-            { id: 'music_show', name: 'Major Music Show', members: 7, multiplier: 1.5 },
-            { id: 'awards_show', name: 'Year-End Awards Show', members: 16, multiplier: 3 },
-            { id: 'variety_show', name: 'Popular Variety Program', members: 5, multiplier: 1 },
-            { id: 'web_series', name: 'Sponsored Web Series', members: 4, multiplier: 1.2 }
-        ];
+      // --- NEW: State for a multi-step modal ---
+      const [step, setStep] = useState('job_selection');
+      const [selectedJob, setSelectedJob] = useState(null);
+      const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+
+      const jobs = [
+          { id: 'music_show', name: 'Major Music Show', members: 7, multiplier: 1.5 },
+          { id: 'awards_show', name: 'Year-End Awards Show', members: 16, multiplier: 3 },
+          { id: 'variety_program', name: 'Popular Variety Program', members: 5, multiplier: 1 },
+          { id: 'web_series', name: 'Sponsored Web Series', members: 4, multiplier: 1.2 }
+      ];
+
+      const handleJobSelect = (job) => {
+          if (groupMediaJobDoneThisWeek) {
+            setMessage("You can only do one group media job per week.");
+            return;
+          }
+          if (money < 20000) {
+            setMessage("You need at least ¥20,000 for a group media job.");
+            return;
+          }
+          setSelectedJob(job);
+          setStep('member_selection');
+      };
+
+      const toggleMember = (memberId) => {
+          setSelectedMemberIds(prev => 
+              prev.includes(memberId) 
+                  ? prev.filter(id => id !== memberId) 
+                  : [...prev, memberId]
+          );
+      };
+
+      const handleConfirm = () => {
+          if (!selectedJob || selectedMemberIds.length < selectedJob.members) {
+              setMessage(`You need to select at least ${selectedJob.members} members for this job.`);
+              return;
+          }
+          startGroupMediaJob(selectedJob.id, selectedMemberIds);
+      };
+
+      const renderJobSelection = () => (
+          <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a sub-unit on a high-impact media job. Cost: ¥20,000. This can only be done once per week.</p>
+              <div className="space-y-3">
+                  {jobs.map(job => (
+                      <div key={job.id} className="p-3 border rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex justify-between items-center">
+                          <div>
+                              <span className="font-bold dark:text-gray-100">{job.name}</span>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
+                          </div>
+                          <button 
+                              onClick={() => handleJobSelect(job)} 
+                              disabled={groupMediaJobDoneThisWeek || money < 20000}
+                              className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400"
+                          >
+                              Select Job
+                          </button>
+                      </div>
+                  ))}
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded">Cancel</button>
+              </div>
+          </div>
+      );
+
+      const renderMemberSelection = () => {
+          const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
+
+          return (
+              <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members for: <span className="font-bold">{selectedJob.name}</span>. Requires at least {selectedJob.members} members.</p>
+                  
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                      {availableMembers.map(member => (
+                          <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
+                              <div>
+                                  <p className="font-semibold text-sm">{member.name}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Fans: {getTotalFansForMember(member).toLocaleString()}</p>
+                              </div>
+                              <input type="checkbox" checked={selectedMemberIds.includes(member.id)} readOnly className="form-checkbox h-4 w-4 text-blue-600"/>
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
+                      <p className={`font-bold text-lg dark:text-gray-100 ${selectedMemberIds.length < selectedJob.members ? 'text-red-500' : 'text-green-500'}`}>Selected: {selectedMemberIds.length} / {selectedJob.members} (min)</p>
+                      <div className="flex gap-2">
+                          <button onClick={() => { setStep('job_selection'); setSelectedMemberIds([]); }} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Back</button>
+                          <button onClick={handleConfirm} disabled={selectedMemberIds.length < selectedJob.members} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                              Confirm Job (¥20,000)
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          );
+      };
+
+      return (
+          <ModalWrapper title="Group Media Appearance" maxWidth="max-w-2xl">
+              {step === 'job_selection' ? renderJobSelection() : renderMemberSelection()}
+          </ModalWrapper>
+      );
+    };
+
+    const HandshakeEventModal = () => {
+        const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+        const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
+
+        const toggleMember = (memberId) => {
+            setSelectedMemberIds(prev => 
+                prev.includes(memberId) 
+                    ? prev.filter(id => id !== memberId) 
+                    : [...prev, memberId]
+            );
+        };
+
+        const handleConfirm = () => {
+            if (selectedMemberIds.length === 0) {
+                return setMessage("You must select at least one member to participate.");
+            }
+            startHandshakeEvent(selectedMemberIds);
+        };
 
         return (
-            <ModalWrapper title={<span className="flex items-center"><Tv size={20} className="mr-2"/> Group Media Appearance</span>}>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a sub-unit or the full group to a high-impact media job. Cost: ¥20,000.</p>
+            <ModalWrapper title="Plan Handshake Event" maxWidth="max-w-2xl">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members to participate. This event converts casual fans to hardcore fans and attracts new ones. It is very tiring for the idols.</p>
                 
-                <h4 className="font-semibold mb-2 dark:text-gray-200">Available Jobs:</h4>
-                <div className="space-y-3">
-                    {jobs.map(job => (
-                        <div key={job.id} className="p-3 border rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex justify-between items-center">
+                <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1 mb-4">
+                    {availableMembers.map(member => (
+                        <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
                             <div>
-                                <span className="font-bold dark:text-gray-100">{job.name}</span>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
-                                <p className={`text-xs ${members.filter(m => m.isAvailable).length < job.members ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>Requires {job.members} available members.</p>
+                                <p className="font-semibold text-sm">{member.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Casual Fans: {(member.fans?.casual || 0).toLocaleString()}</p>
                             </div>
-                            <button 
-                                onClick={() => startGroupMediaJob(job.id)} 
-                                disabled={members.filter(m => m.isAvailable).length < job.members}
-                                className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-500"
-                            >
-                                Take Job
-                            </button>
+                            <input type="checkbox" checked={selectedMemberIds.includes(member.id)} readOnly className="form-checkbox h-4 w-4 text-blue-600"/>
                         </div>
                     ))}
+                    {availableMembers.length === 0 && <p className="text-gray-500 text-center p-4">No members are available for this event.</p>}
                 </div>
-                
-                <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded">Close</button>
+
+                <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
+                    <p className="font-bold text-lg dark:text-gray-100">Cost: ¥50,000</p>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Cancel</button>
+                        <button onClick={handleConfirm} disabled={selectedMemberIds.length === 0 || money < 50000} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                            Confirm Event ({selectedMemberIds.length} members)
+                        </button>
+                    </div>
                 </div>
             </ModalWrapper>
         );
     };
-    
+
+
     const TrainingCampModal = () => {
         const [campMemberId, setCampMemberId] = useState('');
         const [campSkill, setCampSkill] = useState('singing');
@@ -5502,7 +5808,7 @@ if (!gameStarted) {
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-0.5">{getMemberGroupStatus(m)}</p>
-                                <p className="text-xs text-gray-500 mb-1.5">{`${m.generation ? `${m.generation} | ` : ''}${m.age} y.o. | Fans: ${(m.fans || 0).toLocaleString()}`}</p>
+                                <p className="text-xs text-gray-500 mb-1.5">{`${m.generation ? `${m.generation} | ` : ''}${m.age} y.o. | Fans: ${getTotalFansForMember(m).toLocaleString()}`}</p>
                                 <StatBar label="Singing" value={m.singing} color="bg-blue-500" />
                                 <StatBar label="Dancing" value={m.dancing} color="bg-green-500" />
                                 <StatBar label="Variety" value={m.variety} color="bg-pink-500" />
@@ -5921,8 +6227,7 @@ if (!gameStarted) {
     <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
       <h3 className="text-base font-bold mb-2 flex items-center"><Hand size={18} className="mr-2"/> Fan Events</h3>
       <div className="flex flex-col gap-1.5">
-        <button onClick={startHandshakeEvent} className="w-full p-2 text-sm bg-green-500 text-white rounded">
-          <div className="flex justify-center items-center gap-1 font-semibold"><Hand size={16} /> Hold Handshake Event</div>
+      <button onClick={() => setShowModal('handshakeEvent')} className="w-full p-2 text-sm bg-green-500 text-white rounded">          <div className="flex justify-center items-center gap-1 font-semibold"><Hand size={16} /> Hold Handshake Event</div>
           <span className="text-xs font-normal">(¥50,000) - Boosts fans, drains all member stamina/morale.</span>
         </button>
       </div>
@@ -5931,13 +6236,29 @@ if (!gameStarted) {
     <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
       <h3 className="text-base font-bold mb-2 flex items-center"><Zap size={18} className="mr-2"/> Media & Training</h3>
       <div className="flex flex-col gap-1.5">
-        <button onClick={() => setShowModal('groupMediaJob')} className="w-full p-2 text-sm bg-red-500 text-white rounded">
-          <div className="flex justify-center items-center gap-1 font-semibold"><Tv size={16} /> Group Media Appearance</div>
-          <span className="text-xs font-normal">(¥20,000) - High impact, high member requirement.</span>
+        <button 
+          onClick={() => setShowModal('groupMediaJob')} 
+          disabled={groupMediaJobDoneThisWeek}
+          className="w-full p-2 text-sm bg-red-500 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          <div className="flex justify-center items-center gap-1 font-semibold">
+            <Tv size={16} /> {groupMediaJobDoneThisWeek ? 'Job Done This Week' : 'Group Media Appearance'}
+          </div>
+          <span className="text-xs font-normal">
+            {groupMediaJobDoneThisWeek ? '(Available next week)' : '(¥20,000) - High impact, high member requirement.'}
+          </span>
         </button>
-        <button onClick={() => setShowModal('mediaJob')} className="w-full p-2 text-sm bg-blue-500 text-white rounded">
-          <div className="flex justify-center items-center gap-1 font-semibold"><Mic size={16} /> Send Member to Media Job</div>
-          <span className="text-xs font-normal">(¥1,000) - Gain followers based on variety skill & strategy.</span>
+        <button 
+          onClick={() => setShowModal('mediaJob')} 
+          disabled={mediaJobDoneThisWeek}
+          className="w-full p-2 text-sm bg-blue-500 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          <div className="flex justify-center items-center gap-1 font-semibold">
+            <Mic size={16} /> {mediaJobDoneThisWeek ? 'Job Done This Week' : 'Send Member to Media Job'}
+          </div>
+          <span className="text-xs font-normal">
+            {mediaJobDoneThisWeek ? '(Available next week)' : '(¥1,000) - Gain casual fans based on variety skill.'}
+          </span>
         </button>
         <button onClick={() => setShowModal('trainingCamp')} className="w-full p-2 text-sm bg-purple-500 text-white rounded">
           <div className="flex justify-center items-center gap-1 font-semibold"><Brain size={16} /> Special Training Camp</div>
@@ -6046,9 +6367,17 @@ if (!gameStarted) {
       <StatBar label="Stress" value={selectedMember.stress} color={selectedMember.stress > 70 ? "bg-yellow-500" : "bg-indigo-500"} />
       <StatBar label="Morale" value={selectedMember.morale} color="bg-purple-500" />
 
-      <p className="text-xs text-gray-500 mt-2">
-        Social Followers: {(selectedMember.socialFollowers || 0).toLocaleString()}
-      </p>
+<div className="mt-3 text-sm border-t pt-3">
+    <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className="mr-2"/>Fan Base</h4>
+    <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
+        <span className="font-bold text-red-600 dark:text-red-400">Hardcore Fans</span>
+        <span className="font-mono text-base font-bold text-red-700 dark:text-red-300">{(selectedMember.fans?.hardcore || 0).toLocaleString()}</span>
+    </div>
+    <div className="flex justify-between items-center p-2 mt-1 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+        <span className="font-bold text-blue-600 dark:text-blue-400">Casual Fans</span>
+        <span className="font-mono text-base font-bold text-blue-700 dark:text-blue-300">{(selectedMember.fans?.casual || 0).toLocaleString()}</span>
+    </div>
+</div>
     </div>
 
     {/* Actions */}
@@ -6194,6 +6523,7 @@ if (!gameStarted) {
         {showModal === 'teamDetails' && modalData && <TeamDetailsModal team={modalData} />}
         {showModal === 'saveGame' && <SaveGameModal />}
         {showModal === 'loadGame' && <LoadGameModal />}
+        {showModal === 'handshakeEvent' && <HandshakeEventModal />}
         {showModal === 'mediaJob' && <MediaJobModal />}
         {showModal === 'groupMediaJob' && <GroupMediaModal />}
         {showModal === 'trainingCamp' && <TrainingCampModal />}
