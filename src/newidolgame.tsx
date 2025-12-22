@@ -11,12 +11,21 @@ import {
   Film, Plane, GraduationCap, Shirt, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
-  ClipboardCheck, Clock, Moon, BarChart2, Layers, Clipboard
+  ClipboardCheck, Clock, Moon, BarChart2, Wrench, Layers, Clipboard
 } from 'lucide-react';
 
 import { getApps, initializeApp } from "firebase/app";;
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, setLogLevel } from 'firebase/firestore';
+
+
+const productionTiers = {
+    training: { standard: { name: 'Standard Practice', cost: 0, effect: 'Base skill gain from facilities.' }, workshop: { name: 'Specialized Workshop', cost: 50000, effect: '+5 Sing/Dance for Senbatsu.' }, overseas: { name: 'Intensive Camp', cost: 250000, effect: '+15 Sing/Dance for Senbatsu.' }, bootcamp: { name: 'Idol Bootcamp', cost: 400000, effect: '+20 Sing/Dance for Senbatsu, slight morale strain.' }, elite: { name: 'Elite Trainer Program', cost: 650000, effect: '+25 Sing/Dance & improved consistency.' }, oneOnOne: { name: '1-on-1 Master Coaching', cost: 900000, effect: '+30 Sing/Dance for selected members, very high efficiency.' } },
+    song: { inHouse: { name: 'In-house Team', cost: 0, effect: 'Standard song quality.' }, rookie: { name: 'Rookie Producer', cost: 50000, effect: '+5% Sales Potential.' }, external: { name: 'External Songwriter', cost: 100000, effect: '+10% Sales Potential.' }, trend: { name: 'Trend-focused Producer', cost: 180000, effect: '+15% Sales Potential, short-term hype boost.' }, famous: { name: 'Famous Producer', cost: 400000, effect: '+25% Sales & +10% Hype.' }, hitmaker: { name: 'Top-tier Hitmaker', cost: 750000, effect: '+40% Sales, strong chart performance.' } },
+    mv: { none: { name: 'No Music Video', cost: 0, effect: 'Minimal promotion.' }, practice: { name: 'Practice Room MV', cost: 20000, effect: '+5% Fan Gain.' }, performance: { name: 'Performance MV', cost: 60000, effect: '+8% Fan Gain & Performance Appeal.' }, location: { name: 'On-Location MV', cost: 150000, effect: '+15% Fan Gain & Hype.' }, storyline: { name: 'Storyline MV', cost: 300000, effect: '+20% Fan Gain, Emotional Impact.' }, cinematic: { name: 'Cinematic MV', cost: 600000, effect: '+30% Fan Gain, High Hype, Viral Chance.' }, blockbuster: { name: 'Blockbuster MV', cost: 1000000, effect: '+45% Fan Gain, Massive Hype, Guaranteed Media Buzz.' } },
+    outfits: { existing: { name: 'Use Existing Outfits', cost: 0, effect: 'No visual bonus.' }, recolor: { name: 'Reworked Outfits', cost: 40000, effect: 'Minor visual refresh.' }, custom: { name: 'New Custom Outfits', cost: 120000, effect: 'Boosts Morale & Visuals.' }, concept: { name: 'Concept-Specific Styling', cost: 200000, effect: '+10% Concept Immersion & Hype.' }, luxury: { name: 'Luxury Designer Outfits', cost: 450000, effect: 'Major visual boost, attracts brand deals.' } },
+    promo: { none: { name: 'Word of Mouth', cost: 0, effect: 'Base pre-release buzz.' }, social: { name: 'Social Media Ads', cost: 30000, effect: '+10% Pre-release Fans.' }, teaser: { name: 'Teaser Rollout', cost: 60000, effect: '+15% Pre-release Fans & Hype.' }, variety: { name: 'Variety Show Appearances', cost: 120000, effect: '+20% General Public Awareness.' }, blitz: { name: 'Full Media Blitz', cost: 200000, effect: '+25% Pre-release Fans & Chart Rank.' }, global: { name: 'Global Promotion Campaign', cost: 400000, effect: '+35% Pre-release Fans, Strong Overseas Charts.' } }
+  };
 
 
 const nameParts = [
@@ -219,7 +228,6 @@ const useIdolManager = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [pastReleases, setPastReleases] = useState([]); // To store all created singles
-    const [albums, setAlbums] = useState([]); // To store all created albums
     const [formattedDate, setFormattedDate] = useState('');
     const [songs, setSongs] = useState([]);
     const [hasPerformedThisWeek, setHasPerformedThisWeek] = useState(false);
@@ -284,6 +292,14 @@ const useIdolManager = () => {
     const [showModal, setShowModal] = useState(null);
     const [mediaJobDoneThisWeek, setMediaJobDoneThisWeek] = useState(false);
     const [groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek] = useState(false);
+    const baseCostAlbum = 500000;
+    const albumPhysicalSurcharge = 250000;
+
+    const weeklySalesCurve = [0.35, 0.25, 0.15, 0.10, 0.05, 0.05, 0.03, 0.02];
+const salesMultipliers = { tier1: 1, tier2: 1.2, tier3: 1.5 };
+const fanMultipliers = { none: 1, tier1: 1.1, tier2: 1.3, tier3: 1.6 };
+const promoMultipliers = { none: 1, tier1: 1.05, tier2: 1.1, tier3: 1.15, tier4: 1.25 };
+
     const [difficulty, setDifficulty] = useState('local');
     const [internationalMarkets, setInternationalMarkets] = useState({ asia: false, west: false });
     const [outfits, setOutfits] = useState([]);
@@ -412,9 +428,6 @@ const useIdolManager = () => {
       { label: "Behind-the-Scenes Mini Stage", category: "Internal", cost: 2000, fanImpact: 0.06, skillImpact: 0.03, staminaDrain: 8, stressGain: 2, desc: "BTS content with a short performance; good engagement." },
     ];
 
-    const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
-    const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
-    const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
 
 
     // START/LOAD/SAVE FUNCTIONS
@@ -629,16 +642,140 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
     // --- MEMBER/GROUP UTILITIES ---
 
     const generateRandomMemberName = () => {
-      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu','Koharu','Rio','Fuka','Ruka','Hina','Sana','Mana','Kiri','Miki','Aira','Kiyomi','Satomi','Chisato','Miho','Yua','Meisa','Natsumi','Yuka','Sora','Riho','Ena','Kanon','Yuzuka','Moka','Himeka','Rika','Shio','Chiharu','Kumi','Aika','Natsue','Sae','Mikoto','Manami','Yoshino','Asumi','Sayo','Reika','Miyabi','Kaede'];
-      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Asano','Fukumoto','Sakai','Matsui','Iwasaki','Nakagawa','Haruna','Ueno','Fujiwara','Seki','Nojima','Hoshino','Chiba','Kikuchi','Tanimoto','Fukui','Ota','Umezu','Ohashi','Yano','Katayama','Maki','Kuroki','Hatta','Koike','Mogi','Inagaki','Mita','Sano','Yoshioka','Komatsu','Sogabe','Horii','Tsuchiya','Kurata','Sugawara','Tsuji','Ishizuka','Amano','Takeuchi','Nakata','Honma','Kitamura','Enomoto'];
+        const firstNames = [
+            'Yui', 'Sakura', 'Miku', 'Haruka', 'Rina', 'Nana', 'Akari', 'Yuki', 'Aoi', 'Hana', 
+            'Karin', 'Miyu', 'Saki', 'Hinata', 'Riko', 'Ayaka', 'Mei', 'Eri', 'Mio', 'Yuna', 
+            'Kotone', 'Sumire', 'Reina', 'Noa', 'Tomomi', 'Hiyori', 'Ami', 'Nao', 'Sayaka', 'Asuka', 
+            'Chihiro', 'Emi', 'Kokona', 'Misaki', 'Saeko', 'Nanami', 'Shiori', 'Aya', 'Kazumi', 'Arisa', 
+            'Marina', 'Kanna', 'Azusa', 'Rin', 'Fumika', 'Suzuka', 'Nene', 'Akane', 'Mai', 'Yuuri', 
+            'Seira', 'Momoka', 'Rei', 'Tsukasa', 'Ichika', 'Mafuyu', 'Yume', 'Kyouka', 'Maho', 'Sena', 
+            'Tsumugi', 'Yurina', 'Himari', 'Mirei', 'Honoka', 'Ririka', 'Natsuki', 'Hikaru', 'Aina', 'Shizuku', 
+            'Ryou', 'Kaho', 'Minori', 'Mariya', 'Ayame', 'Kokoro', 'Misao', 'Rion', 'Moeka', 'Haruna', 
+            'Yuuna', 'Mizuki', 'Kanako', 'Ema', 'Suzu', 'Kotoha', 'Nagisa', 'Ayumi', 'Riona', 'Yuzuki', 
+            'Mina', 'Chiaki', 'Nozomi', 'Miharu', 'Haruno', 'Risa', 'Saaya', 'Airu', 'Koharu', 'Rio', 
+            'Fuka', 'Ruka', 'Hina', 'Sana', 'Mana', 'Kiri', 'Miki', 'Aira', 'Kiyomi', 'Satomi', 
+            'Chisato', 'Miho', 'Yua', 'Meisa', 'Natsumi', 'Yuka', 'Sora', 'Riho', 'Ena', 'Kanon', 
+            'Yuzuka', 'Moka', 'Himeka', 'Rika', 'Shio', 'Chiharu', 'Kumi', 'Aika', 'Natsue', 'Sae', 
+            'Mikoto', 'Manami', 'Yoshino', 'Asumi', 'Sayo', 'Reika', 'Miyabi', 'Kaede', 'Aiko', 'Akiko', 
+            'Atsuko', 'Ayano', 'Emiko', 'Eriko', 'Fujiko', 'Fumiko', 'Haruko', 'Hideko', 'Hiroko', 'Hitomi', 
+            'Izumi', 'Junko', 'Katsumi', 'Kayoko', 'Keiko', 'Kimiko', 'Kumiko', 'Kyoko', 'Machiko', 'Madoka', 
+            'Maiko', 'Makiko', 'Mariko', 'Masako', 'Mayu', 'Mayumi', 'Michiko', 'Midori', 'Mieko', 'Miya', 
+            'Miyoko', 'Momoko', 'Nagako', 'Namiko', 'Naoko', 'Naomi', 'Narumi', 'Noriko', 'Reiko', 'Rie', 
+            'Rikako', 'Rumiko', 'Ryoko', 'Sachiko', 'Sakiko', 'Satoko', 'Setsuko', 'Shigeko', 'Shizuka', 'Sumiko', 
+            'Takako', 'Tamiko', 'Teruko', 'Tomoko', 'Toshiko', 'Wakana', 'Yasuko', 'Yayoi', 'Yoko', 'Yoshiko',
+            'Yumiko', 'Yuriko', 'Kozue', 'Natsuko', 'Sachi', 'Shino', 'Mitsu', 'Ruriko', 'Kiyoko', 'Tomi', 
+            'Fumi', 'Michi', 'Hisako', 'Kazuko', 'Maki', 'Mari', 'Yuko', 'Akemi', 'Asako', 'Atsumi', 
+            'Chie', 'Chieko', 'Chika', 'Chiyo', 'Etsuko', 'Harue', 'Hiroe', 'Ikuko', 'Itsumi', 'Kanade', 
+            'Kayo', 'Kazue', 'Kiwa', 'Koto', 'Kumie', 'Kyomi', 'Machie', 'Masae', 'Masami', 'Michie', 
+            'Mikiho', 'Minao', 'Mineko', 'Misako', 'Mitsue', 'Mitsuki', 'Miyae', 'Miyuki', 'Motoko', 'Mutsumi', 
+            'Nadeshiko', 'Nae', 'Naoe', 'Narue', 'Natsuhiko', 'Natsuyo', 'Nobuko', 'Norie', 'Ran', 'Reiichi', 
+            'Rimiko', 'Ritsuko', 'Rurika', 'Sachie', 'Sadako', 'Saori', 'Sayoko', 'Sayuri', 'Shigemi', 'Shizue', 
+            'Sumie', 'Taeko', 'Takami', 'Tamaki', 'Tamao', 'Terue', 'Terumi', 'Tokiko', 'Tomie', 'Tomoe', 
+            'Toyoko', 'Tsuki', 'Tsuru', 'Ume', 'Utako', 'Waka', 'Yae', 'Yaeko', 'Yasue', 'Yemi', 
+            'Yone', 'Yoshie', 'Yuiho', 'Yukako', 'Yukari', 'Yukie', 'Yukiko', 'Yumi', 'Yurika', 'Yuzue'
+          ];
+          const lastNames = [
+            'Tanaka', 'Sato', 'Suzuki', 'Takahashi', 'Watanabe', 'Yamamoto', 'Kobayashi', 'Nakamura', 'Ito', 'Kato', 
+            'Yoshida', 'Yamada', 'Sasaki', 'Yamaguchi', 'Matsumoto', 'Inoue', 'Kimura', 'Shimizu', 'Hayashi', 'Saito', 
+            'Abe', 'Fujita', 'Okada', 'Goto', 'Kondo', 'Ishikawa', 'Nakajima', 'Harada', 'Otsuka', 'Hasegawa', 
+            'Murakami', 'Kojima', 'Takagi', 'Kuroda', 'Takeda', 'Imai', 'Ando', 'Fukuda', 'Miyazaki', 'Ueda', 
+            'Shibata', 'Kawai', 'Nagano', 'Hirano', 'Mizuno', 'Ono', 'Fujii', 'Sugiyama', 'Kishida', 'Endo', 
+            'Noguchi', 'Oshima', 'Sakurai', 'Mochizuki', 'Tsukada', 'Aoki', 'Morimoto', 'Tamura', 'Oda', 'Matsuda', 
+            'Azuma', 'Nishida', 'Sugimoto', 'Kubota', 'Kawamura', 'Ishii', 'Nakano', 'Kanda', 'Morita', 'Nagata', 
+            'Ogawa', 'Kinoshita', 'Mori', 'Yoshikawa', 'Kawasaki', 'Higuchi', 'Suenaga', 'Kaneko', 'Miyamoto', 'Shinozaki', 
+            'Kawaguchi', 'Hosoda', 'Koga', 'Okamoto', 'Kamei', 'Tsutsui', 'Arakawa', 'Imamura', 'Furukawa', 'Nishimura', 
+            'Kubo', 'Okumura', 'Masuda', 'Ishida', 'Asano', 'Fukumoto', 'Sakai', 'Matsui', 'Iwasaki', 'Nakagawa', 
+            'Haruna', 'Ueno', 'Fujiwara', 'Seki', 'Nojima', 'Hoshino', 'Chiba', 'Kikuchi', 'Tanimoto', 'Fukui', 
+            'Ota', 'Umezu', 'Ohashi', 'Yano', 'Katayama', 'Maki', 'Kuroki', 'Hatta', 'Koike', 'Mogi', 
+            'Inagaki', 'Mita', 'Sano', 'Yoshioka', 'Komatsu', 'Sogabe', 'Horii', 'Tsuchiya', 'Kurata', 'Sugawara', 
+            'Tsuji', 'Ishizuka', 'Amano', 'Takeuchi', 'Nakata', 'Honma', 'Kitamura', 'Enomoto', 'Sawada', 'Uchida', 
+            'Yura', 'Hamada', 'Nishio', 'Shima', 'Hada', 'Kishimoto', 'Sakamoto', 'Nomura', 'Ishibashi', 'Taki', 
+            'Kurokawa', 'Morinaga', 'Oishi', 'Uchiyama', 'Nishino', 'Hiraoka', 'Yashiro', 'Kamada', 'Mizutani', 'Yagisawa', 
+            'Kawashima', 'Ogasawara', 'Terada', 'Inaba', 'Shiraishi', 'Nishiura', 'Sugisaki', 'Katsura', 'Yamazaki', 'Horiguchi', 
+            'Murota', 'Fujino', 'Nishikori', 'Miyake', 'Miyata', 'Shimada', 'Okazaki', 'Miyashiro', 'Fujimori', 'Nagasawa', 
+            'Takada', 'Yamane', 'Nishitani', 'Asada', 'Hamasaki', 'Matsuno', 'Onozawa', 'Takano', 'Kitagawa', 'Nakahara', 
+            'Shiba', 'Yoda', 'Kanamori', 'Umeda', 'Irie', 'Kurihara', 'Hirasawa', 'Kawahara', 'Nagai', 'Tsujimura', 
+            'Horikawa', 'Nishikawa', 'Murata', 'Miyagi', 'Shibasaki', 'Miyamura', 'Yamanaka', 'Hosokawa', 'Ichikawa', 'Kajiwara', 
+            'Obara', 'Suga', 'Nagahama', 'Katsumata', 'Nishimori', 'Fujisawa', 'Numata', 'Hirai', 'Nakamoto', 'Okabe', 
+            'Matsubara', 'Hino', 'Oshita', 'Shioya', 'Takaoka', 'Inui', 'Nishi', 'Nagao', 'Kumagai', 'Tashiro', 
+            'Kawano', 'Eto', 'Fukuzawa', 'Kawade', 'Ogiwara', 'Hirose', 'Asai', 'Yusa', 'Shintani', 'Mitsuoka', 
+            'Sone', 'Tsuda', 'Okuyama', 'Miyoshi', 'Furusawa', 'Kurosu', 'Nishimaki', 'Toba', 'Kase', 'Mizuguchi', 
+            'Teramoto', 'Hanyu', 'Sawamura', 'Okura', 'Kusano', 'Mizushima', 'Arima', 'Fujimoto', 'Iidaka', 'Kido',
+            'Nanba', 'Omiya', 'Shimamura', 'Takase', 'Uehara', 'Yajima', 'Asahina', 'Fukuyama', 'Inami', 'Komiya',
+            'Matsuyama', 'Nishio', 'Okino', 'Shirai', 'Takei', 'Yoshimatsu', 'Eguchi', 'Hoshina', 'Iwanaga', 'Kasai',
+            'Mizoguchi', 'Ogata', 'Sano', 'Tachibana', 'Uchiumi', 'Wakabayashi', 'Yokoyama', 'Aizawa', 'Iidaka', 'Kusaka',
+            'Miyakoshi', 'Okuda', 'Senda', 'Tanabe', 'Uematsu', 'Yasuoka', 'Fujimaki', 'Ikeda', 'Koshino', 'Makino'
+          ];
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
       return `${firstName} ${lastName}`;
     };
 
     const generateMembers = () => {
-      const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu','Koharu','Rio','Fuka','Ruka','Hina','Sana','Mana','Kiri','Miki','Aira','Kiyomi','Satomi','Chisato','Miho','Yua','Meisa','Natsumi','Yuka','Sora','Riho','Ena','Kanon','Yuzuka','Moka','Himeka','Rika','Shio','Chiharu','Kumi','Aika','Natsue','Sae','Mikoto','Manami','Yoshino','Asumi','Sayo','Reika','Miyabi','Kaede'];
-      const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Asano','Fukumoto','Sakai','Matsui','Iwasaki','Nakagawa','Haruna','Ueno','Fujiwara','Seki','Nojima','Hoshino','Chiba','Kikuchi','Tanimoto','Fukui','Ota','Umezu','Ohashi','Yano','Katayama','Maki','Kuroki','Hatta','Koike','Mogi','Inagaki','Mita','Sano','Yoshioka','Komatsu','Sogabe','Horii','Tsuchiya','Kurata','Sugawara','Tsuji','Ishizuka','Amano','Takeuchi','Nakata','Honma','Kitamura','Enomoto'];
+        const firstNames = [
+            'Yui', 'Sakura', 'Miku', 'Haruka', 'Rina', 'Nana', 'Akari', 'Yuki', 'Aoi', 'Hana', 
+            'Karin', 'Miyu', 'Saki', 'Hinata', 'Riko', 'Ayaka', 'Mei', 'Eri', 'Mio', 'Yuna', 
+            'Kotone', 'Sumire', 'Reina', 'Noa', 'Tomomi', 'Hiyori', 'Ami', 'Nao', 'Sayaka', 'Asuka', 
+            'Chihiro', 'Emi', 'Kokona', 'Misaki', 'Saeko', 'Nanami', 'Shiori', 'Aya', 'Kazumi', 'Arisa', 
+            'Marina', 'Kanna', 'Azusa', 'Rin', 'Fumika', 'Suzuka', 'Nene', 'Akane', 'Mai', 'Yuuri', 
+            'Seira', 'Momoka', 'Rei', 'Tsukasa', 'Ichika', 'Mafuyu', 'Yume', 'Kyouka', 'Maho', 'Sena', 
+            'Tsumugi', 'Yurina', 'Himari', 'Mirei', 'Honoka', 'Ririka', 'Natsuki', 'Hikaru', 'Aina', 'Shizuku', 
+            'Ryou', 'Kaho', 'Minori', 'Mariya', 'Ayame', 'Kokoro', 'Misao', 'Rion', 'Moeka', 'Haruna', 
+            'Yuuna', 'Mizuki', 'Kanako', 'Ema', 'Suzu', 'Kotoha', 'Nagisa', 'Ayumi', 'Riona', 'Yuzuki', 
+            'Mina', 'Chiaki', 'Nozomi', 'Miharu', 'Haruno', 'Risa', 'Saaya', 'Airu', 'Koharu', 'Rio', 
+            'Fuka', 'Ruka', 'Hina', 'Sana', 'Mana', 'Kiri', 'Miki', 'Aira', 'Kiyomi', 'Satomi', 
+            'Chisato', 'Miho', 'Yua', 'Meisa', 'Natsumi', 'Yuka', 'Sora', 'Riho', 'Ena', 'Kanon', 
+            'Yuzuka', 'Moka', 'Himeka', 'Rika', 'Shio', 'Chiharu', 'Kumi', 'Aika', 'Natsue', 'Sae', 
+            'Mikoto', 'Manami', 'Yoshino', 'Asumi', 'Sayo', 'Reika', 'Miyabi', 'Kaede', 'Aiko', 'Akiko', 
+            'Atsuko', 'Ayano', 'Emiko', 'Eriko', 'Fujiko', 'Fumiko', 'Haruko', 'Hideko', 'Hiroko', 'Hitomi', 
+            'Izumi', 'Junko', 'Katsumi', 'Kayoko', 'Keiko', 'Kimiko', 'Kumiko', 'Kyoko', 'Machiko', 'Madoka', 
+            'Maiko', 'Makiko', 'Mariko', 'Masako', 'Mayu', 'Mayumi', 'Michiko', 'Midori', 'Mieko', 'Miya', 
+            'Miyoko', 'Momoko', 'Nagako', 'Namiko', 'Naoko', 'Naomi', 'Narumi', 'Noriko', 'Reiko', 'Rie', 
+            'Rikako', 'Rumiko', 'Ryoko', 'Sachiko', 'Sakiko', 'Satoko', 'Setsuko', 'Shigeko', 'Shizuka', 'Sumiko', 
+            'Takako', 'Tamiko', 'Teruko', 'Tomoko', 'Toshiko', 'Wakana', 'Yasuko', 'Yayoi', 'Yoko', 'Yoshiko',
+            'Yumiko', 'Yuriko', 'Kozue', 'Natsuko', 'Sachi', 'Shino', 'Mitsu', 'Ruriko', 'Kiyoko', 'Tomi', 
+            'Fumi', 'Michi', 'Hisako', 'Kazuko', 'Maki', 'Mari', 'Yuko', 'Akemi', 'Asako', 'Atsumi', 
+            'Chie', 'Chieko', 'Chika', 'Chiyo', 'Etsuko', 'Harue', 'Hiroe', 'Ikuko', 'Itsumi', 'Kanade', 
+            'Kayo', 'Kazue', 'Kiwa', 'Koto', 'Kumie', 'Kyomi', 'Machie', 'Masae', 'Masami', 'Michie', 
+            'Mikiho', 'Minao', 'Mineko', 'Misako', 'Mitsue', 'Mitsuki', 'Miyae', 'Miyuki', 'Motoko', 'Mutsumi', 
+            'Nadeshiko', 'Nae', 'Naoe', 'Narue', 'Natsuhiko', 'Natsuyo', 'Nobuko', 'Norie', 'Ran', 'Reiichi', 
+            'Rimiko', 'Ritsuko', 'Rurika', 'Sachie', 'Sadako', 'Saori', 'Sayoko', 'Sayuri', 'Shigemi', 'Shizue', 
+            'Sumie', 'Taeko', 'Takami', 'Tamaki', 'Tamao', 'Terue', 'Terumi', 'Tokiko', 'Tomie', 'Tomoe', 
+            'Toyoko', 'Tsuki', 'Tsuru', 'Ume', 'Utako', 'Waka', 'Yae', 'Yaeko', 'Yasue', 'Yemi', 
+            'Yone', 'Yoshie', 'Yuiho', 'Yukako', 'Yukari', 'Yukie', 'Yukiko', 'Yumi', 'Yurika', 'Yuzue'
+          ];
+          const lastNames = [
+            'Tanaka', 'Sato', 'Suzuki', 'Takahashi', 'Watanabe', 'Yamamoto', 'Kobayashi', 'Nakamura', 'Ito', 'Kato', 
+            'Yoshida', 'Yamada', 'Sasaki', 'Yamaguchi', 'Matsumoto', 'Inoue', 'Kimura', 'Shimizu', 'Hayashi', 'Saito', 
+            'Abe', 'Fujita', 'Okada', 'Goto', 'Kondo', 'Ishikawa', 'Nakajima', 'Harada', 'Otsuka', 'Hasegawa', 
+            'Murakami', 'Kojima', 'Takagi', 'Kuroda', 'Takeda', 'Imai', 'Ando', 'Fukuda', 'Miyazaki', 'Ueda', 
+            'Shibata', 'Kawai', 'Nagano', 'Hirano', 'Mizuno', 'Ono', 'Fujii', 'Sugiyama', 'Kishida', 'Endo', 
+            'Noguchi', 'Oshima', 'Sakurai', 'Mochizuki', 'Tsukada', 'Aoki', 'Morimoto', 'Tamura', 'Oda', 'Matsuda', 
+            'Azuma', 'Nishida', 'Sugimoto', 'Kubota', 'Kawamura', 'Ishii', 'Nakano', 'Kanda', 'Morita', 'Nagata', 
+            'Ogawa', 'Kinoshita', 'Mori', 'Yoshikawa', 'Kawasaki', 'Higuchi', 'Suenaga', 'Kaneko', 'Miyamoto', 'Shinozaki', 
+            'Kawaguchi', 'Hosoda', 'Koga', 'Okamoto', 'Kamei', 'Tsutsui', 'Arakawa', 'Imamura', 'Furukawa', 'Nishimura', 
+            'Kubo', 'Okumura', 'Masuda', 'Ishida', 'Asano', 'Fukumoto', 'Sakai', 'Matsui', 'Iwasaki', 'Nakagawa', 
+            'Haruna', 'Ueno', 'Fujiwara', 'Seki', 'Nojima', 'Hoshino', 'Chiba', 'Kikuchi', 'Tanimoto', 'Fukui', 
+            'Ota', 'Umezu', 'Ohashi', 'Yano', 'Katayama', 'Maki', 'Kuroki', 'Hatta', 'Koike', 'Mogi', 
+            'Inagaki', 'Mita', 'Sano', 'Yoshioka', 'Komatsu', 'Sogabe', 'Horii', 'Tsuchiya', 'Kurata', 'Sugawara', 
+            'Tsuji', 'Ishizuka', 'Amano', 'Takeuchi', 'Nakata', 'Honma', 'Kitamura', 'Enomoto', 'Sawada', 'Uchida', 
+            'Yura', 'Hamada', 'Nishio', 'Shima', 'Hada', 'Kishimoto', 'Sakamoto', 'Nomura', 'Ishibashi', 'Taki', 
+            'Kurokawa', 'Morinaga', 'Oishi', 'Uchiyama', 'Nishino', 'Hiraoka', 'Yashiro', 'Kamada', 'Mizutani', 'Yagisawa', 
+            'Kawashima', 'Ogasawara', 'Terada', 'Inaba', 'Shiraishi', 'Nishiura', 'Sugisaki', 'Katsura', 'Yamazaki', 'Horiguchi', 
+            'Murota', 'Fujino', 'Nishikori', 'Miyake', 'Miyata', 'Shimada', 'Okazaki', 'Miyashiro', 'Fujimori', 'Nagasawa', 
+            'Takada', 'Yamane', 'Nishitani', 'Asada', 'Hamasaki', 'Matsuno', 'Onozawa', 'Takano', 'Kitagawa', 'Nakahara', 
+            'Shiba', 'Yoda', 'Kanamori', 'Umeda', 'Irie', 'Kurihara', 'Hirasawa', 'Kawahara', 'Nagai', 'Tsujimura', 
+            'Horikawa', 'Nishikawa', 'Murata', 'Miyagi', 'Shibasaki', 'Miyamura', 'Yamanaka', 'Hosokawa', 'Ichikawa', 'Kajiwara', 
+            'Obara', 'Suga', 'Nagahama', 'Katsumata', 'Nishimori', 'Fujisawa', 'Numata', 'Hirai', 'Nakamoto', 'Okabe', 
+            'Matsubara', 'Hino', 'Oshita', 'Shioya', 'Takaoka', 'Inui', 'Nishi', 'Nagao', 'Kumagai', 'Tashiro', 
+            'Kawano', 'Eto', 'Fukuzawa', 'Kawade', 'Ogiwara', 'Hirose', 'Asai', 'Yusa', 'Shintani', 'Mitsuoka', 
+            'Sone', 'Tsuda', 'Okuyama', 'Miyoshi', 'Furusawa', 'Kurosu', 'Nishimaki', 'Toba', 'Kase', 'Mizuguchi', 
+            'Teramoto', 'Hanyu', 'Sawamura', 'Okura', 'Kusano', 'Mizushima', 'Arima', 'Fujimoto', 'Iidaka', 'Kido',
+            'Nanba', 'Omiya', 'Shimamura', 'Takase', 'Uehara', 'Yajima', 'Asahina', 'Fukuyama', 'Inami', 'Komiya',
+            'Matsuyama', 'Nishio', 'Okino', 'Shirai', 'Takei', 'Yoshimatsu', 'Eguchi', 'Hoshina', 'Iwanaga', 'Kasai',
+            'Mizoguchi', 'Ogata', 'Sano', 'Tachibana', 'Uchiumi', 'Wakabayashi', 'Yokoyama', 'Aizawa', 'Iidaka', 'Kusaka',
+            'Miyakoshi', 'Okuda', 'Senda', 'Tanabe', 'Uematsu', 'Yasuoka', 'Fujimaki', 'Ikeda', 'Koshino', 'Makino'
+          ];   
       
       const availableFirstNames = [...firstNames];
 
@@ -1600,9 +1737,7 @@ const deleteTeam = (teamId) => {
     };
 
     const scheduleNewAlbum = ({ albumData, productionData, releaseWeek }) => {
-    const baseCostAlbum = 800000;
-    const albumPhysicalSurcharge = 200000;
-    
+        
     const productionTierCost = Object.keys(productionData).reduce((total, key) => {
         const choice = productionData[key];
         const tiers = { training: { standard: { cost: 0 }, workshop: { cost: 50000 }, overseas: { cost: 250000 }, bootcamp: { cost: 400000 }, elite: { cost: 650000 }, oneOnOne: { cost: 900000 } }, song: { inHouse: { cost: 0 }, rookie: { cost: 50000 }, external: { cost: 100000 }, trend: { cost: 180000 }, famous: { cost: 400000 }, hitmaker: { cost: 750000 } }, mv: { none: { cost: 0 }, practice: { cost: 20000 }, performance: { cost: 60000 }, location: { cost: 150000 }, storyline: { cost: 300000 }, cinematic: { cost: 600000 }, blockbuster: { cost: 1000000 } }, outfits: { existing: { cost: 0 }, recolor: { cost: 40000 }, custom: { cost: 120000 }, concept: { cost: 200000 }, luxury: { cost: 450000 } }, promo: { none: { cost: 0 }, social: { cost: 30000 }, teaser: { cost: 60000 }, variety: { cost: 120000 }, blitz: { cost: 200000 }, global: { cost: 400000 } } };
@@ -2407,7 +2542,7 @@ const deleteTeam = (teamId) => {
 
     const fanSales = participatingMembers.reduce((sum, m) => sum + ((m.fans?.hardcore || 0) * 0.9) + ((m.fans?.casual || 0) * 0.4), 0);
     const avgSkill = participatingMembers.reduce((sum, m) => sum + ((m.singing || 0) + (m.dancing || 0)) / 2, 0) / (participatingMembers.length || 1);
-    const skillPower = avgSkill * 50;
+    const skillPower = avgSkill * 25;
 
     let baseSalesPotential = fanSales + skillPower;
     if (albumData.releaseFormat === 'physical') {
@@ -2418,20 +2553,54 @@ const deleteTeam = (teamId) => {
 
     distributeFans(newFansTotal, allMemberIdsInAlbum);
 
+    const generatedTracks = albumToRelease.albumData.tracks;
+
+    // Calculate total cost
+    let totalCost = baseCostAlbum;
+    Object.values(albumToRelease.productionData).forEach(tierKey => {
+        for (const category in productionTiers) {
+            if (productionTiers[category][tierKey]) {
+                totalCost += productionTiers[category][tierKey].cost;
+            }
+        }
+    });
+    if (albumToRelease.albumData.releaseFormat === 'physical') {
+        totalCost += albumPhysicalSurcharge;
+    }
+
+    // Calculate total member bonus from all tracks in the album
+       const finalBaseSales = baseSalesPotential;
+
+
     const newAlbum = {
         id: Date.now(),
-        name: albumData.name,
-        artist: albumData.artist,
-        tracks: albumData.tracks,
+        artist: albumToRelease.albumData.artist,
+        name: albumToRelease.albumData.name,
         type: 'album',
-        baseSalesPotential: baseSalesPotential,
-        weeklySales: [],
+        baseSalesPotential: finalBaseSales,
+        totalSales: 0,
+        peakRank: -1,
+        salesHistory: [], // Add this line
+        releaseWeek: week,
+        tracks: generatedTracks, // The full track objects
+        releaseFormat: albumToRelease.albumData.releaseFormat,
+        production: albumToRelease.productionData,
+        productionCost: totalCost,
         chartWeeksLeft: 8,
-        releaseWeek: week + 1,
-        production: productionData,
     };
 
-    setAlbums(prev => [...(prev || []), newAlbum]);
+    // FIX: Add albums to the main `songs` array so they can be processed by the weekly charting logic.
+    // FIX: Check if the album is for the main group or a sister group and save it to the correct list.
+    if (newAlbum.artist === groupName) {
+        setSongs(prev => [...(prev || []), newAlbum]);
+    } else {
+        setSisterGroups(prev => prev.map(sg => {
+            if (sg.name === newAlbum.artist) {
+                return { ...sg, songs: [...(sg.songs || []), newAlbum] };
+            }
+            return sg;
+        }));
+    }
 
     allMemberIdsInAlbum.forEach(memberId => {
     const participatedTracks = albumData.tracks.filter(track =>
@@ -2691,6 +2860,9 @@ const deleteTeam = (teamId) => {
       const newWeek = week + 1;
       let priorityMessage = ''; // This will hold the most important message of the week
 
+        let weeklyChartRevenue = 0;
+        let weeklyChartReport = [];
+
       // Handle scheduled single events
       const remainingSingles = [];
             scheduledSingles.forEach(release => {
@@ -2726,64 +2898,39 @@ const deleteTeam = (teamId) => {
       
       setMoney(prev => (prev || 0) + income);
 
-        // --- NEW: Weekly Charting Logic ---
-        const weeklySalesCurve = [0.35, 0.25, 0.15, 0.10, 0.05, 0.04, 0.03, 0.03]; // 8 weeks of sales
-        let weeklyChartRevenue = 0;
-        let weeklyChartReport = [];
-
         // --- Process Main Group Charting Songs ---
                 // --- Process Main Group Charting Songs ---
-        setSongs(currentSongs => {
-            if (!currentSongs) return []; // Safety check
-            return currentSongs.map(song => {
-                if (song.chartWeeksLeft > 0) {
-                    const chartWeekIndex = 8 - song.chartWeeksLeft;
-                    const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * (salesMultipliers[song.production.song] || 1));
-                    const revenueThisWeek = salesThisWeek * 15;
-                    const fansThisWeek = Math.floor(salesThisWeek / 10 * (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1));
-
-                    weeklyChartRevenue += revenueThisWeek;
-
-                    const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
-                    const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
-                    distributeFans(fansThisWeek, uniqueMemberIds);
-
-                    weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
-                    
-                    return {
-                        ...song,
-                        chartWeeksLeft: song.chartWeeksLeft - 1,
-                        salesHistory: [...song.salesHistory, { week: newWeek, sales: salesThisWeek }],
-                        weeklySales: [...(song.weeklySales || []), salesThisWeek],
-                    };
-                }
-                return song;
-            });
-        });
-
-        // --- Process Sister Group Charting Songs ---
-        setSisterGroups(currentSisterGroups => {
-            if (!currentSisterGroups) return []; // Safety check
-            return currentSisterGroups.map(sg => {
-                if (!sg.songs || sg.songs.length === 0) return sg;
-
-                const newSgSongs = sg.songs.map(song => {
+            setSongs(currentSongs => {
+                if (!currentSongs) return []; // Safety check
+                return currentSongs.map(song => {
                     if (song.chartWeeksLeft > 0) {
                         const chartWeekIndex = 8 - song.chartWeeksLeft;
-                        const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * (salesMultipliers[song.production.song] || 1));
-                        const revenueThisWeek = salesThisWeek * 15;
-                        const fansThisWeek = Math.floor(salesThisWeek / 10 * (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1));
-
-                        weeklyChartRevenue += revenueThisWeek;
                         
+                        // FIX #1: Check for song type before applying multiplier
+                        const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production.song] || 1);
+                        const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
+
+                        const revenueThisWeek = salesThisWeek * 15;
+                        let fanMultiplier = 1;
+                        if (song.type === 'single') {
+                            fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
+                        } else if (song.type === 'album' && song.production.promo_album) {
+                            // Use the same promo multipliers as singles, but keying off the album's promo choice
+                            fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
+                        }
+                        const fansThisWeek = Math.floor((salesThisWeek / 10) * fanMultiplier);
+                        weeklyChartRevenue += revenueThisWeek;
+
                         const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
                         const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
                         distributeFans(fansThisWeek, uniqueMemberIds);
-                        
-                        weeklyChartReport.push(`${sg.name}'s ${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
+
+                        weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
                         
                         return {
                             ...song,
+                            // FIX #2: Add and update totalSales
+                            totalSales: (song.totalSales || 0) + salesThisWeek,
                             chartWeeksLeft: song.chartWeeksLeft - 1,
                             salesHistory: [...song.salesHistory, { week: newWeek, sales: salesThisWeek }],
                             weeklySales: [...(song.weeklySales || []), salesThisWeek],
@@ -2791,10 +2938,55 @@ const deleteTeam = (teamId) => {
                     }
                     return song;
                 });
-
-                return { ...sg, songs: newSgSongs };
             });
-        });
+
+        // --- Process Sister Group Charting Songs ---
+            setSisterGroups(currentSisterGroups => {
+                if (!currentSisterGroups) return []; // Safety check
+                return currentSisterGroups.map(sg => {
+                    if (!sg.songs || sg.songs.length === 0) return sg;
+
+                    const newSgSongs = sg.songs.map(song => {
+                        if (song.chartWeeksLeft > 0) {
+                            const chartWeekIndex = 8 - song.chartWeeksLeft;
+
+                            // FIX #1: Check for song type before applying multiplier
+                            const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production.song] || 1);
+                            const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
+
+                            const revenueThisWeek = salesThisWeek * 15;
+                            let fanMultiplier = 1;
+                            if (song.type === 'single') {
+                                fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
+                            } else if (song.type === 'album' && song.production.promo_album) {
+                                // Use the same promo multipliers as singles, but keying off the album's promo choice
+                                fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
+                            }
+                            const fansThisWeek = Math.floor((salesThisWeek / 10) * fanMultiplier);
+
+                            weeklyChartRevenue += revenueThisWeek;
+                            
+                            const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
+                            const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
+                            distributeFans(fansThisWeek, uniqueMemberIds);
+                            
+                            weeklyChartReport.push(`${sg.name}'s ${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
+                            
+                            return {
+                                ...song,
+                                // FIX #2: Add and update totalSales
+                                totalSales: (song.totalSales || 0) + salesThisWeek,
+                                chartWeeksLeft: song.chartWeeksLeft - 1,
+                                salesHistory: [...song.salesHistory, { week: newWeek, sales: salesThisWeek }],
+                                weeklySales: [...(song.weeklySales || []), salesThisWeek],
+                            };
+                        }
+                        return song;
+                    });
+
+                    return { ...sg, songs: newSgSongs };
+                });
+            });
 
         // Add the revenue to money
         if (weeklyChartRevenue > 0) {
@@ -3213,7 +3405,7 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
 
     return {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, albums, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
@@ -3226,7 +3418,7 @@ const App = () => {
     // Destructure everything from the custom hook
     const {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, albums, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
@@ -3728,15 +3920,6 @@ const CreateSongModal = () => {
     const [selectedAlbumTrackIndex, setSelectedAlbumTrackIndex] = useState(0);
 
     const [releaseWeek, setReleaseWeek] = useState(week + 4);
-
-    const productionTiers = {
-      training: { standard: { name: 'Standard Practice', cost: 0, effect: 'Base skill gain from facilities.' }, workshop: { name: 'Specialized Workshop', cost: 50000, effect: '+5 Sing/Dance for Senbatsu.' }, overseas: { name: 'Intensive Camp', cost: 250000, effect: '+15 Sing/Dance for Senbatsu.' }, bootcamp: { name: 'Idol Bootcamp', cost: 400000, effect: '+20 Sing/Dance for Senbatsu, slight morale strain.' }, elite: { name: 'Elite Trainer Program', cost: 650000, effect: '+25 Sing/Dance & improved consistency.' }, oneOnOne: { name: '1-on-1 Master Coaching', cost: 900000, effect: '+30 Sing/Dance for selected members, very high efficiency.' } },
-      song: { inHouse: { name: 'In-house Team', cost: 0, effect: 'Standard song quality.' }, rookie: { name: 'Rookie Producer', cost: 50000, effect: '+5% Sales Potential.' }, external: { name: 'External Songwriter', cost: 100000, effect: '+10% Sales Potential.' }, trend: { name: 'Trend-focused Producer', cost: 180000, effect: '+15% Sales Potential, short-term hype boost.' }, famous: { name: 'Famous Producer', cost: 400000, effect: '+25% Sales & +10% Hype.' }, hitmaker: { name: 'Top-tier Hitmaker', cost: 750000, effect: '+40% Sales, strong chart performance.' } },
-      mv: { none: { name: 'No Music Video', cost: 0, effect: 'Minimal promotion.' }, practice: { name: 'Practice Room MV', cost: 20000, effect: '+5% Fan Gain.' }, performance: { name: 'Performance MV', cost: 60000, effect: '+8% Fan Gain & Performance Appeal.' }, location: { name: 'On-Location MV', cost: 150000, effect: '+15% Fan Gain & Hype.' }, storyline: { name: 'Storyline MV', cost: 300000, effect: '+20% Fan Gain, Emotional Impact.' }, cinematic: { name: 'Cinematic MV', cost: 600000, effect: '+30% Fan Gain, High Hype, Viral Chance.' }, blockbuster: { name: 'Blockbuster MV', cost: 1000000, effect: '+45% Fan Gain, Massive Hype, Guaranteed Media Buzz.' } },
-      outfits: { existing: { name: 'Use Existing Outfits', cost: 0, effect: 'No visual bonus.' }, recolor: { name: 'Reworked Outfits', cost: 40000, effect: 'Minor visual refresh.' }, custom: { name: 'New Custom Outfits', cost: 120000, effect: 'Boosts Morale & Visuals.' }, concept: { name: 'Concept-Specific Styling', cost: 200000, effect: '+10% Concept Immersion & Hype.' }, luxury: { name: 'Luxury Designer Outfits', cost: 450000, effect: 'Major visual boost, attracts brand deals.' } },
-      promo: { none: { name: 'Word of Mouth', cost: 0, effect: 'Base pre-release buzz.' }, social: { name: 'Social Media Ads', cost: 30000, effect: '+10% Pre-release Fans.' }, teaser: { name: 'Teaser Rollout', cost: 60000, effect: '+15% Pre-release Fans & Hype.' }, variety: { name: 'Variety Show Appearances', cost: 120000, effect: '+20% General Public Awareness.' }, blitz: { name: 'Full Media Blitz', cost: 200000, effect: '+25% Pre-release Fans & Chart Rank.' }, global: { name: 'Global Promotion Campaign', cost: 400000, effect: '+35% Pre-release Fans, Strong Overseas Charts.' } }
-    };
-
     const [productionChoices, setProductionChoices] = useState({
         training: 'standard', song: 'inHouse', mv: 'none', outfits: 'existing', promo: 'none'
     });
@@ -4552,88 +4735,105 @@ const CreateSongModal = () => {
       );
     };
 
-    const SingleDetailsModal = () => {
-        const single = modalData;
-        if (!single) return null;
-    
+    const ReleaseDetailsModal = () => {
+        const release = modalData;
+        if (!release) return null;
+
+        // --- FIXED HELPER VARIABLES ---
         const memberMap = getAllAvailableMembers(true).reduce((map, m) => {
             map[String(m.id)] = m;
             return map;
         }, {});
-  
-        const productionTiers = {
-            training: { standard: { name: 'Standard', cost: 0 }, workshop: { name: 'Workshop', cost: 50000 }, overseas: { name: 'Overseas', cost: 150000 }, bootcamp: { name: 'Bootcamp', cost: 250000 }, elite: { name: 'Elite', cost: 500000 }, oneOnOne: { name: 'One-on-One', cost: 1000000 } },
-            song: { inHouse: { name: 'In-house', cost: 0 }, rookie: { name: 'Rookie', cost: 25000 }, external: { name: 'External', cost: 75000 }, trend: { name: 'Trend-setter', cost: 150000 }, famous: { name: 'Famous', cost: 300000 }, hitmaker: { name: 'Hitmaker', cost: 750000 } },
-            mv: { none: { name: 'None', cost: 0 }, practice: { name: 'Practice', cost: 10000 }, performance: { name: 'Performance', cost: 30000 }, location: { name: 'Location', cost: 75000 }, storyline: { name: 'Storyline', cost: 200000 }, cinematic: { name: 'Cinematic', cost: 500000 }, blockbuster: { name: 'Blockbuster', cost: 1500000 } },
-            outfits: { existing: { name: 'Existing', cost: 0 }, recolor: { name: 'Recolor', cost: 40000 }, custom: { name: 'Custom', cost: 120000 }, concept: { name: 'Concept', cost: 200000 }, luxury: { name: 'Luxury', cost: 450000 } },
-            promo: { none: { name: 'None', cost: 0 }, social: { name: 'Social', cost: 5000 }, teaser: { name: 'Teaser', cost: 20000 }, variety: { name: 'Variety', cost: 80000 }, blitz: { name: 'Blitz', cost: 200000 }, global: { name: 'Global', cost: 500000 } }
-        };
-  
-        const totalSales = (single.weeklySales || []).reduce((a, b) => a + b, 0) + (single.sales || 0);
+
+        const releasingGroupName = release.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(release.targetGroup))?.name || release.targetGroup);
+        
+        // Correctly calculates total sales from the sales history
+        const totalSales = (release.salesHistory || []).reduce((sum, entry) => sum + entry.sales, 0);
         const totalRevenue = totalSales * 15;
 
-        const TeamGroupedLineup = ({ track }) => {
-            if (!track || !track.members) return null;
-
-            const memberGroups = track.members.reduce((acc, memberId) => {
-                const member = memberMap[String(memberId)];
-                if (!member) return acc;
-
-                let groupKey = `${groupName} Kenkyuusei`; // Default
-                if (member.isSisterMember) {
-                    const sgName = member.displayGroupName || 'Sister Group';
-                    groupKey = member.teamName ? `${sgName} Team ${member.teamName}` : `${sgName} Kenkyuusei`;
-                } else if (member.teamName) {
-                    groupKey = `Team ${member.teamName}`;
-                }
-
-                if (!acc[groupKey]) acc[groupKey] = [];
-                acc[groupKey].push(member);
-                return acc;
-            }, {});
-
-            const getSortPriority = (groupKey) => {
-                const isTeam = groupKey.startsWith('Team ') || groupKey.includes(' Team ');
-                const isKKS = groupKey.includes('Kenkyuusei');
-                const isMain = !groupKey.includes(' ') || groupKey.startsWith('Team ') || groupKey.startsWith(groupName);
-
-                if (isMain && isTeam) return 1;      // Main Group Team
-                if (isMain && isKKS) return 2;      // Main Group Kenkyuusei
-                if (!isMain && isTeam) return 3;     // Sister Group Team
-                if (!isMain && isKKS) return 4;     // Sister Group Kenkyuusei
-                return 5; // Fallback
-            };
-
-            const centerMemberId = String(track.center);
+        // --- FIXED HELPER COMPONENTS ---
+        const ProductionInfo = () => {
+            const totalCost = Object.entries(release.production).reduce((acc, [key, value]) => {
+                return acc + (productionTiers[key]?.[value]?.cost || 0);
+            }, 0);
 
             return (
-                <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
-                    {Object.keys(memberGroups)
-                        .sort((a, b) => {
-                            const priorityA = getSortPriority(a);
-                            const priorityB = getSortPriority(b);
-                            if (priorityA !== priorityB) {
-                                return priorityA - priorityB;
-                            }
-                            return a.localeCompare(b); // Alphabetical sort for groups with same priority
-                        })
-                        .map(groupKeyName => (
-                        <div key={groupKeyName} className="mt-1 text-sm">
-                            <p className="font-semibold text-pink-600 dark:text-pink-400">
-                                {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
-                                    {memberGroups[groupKeyName].map(member => (
-                                        <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
-                                            {member.name}
-                                        </span>
-                                    )).reduce((prev, curr) => [prev, ', ', curr])}
-                                </span>
-                            </p>
-                        </div>
-                    ))}
+                <div className="p-3 border rounded-lg bg-gray-50 space-y-1 dark:bg-gray-700 dark:text-gray-300">
+                    <h4 className="font-bold text-md mb-2 flex items-center text-gray-800 dark:text-gray-100"><Wrench size={16} className="mr-2"/> Production Summary</h4>
+                    <ul className="text-sm">
+                        {Object.keys(productionTiers).map(key => (
+                            <li key={key}>
+                                <span className="font-semibold capitalize">{key}:</span> {productionTiers[key]?.[release.production[key]]?.name || 'N/A'}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="font-bold text-sm mt-3 pt-2 border-t">Total Production Cost: ¥{totalCost.toLocaleString()}</p>
                 </div>
             );
         };
-
+        
+            const TeamGroupedLineup = ({ track }) => {
+                if (!track || !track.members) return null;
+    
+                const memberGroups = track.members.reduce((acc, memberId) => {
+                    const member = memberMap[String(memberId)];
+                    if (!member) return acc;
+    
+                    let groupKey;
+    
+                    if (member.homeGroup !== 'main') { 
+                        // This is a Sister Group member
+                        const sgName = member.displayGroupName || member.homeGroup || 'Sister Group';
+                        // FIX: Append 'Kenkyuusei' if the member has no team.
+                        groupKey = member.teamName ? `${sgName} Team ${member.teamName}` : `${sgName} Kenkyuusei`;
+                    } else {
+                        // This is a Main Group member
+                        const mainGroupName = groupName || 'Hoshimi01';
+                        groupKey = member.teamName ? `Team ${member.teamName}` : `${mainGroupName} Kenkyuusei`;
+                    }
+                    
+                    if (!acc[groupKey]) {
+                        acc[groupKey] = [];
+                    }
+                    acc[groupKey].push(member);
+                    return acc;
+                }, {});
+    
+                const getSortPriority = (groupKey) => {
+                    const isTeam = groupKey.includes(' Team ');
+                    const isKKS = groupKey.includes('Kenkyuusei');
+                    const isMain = groupKey.startsWith(groupName) || groupKey.startsWith('Team ');
+    
+                    // FIX: Adjusted sorting priorities for consistency
+                    if (isMain && isTeam) return 1;      // Main Group Team
+                    if (isMain && isKKS) return 2;      // Main Group Kenkyuusei
+                    if (!isMain && isTeam) return 3;     // Sister Group Team
+                    if (!isMain && isKKS) return 4;     // Sister Group Kenkyuusei
+                    return 5;
+                };
+    
+                const centerMemberId = String(track.center);
+    
+                return (
+                    <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
+                        {Object.keys(memberGroups)
+                            .sort((a, b) => getSortPriority(a) - getSortPriority(b) || a.localeCompare(b))
+                            .map(groupKeyName => (
+                            <div key={groupKeyName} className="mt-1 text-sm">
+                                <p className="font-semibold text-pink-600 dark:text-pink-400">
+                                    {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
+                                        {memberGroups[groupKeyName].map(member => (
+                                            <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
+                                                {member.name}
+                                            </span>
+                                        )).reduce((prev, curr) => [prev, ', ', curr])}
+                                    </span>
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                );
+            };
         const Trivia = () => {
             const triviaItems = [];
 
@@ -4644,7 +4844,7 @@ const CreateSongModal = () => {
                 return nameArray.slice(0, -1).join(', ') + ', and ' + nameArray.slice(-1);
             };
 
-            const titleTrack = single.tracks.find(t => t.type === 'title');
+            const titleTrack = release.tracks.find(t => t.type === 'title');
             
             if (titleTrack) {
                 const firstTimeSenbatsu = titleTrack.members.map(id => memberMap[String(id)]).filter(member => 
@@ -4666,16 +4866,16 @@ const CreateSongModal = () => {
                 }
             }
             
-            const allParticipatingIds = [...new Set(single.tracks.flatMap(t => t.members))];
+            const allParticipatingIds = [...new Set(release.tracks.flatMap(t => t.members))];
             const firstTimeParticipation = allParticipatingIds.map(id => memberMap[String(id)]).filter(member =>
-                member && (member.singlesParticipation || []).filter(p => p.singleId === single.id).length > 0 && (member.singlesParticipation || []).length === 1
+                member && (member.singlesParticipation || []).filter(p => p.singleId === release.id).length > 0 && (member.singlesParticipation || []).length === 1
             );
 
             if (firstTimeParticipation.length > 0) {
                 triviaItems.push(`First single participation for ${formatNames(firstTimeParticipation.map(m => m.name))}.`);
             }
 
-            const bSideTracks = single.tracks.filter(t => t.type === 'b-side');
+            const bSideTracks = release.tracks.filter(t => t.type === 'b-side');
             const firstTimeBSideCenters = bSideTracks
                 .map(track => track.center ? memberMap[String(track.center)] : null)
                 .filter(member => {
@@ -4704,69 +4904,37 @@ const CreateSongModal = () => {
                 </div>
             );
         };
-    
-        const ProductionInfo = () => {
-            if (!single.production) {
-                return (
-                    <div className="p-3 border rounded-lg bg-gray-50 text-sm dark:text-gray-900">
-                        <h4 className="font-semibold mb-2 flex items-center"><DollarSign size={16} className="mr-2"/> Production Details</h4>
-                        <p className="text-gray-500 dark:text-gray-600">No detailed production data for this older single.</p>
-                        <p className="font-bold mt-2">Base Release Cost: ¥10,000</p>
-                    </div>
-                );
-            }
-    
-            const totalCost = Object.keys(single.production).reduce((total, key) => {
-                const choice = single.production[key];
-                return total + (productionTiers[key]?.[choice]?.cost || 0);
-            }, 10000);
-    
-            return (
-                <div className="p-3 border rounded-lg bg-gray-50 text-xs dark:text-gray-900">
-                    <h4 className="font-semibold mb-2 flex items-center text-sm"><DollarSign size={16} className="mr-2"/> Production Summary</h4>
-                    <ul className="space-y-1 list-disc list-inside">
-                        {Object.keys(single.production).map(key => (
-                            <li key={key}>
-                                <span className="font-semibold capitalize">{key}:</span> {productionTiers[key]?.[single.production[key]]?.name || 'N/A'}
-                            </li>
-                        ))}
-                    </ul>
-                    <p className="font-bold text-sm mt-3 pt-2 border-t">Total Production Cost: ¥{totalCost.toLocaleString()}</p>
-                </div>
-            );
-        };
-        
-        const releasingGroupName = single.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(single.targetGroup))?.name || single.targetGroup);
-  
+
         return (
-            <ModalWrapper title={`${single.name} - Single Details`} maxWidth="max-w-4xl">
+            <ModalWrapper title={`${release.name} - ${release.type === 'album' ? 'Album' : 'Single'} Details`} maxWidth="max-w-4xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
                   <div className="p-3 border rounded-lg bg-gray-50 space-y-2 dark:text-gray-900">
                       <p><strong>Released by:</strong> {releasingGroupName}</p>
-                      <p><strong>Release Date:</strong> {getFormattedDateForWeek(single.releaseWeek)}</p>
+                      <p><strong>Release Date:</strong> {getFormattedDateForWeek(release.releaseWeek)}</p>
                       <p><strong>Total Sales:</strong> {totalSales.toLocaleString()}</p>
                       <p><strong>Total Revenue:</strong> <span className="font-bold text-green-600">¥{totalRevenue.toLocaleString()}</span></p>
                       <p><strong>Charting Status:</strong> 
-                          {single.chartWeeksLeft > 0 ? 
-                              <span className="font-semibold text-green-700"> {single.chartWeeksLeft} weeks left</span> : 
+                          {release.chartWeeksLeft > 0 ? 
+                              <span className="font-semibold text-green-700"> {release.chartWeeksLeft} weeks left</span> : 
                               <span className="text-gray-500"> Finished</span>}
                       </p>
-                       {single.baseSalesPotential > 0 && (
-                           <p><strong>Base Sales Potential:</strong> {Math.floor(single.baseSalesPotential).toLocaleString()}</p>
+                       {release.baseSalesPotential > 0 && (
+                           <p><strong>Base Sales Potential:</strong> {Math.floor(release.baseSalesPotential).toLocaleString()}</p>
                       )}
                   </div>
                   <ProductionInfo />
                 </div>
   
-                {(single.weeklySales || []).length > 0 && (
+                {/* FIX: Use 'salesHistory' which contains objects, not just numbers */}
+                {(release.salesHistory || []).length > 0 && (
                   <div className="mb-4">
                       <h4 className="font-semibold text-lg mb-2 border-t pt-3 flex items-center dark:text-gray-100"><BarChart2 size={18} className="mr-2"/> Weekly Chart Performance</h4>
                       <div className="max-h-32 overflow-y-auto bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border">
                         <ul className="text-sm space-y-1">
-                            {single.weeklySales.map((sales, index) => (
+                            {release.salesHistory.map((entry, index) => (
                                 <li key={index} className="flex justify-between">
-                                    <span>Week {single.releaseWeek + index}:</span>
-                                    <span className="font-mono">{sales.toLocaleString()} units</span>
+                                    <span>Week {entry.week}:</span>
+                                    <span className="font-mono">{entry.sales.toLocaleString()} units</span>
                                 </li>
                             ))}
                         </ul>
@@ -4776,82 +4944,128 @@ const CreateSongModal = () => {
   
                 <div className="mt-4">
                     <h3 className="text-lg font-bold mb-2 flex items-center dark:text-gray-200 pt-3 border-t">
-                        <Music size={20} className="mr-2"/> Track Listing ({single.tracks.length})
+                        <Music size={20} className="mr-2"/> Track Listing ({release.tracks.length})
                     </h3>
                     <div className="space-y-3">
-                        {single.releaseFormat === 'physical' && single.type === 'single' ? (
-                            (() => {
-                                const commonTracks = single.tracks.filter(t => t.type === 'title' || t.cdType === 'common');
-                                const exclusiveTracks = single.tracks.reduce((acc, track) => {
-                                    if (track.cdType && track.cdType !== 'common') {
-                                        if (!acc[track.cdType]) acc[track.cdType] = [];
-                                        acc[track.cdType].push(track);
-                                    }
-                                    return acc;
-                                }, {});
+                        {/* FIX: First check if it's a single before checking formats */}
+                        {release.type === 'single' ? (
+                            // Your original logic for singles, with 'single' changed to 'release'
+                            release.releaseFormat === 'physical' ? (
+                                (() => {
+                                    const commonTracks = release.tracks.filter(t => t.type === 'title' || t.cdType === 'common');
+                                    const exclusiveTracks = release.tracks.reduce((acc, track) => {
+                                        if (track.cdType && track.cdType !== 'common') {
+                                            if (!acc[track.cdType]) acc[track.cdType] = [];
+                                            acc[track.cdType].push(track);
+                                        }
+                                        return acc;
+                                    }, {});
   
-                                const TrackCard = ({ track, exclusiveType }) => {
-                                    const centerMember = track.center ? memberMap[String(track.center)] : null;
-                                    const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-                                    const unassigned = [];
-                                    if (track.lineup && track.members) {
-                                        track.members.forEach(memberId => {
-                                            const member = memberMap[String(memberId)];
-                                            if (member) {
-                                                const row = track.lineup[String(memberId)];
-                                                if (row && rows[row]) rows[row].push(member.name);
-                                                else unassigned.push(member.name);
-                                            }
-                                        });
-                                    } else if (track.members) {
-                                        track.members.forEach(memberId => {
-                                            const member = memberMap[String(memberId)];
-                                            if (member) unassigned.push(member.name);
-                                        });
-                                    }
+                                    const TrackCard = ({ track, exclusiveType }) => {
+                                        const centerMember = track.center ? memberMap[String(track.center)] : null;
+                                        const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                                        const unassigned = [];
+                                        if (track.lineup && track.members) {
+                                            track.members.forEach(memberId => {
+                                                const member = memberMap[String(memberId)];
+                                                if (member) {
+                                                    const row = track.lineup[String(memberId)];
+                                                    if (row && rows[row]) rows[row].push(member.name);
+                                                    else unassigned.push(member.name);
+                                                }
+                                            });
+                                        } else if (track.members) {
+                                            track.members.forEach(memberId => {
+                                                const member = memberMap[String(memberId)];
+                                                if (member) unassigned.push(member.name);
+                                            });
+                                        }
+  
+                                        return (
+                                            <div className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-3">
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
+                                                        {track.name}
+                                                        {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
+                                                    </h4>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                                        exclusiveType ? 'bg-blue-200 text-blue-800' : 
+                                                        track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'
+                                                    }`}>
+                                                        {exclusiveType ? `TYPE ${exclusiveType} EXCLUSIVE` : (track.type === 'title' ? 'TITLE' : 'COMMON B-SIDE')}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                                                    <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
+                                                    <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                                    {Object.entries(rows).map(([rowName, members]) => members.length > 0 && (
+                                                        <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p>
+                                                    ))}
+                                                    {unassigned.length > 0 && (
+                                                        <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p>
+                                                    )}
+                                                </div>
+                                                <TeamGroupedLineup track={track} />
+                                            </div>
+                                        );
+                                    };
   
                                     return (
-                                        <div className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-3">
-                                            <div className="flex justify-between items-start">
-                                                <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
-                                                    {track.name}
-                                                    {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
-                                                </h4>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
-                                                    exclusiveType ? 'bg-blue-200 text-blue-800' : 
-                                                    track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'
-                                                }`}>
-                                                    {exclusiveType ? `TYPE ${exclusiveType} EXCLUSIVE` : (track.type === 'title' ? 'TITLE' : 'COMMON B-SIDE')}
-                                                </span>
-                                            </div>
-                                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                                                <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
-                                                <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
-                                                {Object.entries(rows).map(([rowName, members]) => members.length > 0 && (
-                                                    <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p>
-                                                ))}
-                                                {unassigned.length > 0 && (
-                                                    <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p>
-                                                )}
-                                            </div>
-                                            <TeamGroupedLineup track={track} />
+                                        <div>
+                                            {commonTracks.map((track, index) => <TrackCard key={`common-${index}`} track={track} />)}
+                                            {Object.entries(exclusiveTracks).map(([type, tracksOfType]) => (
+                                                <div key={type}>
+                                                    {tracksOfType.map((track, index) => <TrackCard key={`exclusive-${type}-${index}`} track={track} exclusiveType={type} />)}
+                                                </div>
+                                            ))}
                                         </div>
                                     );
-                                };
-  
-                                return (
-                                    <div>
-                                        {commonTracks.map((track, index) => <TrackCard key={`common-${index}`} track={track} />)}
-                                        {Object.entries(exclusiveTracks).map(([type, tracksOfType]) => (
-                                            <div key={type}>
-                                                {tracksOfType.map((track, index) => <TrackCard key={`exclusive-${type}-${index}`} track={track} exclusiveType={type} />)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                );
-                            })()
-                        ) : (                          
-                          single.tracks.map((track, index) => {
+                                })()
+                            ) : (                          
+                              release.tracks.map((track, index) => {
+                                  const centerMember = track.center ? memberMap[String(track.center)] : null;
+                                  const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                                  const unassigned = [];
+                                  if (track.lineup && track.members) {
+                                      track.members.forEach(memberId => {
+                                          const member = memberMap[String(memberId)];
+                                          if (member) {
+                                              const row = track.lineup[String(memberId)];
+                                              if (row && rows[row]) { rows[row].push(member.name); } else { unassigned.push(member.name); }
+                                          }
+                                      });
+                                  } else if (track.members) {
+                                       track.members.forEach(memberId => {
+                                          const member = memberMap[String(memberId)];
+                                          if (member) unassigned.push(member.name);
+                                       });
+                                  }
+        
+                                  return (
+                                      <div key={index} className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                          <div className="flex justify-between items-start">
+                                              <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
+                                                  {track.name}
+                                                  {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
+                                              </h4>
+                                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
+                                                  {track.type || 'TRACK'}
+                                              </span>
+                                          </div>
+                                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                                              <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
+                                              <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                              {Object.entries(rows).map(([rowName, members]) => { if (members.length > 0) { return ( <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p> ); } return null; })}
+                                              {unassigned.length > 0 && ( <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p> )}
+                                          </div>
+                                          <TeamGroupedLineup track={track} />
+                                      </div>
+                                  );
+                              })
+                          )
+                        ) : (
+                        // UNIFIED LOGIC: Display all tracks with full details
+                        release.tracks.map((track, index) => {
                               const centerMember = track.center ? memberMap[String(track.center)] : null;
                               const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
                               const unassigned = [];
@@ -4860,11 +5074,7 @@ const CreateSongModal = () => {
                                       const member = memberMap[String(memberId)];
                                       if (member) {
                                           const row = track.lineup[String(memberId)];
-                                          if (row && rows[row]) {
-                                              rows[row].push(member.name);
-                                          } else {
-                                              unassigned.push(member.name);
-                                          }
+                                          if (row && rows[row]) { rows[row].push(member.name); } else { unassigned.push(member.name); }
                                       }
                                   });
                               } else if (track.members) {
@@ -4888,30 +5098,17 @@ const CreateSongModal = () => {
                                       <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
                                           <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
                                           <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
-                                          
-                                          {Object.entries(rows).map(([rowName, members]) => {
-                                              if (members.length > 0) {
-                                                  return (
-                                                      <p key={rowName}>
-                                                          <span className="font-semibold">{rowName}:</span> {members.join(', ')}
-                                                      </p>
-                                                  );
-                                              }
-                                              return null;
-                                          })}
-                                          {unassigned.length > 0 && (
-                                              <p>
-                                                  <span className="font-semibold">Members:</span> {unassigned.join(', ')}
-                                              </p>
-                                          )}
+                                          {Object.entries(rows).map(([rowName, members]) => { if (members.length > 0) { return ( <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p> ); } return null; })}
+                                          {unassigned.length > 0 && ( <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p> )}
                                       </div>
                                       <TeamGroupedLineup track={track} />
                                   </div>
                               );
                           })
-                      )}
+                        )}
                   </div>
-                  <Trivia />
+                  {/* FIX: Conditionally render Trivia only for singles */}
+                  {release.type === 'single' && <Trivia />}
                 </div>
             </ModalWrapper>
         );
@@ -4929,11 +5126,15 @@ const CreateSongModal = () => {
 
         // --- DERIVED DATA ---
         const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
-        const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
-            .flatMap(s => (s.tracks || []).map(t => ({
-                id: `${s.id}-${t.name}-${s.targetGroup}`,
-                name: `${t.name} (Single: ${s.name} - ${s.targetGroup === 'main' ? groupName : s.targetGroup})`,
-            })));
+               const allTracks = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])]
+            .flatMap(s => (s.tracks || []).map(t => {
+                const releaseType = s.type === 'album' ? 'Album' : 'Single';
+                const releaseArtist = s.artist || (s.targetGroup === 'main' ? groupName : s.targetGroup);
+                return {
+                    id: `${s.id}-${t.name}-${releaseArtist}`,
+                    name: `${t.name} (${releaseType}: ${s.name})`,
+                };
+            }));
         
         const availableMembers = getAllAvailableMembers(true); 
         const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
@@ -7173,7 +7374,7 @@ if (!gameStarted) {
                     </div>
                 </div>
                 <button
-                    onClick={() => { setModalData(release); setShowModal('singleDetails'); }}
+                    onClick={() => { setModalData(release); setShowModal('releaseDetails'); }}
                     className="px-4 py-1.5 text-sm font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                     Details
@@ -7182,11 +7383,13 @@ if (!gameStarted) {
         );
     };
 
-    // Filter main group releases (both singles and albums)
-    const mainGroupReleases = [
-        ...(songs || []).filter(s => s.targetGroup === 'main' || s.targetGroup === groupName), 
-        ...(albums || []).filter(a => a.artist === groupName)
-    ].sort((a, b) => b.releaseWeek - a.releaseWeek);
+        // Filter main group releases (now includes albums from the 'songs' list)
+    const mainGroupReleases = (songs || [])
+        .filter(s => 
+            (s.targetGroup === 'main' || s.targetGroup === groupName) || // Catches singles
+            s.artist === groupName                                      // Catches albums
+        )
+        .sort((a, b) => b.releaseWeek - a.releaseWeek);
 
     return (
         <div className="space-y-4">
@@ -7202,11 +7405,8 @@ if (!gameStarted) {
             </div>
 
             {(sisterGroups || []).map(sg => {
-                // For each sister group, filter both their singles AND any albums released by them
-                const sgReleases = [
-                    ...(sg.songs || []), 
-                    ...(albums || []).filter(a => a.artist === sg.name)
-                ].sort((a, b) => b.releaseWeek - a.releaseWeek);
+                // For each sister group, their releases are now all in their own `songs` array.
+                const sgReleases = (sg.songs || []).sort((a, b) => b.releaseWeek - a.releaseWeek);
                 
                 if (sgReleases.length === 0) return null;
                 
@@ -7515,7 +7715,7 @@ if (!gameStarted) {
             setShowModal={setShowModal}
         />}
         {showModal === 'createSong' && <CreateSongModal />}
-        {showModal === 'singleDetails' && <SingleDetailsModal />}
+        {showModal === 'releaseDetails' && <ReleaseDetailsModal />}
         {showModal === 'theaterSelection' && <TheaterSelectionModal />}
         {/* Removed: LargeConcertModal (Deprecated) */}
         {showModal === 'rename' && modalData && <RenameMemberModal />}
