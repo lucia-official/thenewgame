@@ -3,11 +3,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyObject = any;
 
+import { DndContext, useDraggable, useDroppable, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Star, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
-  Upload, Building, Tv, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
+  Upload, Building, Tv, GripVertical, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
   Film, Plane, GraduationCap, Shirt, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
@@ -3973,6 +3976,83 @@ const CreateSongModal = () => {
     const updateUnitName = (index, newUnitName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, unitName: newUnitName } : track));
     const updateTrackCDType = (index, newType) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, cdType: newType } : track));
     
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            // Require the mouse to move by 5 pixels before activating a drag
+            activationConstraint: {
+                distance: 5,
+            },
+        })
+    );
+
+
+    const [activeDragId, setActiveDragId] = useState(null);
+
+    const handleDragStart = (event) => {
+        setActiveDragId(event.active.id);
+    };
+
+    const handleDragEnd = (event) => {
+        setActiveDragId(null);
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            // Check if we are dropping onto a formation row
+            if (String(over.id).startsWith('formation-row-')) {
+                const memberId = active.id;
+                const rowName = String(over.id).replace('formation-row-', '');
+                
+                if (releaseType === 'album') {
+                    handleAlbumLineupChange(memberId, rowName);
+                } else {
+                    handleLineupChange(memberId, rowName);
+                }
+            } else {
+                // This is for reordering the list itself
+                const oldIndex = selectableSenbatsu.findIndex(m => m.id === active.id);
+                const newIndex = selectableSenbatsu.findIndex(m => m.id === over.id);
+
+                // This part is more complex and depends on how you want reordering to work.
+                // For now, we will focus on dropping on the pyramid.
+            }
+        }
+    };
+
+    const DraggableMemberRow = ({ member, track, trackIndex }) => {
+        const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: member.id });
+        const style = {
+            transform: CSS.Transform.toString(transform),
+            transition,
+        };
+
+        const isCenter = String(track?.center) === String(member.id);
+        const lineupChangeHandler = releaseType === 'album' ? handleAlbumLineupChange : handleLineupChange;
+        const centerHandler = releaseType === 'album' ? setAlbumCenter : setCenter;
+        const radioName = releaseType === 'album' ? `center-radio-album-${trackIndex}` : `center-radio-${trackIndex}`;
+
+        return (
+            <tr ref={setNodeRef} style={style} {...attributes} className={`${isCenter ? 'bg-yellow-100 dark:bg-yellow-900' : ''}`}>
+                {/* DRAG HANDLE */}
+                <td 
+                    className="p-2 cursor-grab" 
+                    style={{ touchAction: 'none', userSelect: 'none' }} // This prevents text selection
+                    {...listeners}
+                >
+                    <GripVertical size={18} className="text-gray-400" />
+                </td>
+                <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
+                <td className="p-2">
+                    <select value={track?.lineup[String(member.id)] || '5th Row'} onChange={(e) => lineupChangeHandler(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        <option>1st Row</option><option>2nd Row</option><option>3rd Row</option><option>4th Row</option><option>5th Row</option>
+                    </select>
+                </td>
+                <td className="p-2 text-center">
+                    <input type="radio" name={radioName} checked={isCenter} onChange={() => centerHandler(member.id)} className="form-radio h-4 w-4 text-blue-600" />
+                </td>
+            </tr>
+        );
+    };
+
     const handleReleaseTypeSelect = (type) => {
         setReleaseType(type);
         if (type === 'album') {
@@ -4025,7 +4105,62 @@ const CreateSongModal = () => {
     const setCenter = (memberId) => setTracks(prev => prev.map((track, index) => { if (index === selectedTrackIndex) { const memberIdStr = String(memberId); if (track.members.map(String).includes(memberIdStr)) return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr }; } return track; }));
     const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, unitName: `Unit ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {}, cdType: 'common' }]); setSelectedTrackIndex(tracks.length); };
     const handleLineupChange = (memberId, row) => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
+    const handleRandomizeMembers = (trackIndex, numToSelect) => {
+    const currentTrack = releaseType === 'album' ? albumTracks[trackIndex] : tracks[trackIndex];
+    if (!currentTrack) return;
+
+    const allMemberIdsInRelease = (releaseType === 'album' ? albumTracks : tracks).flatMap(t => t.members);
+    const availablePool = selectableMembers.filter(m => !allMemberIdsInRelease.includes(String(m.id)));
     
+    if (availablePool.length === 0) {
+        setMessage("No unchosen members available to randomize.");
+        return;
+    }
+
+    const num = Math.min(numToSelect, availablePool.length);
+    const shuffled = [...availablePool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, num).map(m => String(m.id));
+    
+    const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+        if (index !== trackIndex) return track;
+        
+        const newMembers = [...new Set([...track.members, ...selected])];
+        const newLineup = { ...track.lineup };
+        selected.forEach(id => {
+            if (!newLineup[id]) newLineup[id] = '5th Row';
+        });
+
+        return { ...track, members: newMembers, lineup: newLineup };
+    });
+
+    if (releaseType === 'album') {
+        setAlbumTracks(updateFn);
+    } else {
+        setTracks(updateFn);
+    }
+};
+
+const handleRandomizeRows = (trackIndex) => {
+    const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+        if (index !== trackIndex) return track;
+        if (!track.members || track.members.length === 0) return track;
+
+        const rows = ['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'];
+        const newLineup = { ...track.lineup };
+        track.members.forEach(memberId => {
+            const randomRow = rows[Math.floor(Math.random() * rows.length)];
+            newLineup[String(memberId)] = randomRow;
+        });
+        return { ...track, lineup: newLineup };
+    });
+
+    if (releaseType === 'album') {
+        setAlbumTracks(updateFn);
+    } else {
+        setTracks(updateFn);
+    }
+};
+
     // --- Data Derivation and Filtering ---
     let selectableMembers = [];
     if (targetGroup === 'main') {
@@ -4215,28 +4350,77 @@ const songData = {
     };
 
 
-    const PyramidVisualization = ({ lineup, members, center }) => {
-            const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-            members.forEach(member => { const row = lineup[String(member.id)]; if (rows[row]) rows[row].push(member); });
-            Object.keys(rows).forEach(row => rows[row].sort((a, b) => (b.fans || 0) - (a.fans || 0)));
+    const PyramidVisualization = ({ lineup, members, center, activeDragId }) => {
+        // This is a new sub-component to make the member chips draggable
+        const DraggableChip = ({ member }) => {
+            const { attributes, listeners, setNodeRef } = useDraggable({
+                id: member.id,
+            });
+
+            // This makes the chip a drag handle and applies the correct styling
             return (
-                <div className="p-4 border border-gray-200 bg-white text-gray-900 rounded-lg flex flex-col items-center gap-4">
-                    <h4 className="font-bold text-lg tracking-wider">FORMATION</h4>
-                    {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName => (
-                        <div key={rowName} className="flex flex-col items-center w-full">
-                            <div className="flex justify-center flex-wrap gap-2">
-                                {rows[rowName].length > 0 && rows[rowName].map(member => (
-                                    <div key={member.id} className={`p-2 rounded text-center transition-all duration-200 ${String(center) === String(member.id) ? 'bg-yellow-400 text-black ring-2 ring-yellow-200' : 'bg-gray-200 text-gray-800'}`}>
-                                        <span className="font-semibold text-xs">{member.nickname || member.name.split(' ')[0]}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            {rows[rowName].length > 0 && <p className="text-xs text-gray-500 mt-1">{rowName} ({rows[rowName].length})</p>}
-                        </div>
-                    ))}
+                <div 
+                    ref={setNodeRef} 
+                    {...listeners} 
+                    {...attributes}
+                    className={`p-2 rounded text-center cursor-grab transition-all duration-200 ${String(center) === String(member.id) ? 'bg-yellow-400 text-black ring-2 ring-yellow-200' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100'}`}
+                >
+                    <div className="flex flex-col items-center leading-tight" style={{ userSelect: 'none' }}>
+                        <span className="font-semibold text-[11px]">{member.nickname || member.name.split(' ')[0]}</span>
+                        <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                            Vo:{Math.round(member.singing)} Da:{Math.round(member.dancing)} Va:{Math.round(member.variety)}
+                        </span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                            Fans: {getTotalFansForMember(member).toLocaleString()}
+                        </span>
+                    </div>
                 </div>
             );
         };
+
+        const DroppableRow = ({ rowName, children }) => {
+            const { setNodeRef, isOver } = useDroppable({ id: `formation-row-${rowName}` });
+            const style = {
+                transition: 'background-color 0.2s ease-in-out',
+                backgroundColor: isOver ? 'rgba(34, 197, 94, 0.2)' : undefined,
+                border: isOver ? '2px dashed #22C55E' : '2px dashed transparent',
+                padding: '8px',
+                borderRadius: '8px',
+                minHeight: '40px'
+            };
+            return <div ref={setNodeRef} style={style}>{children}</div>;
+        };
+
+        const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+        members.forEach(member => {
+            const row = lineup[String(member.id)];
+            if (rows[row]) rows[row].push(member);
+        });
+        Object.keys(rows).forEach(row => rows[row].sort((a, b) => (b.fans || 0) - (a.fans || 0)));
+
+        return (
+            <div className="p-4 border border-gray-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg flex flex-col items-center gap-4">
+                <h4 className="font-bold text-lg tracking-wider">FORMATION</h4>
+                {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName => (
+                    <div key={rowName} className="flex flex-col items-center w-full">
+                        <DroppableRow rowName={rowName}>
+                            <div className="flex justify-center flex-wrap gap-2">
+                                {rows[rowName].length > 0 ? (
+                                    rows[rowName].map(member => (
+                                        // We now use our new DraggableChip component here
+                                        <DraggableChip key={member.id} member={member} />
+                                    ))
+                                ) : (
+                                    <p className="text-xs text-gray-400">Drop members here</p>
+                                )}
+                            </div>
+                        </DroppableRow>
+                        <p className="text-xs text-gray-500 mt-1">{rowName} ({rows[rowName].length})</p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     const renderTypeSelectionStep = () => (
         <div className="text-center p-8" style={{minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
@@ -4265,7 +4449,8 @@ const songData = {
 
         const renderSelectionStep = () => (
             <>
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* --- Left Column: Single/Track setup --- */}
                     <div className="lg:col-span-3 space-y-4">
                         <div>
@@ -4345,7 +4530,13 @@ const songData = {
                     <div className="lg:col-span-5 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">1. Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
-                            
+                                <div className="flex items-center gap-2 mb-2">
+                                    <input type="number" id={`random-members-input-${selectedTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
+                                    <button onClick={() => {
+                                        const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
+                                        if (input) handleRandomizeMembers(selectedTrackIndex, parseInt(input.value, 10));
+                                    }} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Random Members</button>
+                                </div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
                                 <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
@@ -4402,25 +4593,27 @@ const songData = {
                             </div>
                         </div>
                         <div>
-                            <h4 className="font-semibold mb-2 dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                        <button onClick={() => handleRandomizeRows(selectedAlbumTrackIndex)} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
+                    </div>
                             <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
-                                        <tr className="text-left"><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
+                                        <tr className="text-left"><th className="p-2 w-8"></th><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
                                     </thead>
-                                    <tbody>
-                                        {selectableSenbatsu.sort((a, b) => (b.fans || 0) - (a.fans || 0)).map(member => (
-                                            <tr key={member.id} className="border-t dark:border-gray-700">
-                                                <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
-                                                <td className="p-2">
-                                                    <select value={currentTrack?.lineup[String(member.id)] || '5th Row'} onChange={(e) => handleLineupChange(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                                                        <option>1st Row</option><option>2nd Row</option><option>3rd Row</option><option>4th Row</option><option>5th Row</option>
-                                                    </select>
-                                                </td>
-                                                <td className="p-2 text-center"><input type="radio" name={`center-radio-${selectedTrackIndex}`} checked={String(currentTrack?.center) === String(member.id)} onChange={() => setCenter(member.id)} className="form-radio h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"/></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
+                                        <SortableContext items={selectableSenbatsu.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                                            <tbody>
+                                                {selectableSenbatsu.map(member => (
+                                                    <DraggableMemberRow
+                                                        key={member.id}
+                                                        member={member}
+                                                        track={currentTrack}
+                                                        trackIndex={selectedTrackIndex}
+                                                    />
+                                                ))}
+                                            </tbody>
+                                        </SortableContext>
                                 </table>
                                 {selectableSenbatsu.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 p-4">Select members to assign positions.</p>}
                             </div>
@@ -4429,10 +4622,14 @@ const songData = {
                     {/* --- Right Column: Visualizer --- */}
                     <div className="lg:col-span-4">
                          <h4 className="font-semibold mb-2 text-center lg:text-left dark:text-gray-200">3. Formation Visualizer</h4>
-                         <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
+                            <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} activeDragId={activeDragId} />
+                        </div>
                     </div>
-                </div>
-                <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
+                    <DragOverlay>
+                {activeDragId ? <div className="p-2 rounded bg-blue-300 font-semibold shadow-lg">Dragging {getMemberById(activeDragId)?.name}</div> : null}
+            </DragOverlay>
+                    </DndContext>
+                    <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
                     <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
                         Back
                     </button>
@@ -4498,6 +4695,13 @@ const songData = {
                     <div className="lg:col-span-5 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">1. Member Selection for: <span className="text-purple-600 dark:text-purple-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <input type="number" id={`random-album-members-input-${selectedAlbumTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
+                                    <button onClick={() => {
+                                        const input = document.getElementById(`random-album-members-input-${selectedAlbumTrackIndex}`);
+                                        if (input) handleRandomizeMembers(selectedAlbumTrackIndex, parseInt(input.value, 10));
+                                    }} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Random Members</button>
+                                </div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
                                 <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
@@ -4533,25 +4737,28 @@ const songData = {
                             </div>
                         </div>
                         <div>
-                            <h4 className="font-semibold mb-2 dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                                    <button onClick={() => handleRandomizeRows(selectedAlbumTrackIndex)} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
+                                </div>
                             <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
-                                        <tr className="text-left"><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
+                                        <tr className="text-left"><th className="p-2 w-8"></th><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
+
                                     </thead>
-                                    <tbody>
-                                        {selectableSenbatsu.sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a)).map(member => (
-                                            <tr key={member.id} className="border-t dark:border-gray-700">
-                                                <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
-                                                <td className="p-2">
-                                                    <select value={currentTrack?.lineup[String(member.id)] || '5th Row'} onChange={(e) => handleAlbumLineupChange(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                                                        <option>1st Row</option><option>2nd Row</option><option>3rd Row</option><option>4th Row</option><option>5th Row</option>
-                                                    </select>
-                                                </td>
-                                                <td className="p-2 text-center"><input type="radio" name={`center-radio-album-${selectedAlbumTrackIndex}`} checked={String(currentTrack?.center) === String(member.id)} onChange={() => setAlbumCenter(member.id)} className="form-radio h-4 w-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500"/></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
+                                        <SortableContext items={selectableSenbatsu.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                                            <tbody>
+                                                {selectableSenbatsu.map(member => (
+                                                    <DraggableMemberRow
+                                                        key={member.id}
+                                                        member={member}
+                                                        track={currentTrack}
+                                                        trackIndex={selectedTrackIndex}
+                                                    />
+                                                ))}
+                                            </tbody>
+                                        </SortableContext>
                                 </table>
                                 {selectableSenbatsu.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 p-4">Select members to assign positions.</p>}
                             </div>
@@ -4560,9 +4767,13 @@ const songData = {
                     {/* --- Right Column: Visualizer --- */}
                     <div className="lg:col-span-4">
                          <h4 className="font-semibold mb-2 text-center lg:text-left dark:text-gray-200">3. Formation Visualizer</h4>
-                         <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
-                    </div>
+                         <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} activeDragId={activeDragId} />
                 </div>
+            </div>
+            <DragOverlay>
+                {activeDragId ? <div className="p-2 rounded bg-purple-300 font-semibold shadow-lg">Dragging {getMemberById(activeDragId)?.name}</div> : null}
+            </DragOverlay>
+                     
                 <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
                     <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
                         Back
@@ -4760,7 +4971,7 @@ const songData = {
                    {(!performance.tracks || performance.tracks.length === 0) && <p className="text-gray-500 italic p-1">No tracks recorded.</p>}
               </div>
 
-              <h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center dark:text-gray-100"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
+<h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center dark:text-gray-100"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
             <div className="text-sm p-2 border rounded max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-800 dark:text-gray-300">
                 {(() => {
                     if (!performance.members || performance.members.length === 0) {
@@ -5034,15 +5245,16 @@ const songData = {
                                         const centerMember = track.center ? memberMap[String(track.center)] : null;
                                         const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
                                         const unassigned = [];
-                                        if (track.lineup && track.members) {
-                                            track.members.forEach(memberId => {
-                                                const member = memberMap[String(memberId)];
-                                                if (member) {
-                                                    const row = track.lineup[String(memberId)];
-                                                    if (row && rows[row]) rows[row].push(member.name);
-                                                    else unassigned.push(member.name);
-                                                }
-                                            });
+                                            if (track.lineup && track.members) {
+                                                track.members.forEach(memberObject => {
+                                                    const row = track.lineup[String(memberObject.id)];
+                                                    if (row && rows[row]) {
+                                                        rows[row].push(memberObject.name);
+                                                    } else {
+                                                        unassigned.push(memberObject.name);
+                                                    }
+                                                });
+                                            
                                         } else if (track.members) {
                                             track.members.forEach(memberId => {
                                                 const member = memberMap[String(memberId)];
@@ -5074,7 +5286,6 @@ const songData = {
                                                         <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p>
                                                     )}
                                                 </div>
-                                                <TeamGroupedLineup track={track} />
                                             </div>
                                         );
                                     };
@@ -5095,14 +5306,16 @@ const songData = {
                                   const centerMember = track.center ? memberMap[String(track.center)] : null;
                                   const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
                                   const unassigned = [];
-                                  if (track.lineup && track.members) {
-                                      track.members.forEach(memberId => {
-                                          const member = memberMap[String(memberId)];
-                                          if (member) {
-                                              const row = track.lineup[String(memberId)];
-                                              if (row && rows[row]) { rows[row].push(member.name); } else { unassigned.push(member.name); }
-                                          }
-                                      });
+                                if (track.lineup && track.members) {
+                                    track.members.forEach(memberObject => {
+                                        const row = track.lineup[String(memberObject.id)];
+                                        if (row && rows[row]) {
+                                            rows[row].push(memberObject.name);
+                                        } else {
+                                            unassigned.push(memberObject.name);
+                                        }
+                                    });
+
                                   } else if (track.members) {
                                        track.members.forEach(memberId => {
                                           const member = memberMap[String(memberId)];
@@ -5191,7 +5404,8 @@ const songData = {
         const [setlist, setSetlist] = useState([]);
         const [selectedMembers, setSelectedMembers] = useState([]);
         const [filterCategory, setFilterCategory] = useState('All');
-        const [memberFilter, setMemberFilter] = useState('all'); // For member group filter
+        const [memberFilter, setMemberFilter] = useState('all');
+        
 
         // --- DERIVED DATA ---
         const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
@@ -5237,7 +5451,7 @@ const songData = {
     
         // --- MEMBER & EXECUTION ---
         const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
-        const selectAllMembers = () => setSelectedMembers(filteredMembers.map(m => m.id)); // Now selects only filtered members
+        const selectAllMembers = () => setSelectedMembers(filteredMembers.map(m => m.id));
         const deselectAllMembers = () => setSelectedMembers([]);
         const executePerformance = () => {
             if (!selectedTypeData) return setMessage("Please select a performance type.");
@@ -5321,7 +5535,7 @@ const songData = {
                                     <div>
                                         <p className="font-semibold text-sm">{member.name}</p>
                                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                                            Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {(member.fans || 0).toLocaleString()}
+                                            Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {getTotalFansForMember(member).toLocaleString()}
                                         </p>
                                     </div>
                                     <button
@@ -5364,6 +5578,7 @@ const songData = {
         const [setlist, setSetlist] = useState([]);
         const [selectedMembers, setSelectedMembers] = useState([]);
         const [targetGroup, setTargetGroup] = useState('main');
+        const [memberFilter, setMemberFilter] = useState('all');
         const [sPrice, setSPrice] = useState(0);
         const [aPrice, setAPrice] = useState(0);
         const [bPrice, setBPrice] = useState(0);
@@ -5380,6 +5595,14 @@ const songData = {
             const sg = sisterGroups.find(g => g.name === targetGroup);
             return sg ? String(member.groupId) === String(sg.id) : false;
         });
+
+        const filteredMembers = availableMembers.filter(member => {
+    if (memberFilter === 'all') return true;
+    if (memberFilter === 'main') return member.homeGroup === 'main';
+    const sg = sisterGroups.find(g => g.name === targetGroup);
+    return sg ? String(member.groupId) === String(sg.id) : false;
+});
+
 
         // --- USE EFFECTS ---
         useEffect(() => {
@@ -5529,27 +5752,37 @@ const songData = {
                         {/* Right Column: Members & Announcements */}
                         <div>
                             <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
-                                <h4 className="font-semibold mb-2 dark:text-gray-100">Performing Members ({selectedMembers.length} / {availableMembers.length})</h4>
-                                <div className='mb-2'><button onClick={selectAllMembers} className='text-xs p-1 bg-blue-100 dark:bg-blue-900 rounded'>Select All</button><button onClick={deselectAllMembers} className='ml-2 text-xs p-1 bg-gray-200 dark:bg-gray-700 rounded'>Deselect All</button></div>
-                                <div className="space-y-1 max-h-60 overflow-y-auto border-t border-b dark:border-gray-700 p-1">
-                                    {availableMembers.map(member => (
-                                        <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
-                                            <div>
-                                                <p className="font-semibold text-sm">{member.name}</p>
-                                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                                    Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {(member.fans || 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => toggleMember(member.id)}
-                                                className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
-                                            >
-                                                {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+    <h4 className="font-semibold mb-2 dark:text-gray-100">Performing Members ({selectedMembers.length})</h4>
+    <div className="flex flex-wrap gap-1 mb-2">
+        <button onClick={() => setMemberFilter('all')} className={`text-xs p-1 rounded ${memberFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>All</button>
+        <button onClick={() => setMemberFilter('main')} className={`text-xs p-1 rounded ${memberFilter === 'main' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{groupName}</button>
+        {sisterGroups.map(sg => (
+            <button key={sg.id} onClick={() => setMemberFilter(String(sg.id))} className={`text-xs p-1 rounded ${memberFilter === String(sg.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{sg.name}</button>
+        ))}
+    </div>
+    <div className='mb-2'>
+        <button onClick={selectAllMembers} className='text-xs p-1 bg-blue-100 dark:bg-blue-900 rounded'>Select Filtered</button>
+        <button onClick={deselectAllMembers} className='ml-2 text-xs p-1 bg-gray-200 dark:bg-gray-700 rounded'>Deselect All</button>
+    </div>
+    <div className="space-y-1 max-h-60 overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+        {filteredMembers.map(member => (
+            <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
+                <div>
+                    <p className="font-semibold text-sm">{member.name}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {getTotalFansForMember(member).toLocaleString()}
+                    </p>
+                </div>
+                <button
+                    onClick={() => toggleMember(member.id)}
+                    className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
+                >
+                    {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
+                </button>
+            </div>
+        ))}
+    </div>
+</div>
                             <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
                                 <h4 className="font-semibold mb-2 dark:text-gray-100">Announcements</h4>
                                 <div className='grid grid-cols-2 gap-4'>
