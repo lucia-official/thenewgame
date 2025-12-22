@@ -39,6 +39,22 @@ const nameParts = [
     "Dreamy-Bye-Bye", "Miracle Mint Message", "Sunny-Side Soul", 
     "Panda-monium Party", "Infinite Idol Glow",
   
+    // --- City Pop / Retro 80s (30) ---
+    "Midnight Driver", "Plastic Skyline", "Neon Weekend", "Telephone Line Love", "Sunset Terrace",
+    "Cassette Tape Memories", "Driving in the Rain", "Midnight Blue", "Stay With Me Tonight", "City Light Serenade",
+    "Highway Mirage", "Crystal Night", "Pacific Breeze", "Luxury Liner", "Urban Silhouette",
+    "Aerobic Heart", "Starlight Resort", "Tokyo Tower Glow", "Retro Romance", "Digital Dancing",
+    "Palm Tree Avenue", "Saturday Night Fever", "Cocktail Hour", "Metallic Moon", "Velvet Boulevard",
+    "After Hours", "Sparkling Sea", "Summer Illusion", "Metropolitan Waltz", "Last Train Home",
+
+    // --- Anime OP / Rock (30) ---
+    "Ignite My Soul", "Crimson Horizon", "Brave Progression", "Resonance Phase", "Skyward Bound",
+    "Blazing Heartbeat", "Beyond the Limit", "Absolute Zero", "Genesis Strike", "Iron Will",
+    "Overdrive Kingdom", "Eternal Frontier", "Shattered Silence", "Dragon's Breath", "Light Speed Hero",
+    "Final Flashback", "Sword of Truth", "Justice Anthem", "Rebel Destiny", "Rising Sun",
+    "Celestial War", "Spirit Link", "Cybernetic Dream", "Gravity Break", "Thunder Clap",
+    "Endless Journey", "Vanguard Force", "Titan's Roar", "Phantom Edge", "Omega Theory",
+
     // --- AKB48 / Theater Style ---
     "Seifuku Resistance", "Riverbank Rendezvous", "10:00 PM Graduation", 
     "Bicycle Bell Blues", "Summer Salt Memory", "Theater Light Tears", 
@@ -1766,7 +1782,7 @@ const deleteTeam = (teamId) => {
           
           const releasingGroupName = isSisterSong ? (sisterGroups.find(g => g.name === targetGroupName)?.name || 'Unknown Group') : groupName;
 
-          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName }));
+            let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName, type: track.type }));
           const isTitleCenter = String(songData.tracks[0].center) === memberId;
           const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
           
@@ -1780,7 +1796,7 @@ const deleteTeam = (teamId) => {
                 casual: (m.fans?.casual || 0) + casualGain
               },
               // FIX #2 & #3: Using the correct `songData.name` for history records.
-              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.name, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: releasingGroupName }] : [])], 
+              singlesParticipation: [...(m.singlesParticipation || []), ...(participatedTracks.length > 0 ? [{ singleId: newSong.id, singleName: songData.name, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: isTitleSenbatsu, group: releasingGroupName }] : [])],
               songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.name, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: releasingGroupName, row: t.lineup[memberId] }))], 
               centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
           };
@@ -2416,6 +2432,42 @@ const deleteTeam = (teamId) => {
     };
 
     setAlbums(prev => [...(prev || []), newAlbum]);
+
+    allMemberIdsInAlbum.forEach(memberId => {
+    const participatedTracks = albumData.tracks.filter(track =>
+        track.members.map(String).includes(String(memberId))
+    );
+    if (participatedTracks.length === 0) return;
+
+    updateMemberState(memberId, m => {
+        const newSongEntries = participatedTracks.map(track => ({
+            songName: track.name,
+            singleName: albumData.name, // Album name for context
+            week: week + 1,
+            type: 'album', // This is the key change
+            isCenter: String(track.center) === String(memberId),
+            group: albumData.artist,
+            row: track.lineup ? track.lineup[memberId] : 'N/A',
+        }));
+
+        const newCenterEntries = participatedTracks
+            .filter(track => String(track.center) === String(memberId))
+            .map(track => ({
+                week: week + 1,
+                singleName: albumData.name,
+                songName: track.name,
+                group: albumData.artist,
+                type: track.type
+            }));
+
+        return {
+            ...m,
+            songsParticipation: [...(m.songsParticipation || []), ...newSongEntries],
+            centerHistory: [...(m.centerHistory || []), ...newCenterEntries],
+        };
+    });
+});
+
 
     const releaseMessage = `RELEASED ALBUM: "${albumData.name}"! It will begin charting next week. Initial Hype: +${newFansTotal.toLocaleString()} fans.`;
     addNotification({ type: 'success', message: releaseMessage });
@@ -4509,15 +4561,6 @@ const CreateSongModal = () => {
             return map;
         }, {});
   
-          const getMemberNames = (memberIds) => {
-              if (!memberIds) return [];
-              return memberIds.map(id => {
-                  const member = memberMap[String(id)];
-                  return member ? member.name : 'Unknown Member';
-              });
-          };
-  
-  
         const productionTiers = {
             training: { standard: { name: 'Standard', cost: 0 }, workshop: { name: 'Workshop', cost: 50000 }, overseas: { name: 'Overseas', cost: 150000 }, bootcamp: { name: 'Bootcamp', cost: 250000 }, elite: { name: 'Elite', cost: 500000 }, oneOnOne: { name: 'One-on-One', cost: 1000000 } },
             song: { inHouse: { name: 'In-house', cost: 0 }, rookie: { name: 'Rookie', cost: 25000 }, external: { name: 'External', cost: 75000 }, trend: { name: 'Trend-setter', cost: 150000 }, famous: { name: 'Famous', cost: 300000 }, hitmaker: { name: 'Hitmaker', cost: 750000 } },
@@ -4528,6 +4571,139 @@ const CreateSongModal = () => {
   
         const totalSales = (single.weeklySales || []).reduce((a, b) => a + b, 0) + (single.sales || 0);
         const totalRevenue = totalSales * 15;
+
+        const TeamGroupedLineup = ({ track }) => {
+            if (!track || !track.members) return null;
+
+            const memberGroups = track.members.reduce((acc, memberId) => {
+                const member = memberMap[String(memberId)];
+                if (!member) return acc;
+
+                let groupKey = `${groupName} Kenkyuusei`; // Default
+                if (member.isSisterMember) {
+                    const sgName = member.displayGroupName || 'Sister Group';
+                    groupKey = member.teamName ? `${sgName} Team ${member.teamName}` : `${sgName} Kenkyuusei`;
+                } else if (member.teamName) {
+                    groupKey = `Team ${member.teamName}`;
+                }
+
+                if (!acc[groupKey]) acc[groupKey] = [];
+                acc[groupKey].push(member);
+                return acc;
+            }, {});
+
+            const getSortPriority = (groupKey) => {
+                const isTeam = groupKey.startsWith('Team ') || groupKey.includes(' Team ');
+                const isKKS = groupKey.includes('Kenkyuusei');
+                const isMain = !groupKey.includes(' ') || groupKey.startsWith('Team ') || groupKey.startsWith(groupName);
+
+                if (isMain && isTeam) return 1;      // Main Group Team
+                if (isMain && isKKS) return 2;      // Main Group Kenkyuusei
+                if (!isMain && isTeam) return 3;     // Sister Group Team
+                if (!isMain && isKKS) return 4;     // Sister Group Kenkyuusei
+                return 5; // Fallback
+            };
+
+            const centerMemberId = String(track.center);
+
+            return (
+                <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
+                    {Object.keys(memberGroups)
+                        .sort((a, b) => {
+                            const priorityA = getSortPriority(a);
+                            const priorityB = getSortPriority(b);
+                            if (priorityA !== priorityB) {
+                                return priorityA - priorityB;
+                            }
+                            return a.localeCompare(b); // Alphabetical sort for groups with same priority
+                        })
+                        .map(groupKeyName => (
+                        <div key={groupKeyName} className="mt-1 text-sm">
+                            <p className="font-semibold text-pink-600 dark:text-pink-400">
+                                {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
+                                    {memberGroups[groupKeyName].map(member => (
+                                        <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
+                                            {member.name}
+                                        </span>
+                                    )).reduce((prev, curr) => [prev, ', ', curr])}
+                                </span>
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const Trivia = () => {
+            const triviaItems = [];
+
+            const formatNames = (nameArray) => {
+                if (nameArray.length === 0) return '';
+                if (nameArray.length === 1) return nameArray[0];
+                if (nameArray.length === 2) return nameArray.join(' and ');
+                return nameArray.slice(0, -1).join(', ') + ', and ' + nameArray.slice(-1);
+            };
+
+            const titleTrack = single.tracks.find(t => t.type === 'title');
+            
+            if (titleTrack) {
+                const firstTimeSenbatsu = titleTrack.members.map(id => memberMap[String(id)]).filter(member => 
+                    member && (member.singlesParticipation || []).filter(p => p.isTitleTrackSenbatsu).length === 1
+                );
+
+                if (firstTimeSenbatsu.length > 0) {
+                    triviaItems.push(`First time in a title track Senbatsu for ${formatNames(firstTimeSenbatsu.map(m => m.name))}.`);
+                }
+
+                if (titleTrack.center) {
+                    const centerMember = memberMap[String(titleTrack.center)];
+                    if (centerMember) {
+                        const titleCenterCount = (centerMember.centerHistory || []).filter(h => h.type === 'title').length;
+                        if (titleCenterCount === 1) {
+                            triviaItems.push(`First time as a title track Center for ${centerMember.name}.`);
+                        }
+                    }
+                }
+            }
+            
+            const allParticipatingIds = [...new Set(single.tracks.flatMap(t => t.members))];
+            const firstTimeParticipation = allParticipatingIds.map(id => memberMap[String(id)]).filter(member =>
+                member && (member.singlesParticipation || []).filter(p => p.singleId === single.id).length > 0 && (member.singlesParticipation || []).length === 1
+            );
+
+            if (firstTimeParticipation.length > 0) {
+                triviaItems.push(`First single participation for ${formatNames(firstTimeParticipation.map(m => m.name))}.`);
+            }
+
+            const bSideTracks = single.tracks.filter(t => t.type === 'b-side');
+            const firstTimeBSideCenters = bSideTracks
+                .map(track => track.center ? memberMap[String(track.center)] : null)
+                .filter(member => {
+                    if (!member) return false;
+                    const bSideCenterCount = (member.centerHistory || []).filter(h => h.type === 'b-side').length;
+                    return bSideCenterCount === 1;
+                });
+
+            if (firstTimeBSideCenters.length > 0) {
+                const uniqueNames = [...new Set(firstTimeBSideCenters.map(m => m.name))];
+                triviaItems.push(`First time as a B-side Center for ${formatNames(uniqueNames)}.`);
+            }
+
+            if (triviaItems.length === 0) return null;
+
+            return (
+                <div className="mt-6">
+                    <h3 className="text-lg font-bold mb-2 flex items-center dark:text-gray-200 pt-3 border-t">
+                        <Gift size={20} className="mr-2"/> Trivia
+                    </h3>
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                        {triviaItems.map((item, index) => (
+                            <li key={index}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
+            );
+        };
     
         const ProductionInfo = () => {
             if (!single.production) {
@@ -4559,40 +4735,8 @@ const CreateSongModal = () => {
                 </div>
             );
         };
-    
-        const TrackLineup = ({ track }) => {
-            if (!track.lineup || !track.members) return null;
-            const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-            const unassigned = [];
-            track.members.forEach(memberId => {
-                const row = track.lineup[String(memberId)];
-                const member = memberMap[String(memberId)];
-                if (member) {
-                    if (rows[row]) { rows[row].push(member); }
-                    else { unassigned.push(member); }
-                }
-            });
-            return (
-              <div className="mt-3 pt-2 border-t text-xs space-y-1">
-                        {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName =>
-                      (rows[rowName] && rows[rowName].length > 0) ? (
-                          <div key={rowName}>
-                              <span className="font-semibold text-gray-800 dark:text-gray-200">{rowName}:</span>
-                              <span className="text-gray-600 dark:text-gray-400 ml-1">{rows[rowName].map(m => m.name).join(', ')}</span>
-                          </div>
-                      ) : null
-                  )}
-                  {unassigned.length > 0 && (
-                      <div><span className="font-semibold">Unassigned:</span><span className="text-gray-600 dark:text-gray-400 ml-1">{unassigned.map(m => m.name).join(', ')}</span></div>
-                  )}
-              </div>
-            );
-        };
         
         const releasingGroupName = single.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(single.targetGroup))?.name || single.targetGroup);
-  
-  const allReleases = [...pastReleases, ...albums].sort((a, b) => b.releaseWeek - a.releaseWeek);
-  
   
         return (
             <ModalWrapper title={`${single.name} - Single Details`} maxWidth="max-w-4xl">
@@ -4690,6 +4834,7 @@ const CreateSongModal = () => {
                                                     <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p>
                                                 )}
                                             </div>
+                                            <TeamGroupedLineup track={track} />
                                         </div>
                                     );
                                 };
@@ -4706,7 +4851,6 @@ const CreateSongModal = () => {
                                 );
                             })()
                         ) : (                          
-                          // Digital Releases or Albums view
                           single.tracks.map((track, index) => {
                               const centerMember = track.center ? memberMap[String(track.center)] : null;
                               const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
@@ -4733,7 +4877,6 @@ const CreateSongModal = () => {
                               return (
                                   <div key={index} className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
                                       <div className="flex justify-between items-start">
-                                          {/* THIS IS THE FIX */}
                                           <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
                                               {track.name}
                                               {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
@@ -4762,15 +4905,17 @@ const CreateSongModal = () => {
                                               </p>
                                           )}
                                       </div>
+                                      <TeamGroupedLineup track={track} />
                                   </div>
                               );
                           })
                       )}
                   </div>
-              </div>
-          </ModalWrapper>
-      );
-    };
+                  <Trivia />
+                </div>
+            </ModalWrapper>
+        );
+      };
     
     // NEW: Performance Selection Modal (Consolidates large concerts/tours)
     const PerformanceModal = () => {
@@ -6396,7 +6541,8 @@ const EditGroupNameModal = () => {
          const songHistory = (member.songsParticipation || []);
          const centerHistory = (member.centerHistory || []);
          const teamHistory = (member.teamHistory || []);
-         
+         const albumTrackHistory = songHistory.filter(s => s.type === 'album');
+         const bSideTrackHistory = songHistory.filter(s => s.type === 'b-side'); // This is the new line
          const memberPerformances = performanceHistory.filter(p => p.members.includes(member.name));
          const titleTrackHistory = songHistory.filter(s => s.type === 'title');
    
@@ -6410,7 +6556,7 @@ const EditGroupNameModal = () => {
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><CalendarCheck size={14} className='mr-1 text-blue-500'/> Team History ({teamHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-blue-50 dark:bg-gray-800">
                      {teamHistory.length === 0 && <p className="text-gray-500 italic p-1">No team history recorded.</p>}
-                     {teamHistory.slice(-5).reverse().map((entry, index) => (
+                     {teamHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1.5 rounded bg-blue-100 dark:bg-gray-700 border-b border-blue-200 dark:border-gray-600">
                              <p className="font-bold text-blue-800 dark:text-blue-200">{entry.event}</p>
                              <p className="text-gray-600 dark:text-gray-400">Week {entry.week} ({getFormattedDateForWeek(entry.week)})</p> 
@@ -6421,7 +6567,7 @@ const EditGroupNameModal = () => {
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50 dark:bg-gray-800">
                      {titleTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No title track senbatsu positions.</p>}
-                     {titleTrackHistory.slice(-5).reverse().map((entry, index) => (
+                     {titleTrackHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1.5 rounded bg-red-100 dark:bg-gray-700 border border-red-200 dark:border-red-600">
                              <p className="font-bold text-red-800 dark:text-red-200">{entry.songName}</p>
                              <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} ({entry.group})</p> 
@@ -6430,10 +6576,11 @@ const EditGroupNameModal = () => {
                      ))}
                  </div>
    
-                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Music size={14} className='mr-1 text-green-500'/> B-Side Tracks ({songHistory.length - titleTrackHistory.length}):</p>
+                 {/* THIS SECTION IS NOW CORRECTED */}
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Music size={14} className='mr-1 text-green-500'/> B-Side Tracks ({bSideTrackHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-green-50 dark:bg-gray-800">
-                     {(songHistory.length - titleTrackHistory.length) === 0 && <p className="text-gray-500 italic p-1">No B-side track positions.</p>}
-                     {songHistory.filter(s => s.type === 'b-side').slice(-5).reverse().map((entry, index) => (
+                     {bSideTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No B-side track positions.</p>}
+                     {bSideTrackHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1.5 rounded bg-green-100 dark:bg-gray-700 border border-green-200 dark:border-green-600">
                              <p className="font-bold text-green-800 dark:text-green-200">{entry.songName}</p>
                              <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} ({entry.group})</p>
@@ -6441,11 +6588,24 @@ const EditGroupNameModal = () => {
                          </div>
                      ))}
                  </div>
+
+                 {/* THIS IS THE NEW ALBUM SECTION */}
+                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Library size={14} className='mr-1 text-purple-500'/> Album Tracks ({albumTrackHistory.length}):</p>
+                 <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-purple-50 dark:bg-gray-800">
+                     {albumTrackHistory.length === 0 && <p className="text-gray-500 italic p-1">No album track positions.</p>}
+                     {albumTrackHistory.reverse().map((entry, index) => (
+                         <div key={index} className="p-1.5 rounded bg-purple-100 dark:bg-gray-700 border border-purple-200 dark:border-purple-600">
+                             <p className="font-bold text-purple-800 dark:text-purple-200">{entry.songName}</p>
+                             <p className="text-gray-600 dark:text-gray-400">Album: {entry.singleName} ({entry.group})</p>
+                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Position: <span className="font-semibold text-purple-700 dark:text-purple-300">{entry.row || 'N/A'}</span></p>
+                         </div>
+                     ))}
+                 </div>
    
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Star size={14} className='mr-1 text-yellow-500'/> Center Positions ({centerHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-yellow-50 dark:bg-gray-800">
                      {centerHistory.length === 0 && <p className="text-gray-500 italic p-1">No center history recorded.</p>}
-                     {centerHistory.slice(-5).reverse().map((entry, index) => (
+                     {centerHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1 rounded bg-yellow-100 dark:bg-gray-700 border border-yellow-300 dark:border-yellow-600">
                              <p className="font-bold text-yellow-800 dark:text-yellow-200">{entry.songName}</p>
                              <p className="text-gray-600 dark:text-gray-400">Single: {entry.singleName} (Group: {entry.group})</p> 
@@ -6456,7 +6616,7 @@ const EditGroupNameModal = () => {
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Trophy size={14} className='mr-1 text-purple-500'/> Major Concerts ({majorConcertHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-purple-50 dark:bg-gray-800">
                      {majorConcertHistory.length === 0 && <p className="text-gray-500 italic p-1">No major concerts attended.</p>}
-                     {majorConcertHistory.slice(-5).reverse().map((entry, index) => (
+                     {majorConcertHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1 rounded bg-purple-100 dark:bg-gray-700 border border-purple-300 dark:border-purple-600">
                              <p className="font-bold text-purple-800 dark:text-purple-200">{entry.name}</p>
                              <p className="text-gray-600 dark:text-gray-400">Week: {entry.week}</p> 
@@ -6467,7 +6627,7 @@ const EditGroupNameModal = () => {
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><ClipboardCheck size={14} className='mr-1 text-indigo-500'/> Performances ({otherPerformanceHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-indigo-50 dark:bg-gray-800">
                      {otherPerformanceHistory.length === 0 && <p className="text-gray-500 italic p-1">No other performances recorded.</p>}
-                     {otherPerformanceHistory.slice(-5).reverse().map((entry, index) => (
+                     {otherPerformanceHistory.reverse().map((entry, index) => (
                          <div key={index} className="p-1 rounded bg-indigo-100 dark:bg-gray-700 border border-indigo-300 dark:border-indigo-600">
                              <p className="font-bold text-indigo-800 dark:text-indigo-200">{entry.name}</p>
                              <p className="text-gray-600 dark:text-gray-400">Week: {entry.week} | Category: {entry.category}</p> 
