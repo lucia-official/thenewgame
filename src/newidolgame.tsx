@@ -6,17 +6,107 @@ type AnyObject = any;
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Star, Music, Heart, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
+  Star, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
   Upload, Building, Tv, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
   Film, Plane, GraduationCap, Shirt, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
-  ClipboardCheck, Clock, Moon, Layers, Clipboard
+  ClipboardCheck, Clock, Moon, BarChart2, Layers, Clipboard
 } from 'lucide-react';
 
 import { getApps, initializeApp } from "firebase/app";;
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, setLogLevel } from 'firebase/firestore';
+
+
+const nameParts = [
+    // --- Kawaii / Denpa Style ---
+    "Candy Pulse Panic", "Doki-Doki Discovery", "Marshmallow Moonlight", 
+    "Strawberry Sky-High", "Melon Soda Memories", "Glitter Step Connection", 
+    "Sparkle-Pop Princess", "Cotton Candy Countdown", "Magical Ribbon Magic", 
+    "Pastel Parade Dreams", "Sugar-Coated Secret", "Wink-Wink Wonderland", 
+    "Cherry Blossom Chime", "Bubblegum Bestie", "Neon Heart Highway", 
+    "Puffy Cloud Picnic", "Jellybean Jubilee", "Star-Dust Sunday", 
+    "Rainbow Rollercoaster", "Sweetie Pie Signal", "Labyrinth of Love-Letters", 
+    "Twinkle-Toe Tango", "Macaron Melodies", "Honey-Bunny Hop", 
+    "Cosmic Cupid Kiss", "Zutto Motto", "Future-Flavour Fantasy", 
+    "Gimme-Gimme Gummies", "Electric Emotion Echo", "Peach Tea Promises", 
+    "Kira-Kira Kingdom", "Vanilla Velvet Voyage", "Dizzy Dreamer Disco", 
+    "Mochi-Mochi Morning", "Hyper-Happy Holiday", "Pocket-Sized Paradise", 
+    "Ribbon Tied Regret", "Pop-Rock Lollipop", "Shining Star Station", 
+    "Diamond Dust Dance", "Puppy-Love Protocol", "Milky Way Milkshake", 
+    "Giddy-Up Galaxy", "Fizzy Feeling Forever", "Choco-Late Celebration", 
+    "Dreamy-Bye-Bye", "Miracle Mint Message", "Sunny-Side Soul", 
+    "Panda-monium Party", "Infinite Idol Glow",
+  
+    // --- AKB48 / Theater Style ---
+    "Seifuku Resistance", "Riverbank Rendezvous", "10:00 PM Graduation", 
+    "Bicycle Bell Blues", "Summer Salt Memory", "Theater Light Tears", 
+    "Heavy Rotation Heart", "Cherry Blossom Graduation", "School Bag Secret", 
+    "Chalkboard Confession", "First Row Feelings", "Sunlight Through Leaves", 
+    "Ponytail Protocol", "Melody of the Ferris Wheel", "Ticket to Tomorrow", 
+    "Golden Hour Stage", "Locker Room Love Letter", "After-School Anthem", 
+    "Center Position Dream", "Handshake Harmony", "Intermission Kiss", 
+    "Sunday's Setlist", "Avenue of Idols", "Cinderella in Sneakers", 
+    "Blue Sky Canvas", "Second Button Souvenir", "Curtain Call Courage", 
+    "Train Window Reflection", "Starlight Senbatsu", "Infinite Encore",
+  
+    // --- 46G / Cinematic Style ---
+    "Slope of the Blue Sky", "Glass Window Silence", "The Wind's Alibi", 
+    "Monologue in the Rain", "Synchronized Solitude", "Indigo Uniforms", 
+    "Station Platform Goodbye", "Invisible Barricade", "Sunlight Refraction", 
+    "Quiet Rebellion", "Parallel World Line", "Echo of the Clock Tower", 
+    "Memory of the Ferris Wheel", "White Flowers in the Wind", "Distant Thunder", 
+    "The 46th Promise", "Route of Sincerity", "Unfinished Map", 
+    "Library Labyrinth", "Tears of the Fountain", "Clockwork Youth", 
+    "Shadow of the Wings", "Azure Horizon", "Velvet Night Sky", 
+    "Silent Majority Heart", "Prism of Regret", "Seaside Philosophy", 
+    "The Last Bus Home", "Mirrored Reality", "Fragile Courage",
+  
+    // --- Simple One-Word Theme ---
+    "Believer", "Spark", "Euphoria", "Restart", "Mirage", 
+    "Identity", "Starlight", "Bloom", "Gravity", "Echo", 
+    "Radiance", "Horizon", "Cherish", "Labyrinth", "Signal", 
+    "Butterfly", "Prism", "Glory", "Melody", "Infinity", 
+    "Canvas", "Journey", "Solitude", "Resonance", "Everglow", 
+    "Brave", "Treasure", "Utopia", "Rebirth", "Believe",
+  
+    // --- Full Romaji Titles ---
+    "Kimi no Moto e", "Suki ni Naru", "Motto Zutto", "Aizora", "Hajimari no Uta",
+    "Kokoro no Kagi", "Natsu no Mahou", "Sayonara Yesterday", "Kibou no Michi", "Yume no Tsubasa",
+    "Kirakira Sunshine", "Omoide Canvas", "Koi no Signal", "Hoshizora Parade", "Mirai Map",
+    "Namida no Ato", "Tokimeki Flight", "Aitakute", "Hikari no Naka de", "Kizuna",
+    "Yozora no Diamond", "Arigatou no Hana", "Seishun No Oto", "Mugen no Kanata", "Tsuki no Shizuku",
+    "Mabushii Kisetsu", "Hatsukoi Memory", "Yakusoku no Basho", "Sekai no Owari de", "Watashi no Story",
+  
+    // --- K-pop / Global Style ---
+    "Savage Love", "Bad Boy Anthem", "Vivid Night", "Pink Venom", "Drama Queen",
+    "After Like", "Next Level Energy", "Zero Gravity", "Love Dive", "Fancy You",
+    "Black Mirror", "Supernova", "Shooting Star", "Iconic Behavior", "Sweet Venom",
+    "Dalla Dalla", "Wannabe Me", "Hip Hop High", "Moonlight Sunrise", "Kill This Rhythm",
+    "Psycho Crush", "Magnetic Heart", "Spicy Fever", "Talk That Talk", "Algorithm",
+    "Wildside", "Sneakers On", "Step Back", "Firework", "Genie In A Box",
+
+    // --- 46G Style Romaji (Poetic & Sophisticated) ---
+  "Saka no Tochuu", "Ano Hi no Kaze", "Boku Nanka", "Kimi no Bunshin", "Seifuku no Silhouette",
+  "Aoi Shousetsu", "Yuuhi no Kodoku", "Mado no Keshiki", "Boku no Monologue", "Sayonara no Imi",
+  "Natsu no Shizuku", "Sora no Kyoukaisen", "Omoide no Reinfu", "Shiroi Kumo", "Komorebi no Uta",
+  "Kaze no Sasayaki", "Mugen no Slope", "Itsuka no Mirai", "Tasogare no Machi", "Aisuru Kimochi",
+  "Kimi to Boku no Kyori", "Haru no Arashi", "Yume no Tabi", "Kokoro no Chizu", "Shizuka na Yoru",
+  "Kinou no Watashi", "Asa no Hikari", "Namida no Reason", "Sora no Aosa", "Saigo no Seifuku",
+
+  // --- New One-Word Titles (Impactful & Modern) ---
+  "Vertex", "Luminous", "Revival", "Gaze", "Paradox",
+  "Aura", "Nova", "Pulse", "Zenith", "Orbit",
+  "Crest", "Velvet", "Static", "Vortex", "Kindle",
+  "Flare", "Rhythm", "Legend", "Origin", "Halo",
+  "Glimmer", "Flow", "Impact", "Spark", "Limit",
+  "Shatter", "Glow", "Drift", "Blink", "Focus"
+];
+
+const generateRandomName = () => {
+return nameParts[Math.floor(Math.random() * nameParts.length)];
+};
 
 
 // --- NEW: Global Fan Calculation Helper ---
@@ -112,6 +202,8 @@ const useIdolManager = () => {
     const [currentTab, setCurrentTab] = useState('members');
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([]);
+    const [pastReleases, setPastReleases] = useState([]); // To store all created singles
+    const [albums, setAlbums] = useState([]); // To store all created albums
     const [formattedDate, setFormattedDate] = useState('');
     const [songs, setSongs] = useState([]);
     const [hasPerformedThisWeek, setHasPerformedThisWeek] = useState(false);
@@ -303,7 +395,11 @@ const useIdolManager = () => {
       { label: "Acoustic Stage", category: "Internal", cost: 6000, fanImpact: 0.08, skillImpact: 0.1, staminaDrain: 15, stressGain: 5, desc: "Stripped-down vocals; improves stability and tone." },
       { label: "Behind-the-Scenes Mini Stage", category: "Internal", cost: 2000, fanImpact: 0.06, skillImpact: 0.03, staminaDrain: 8, stressGain: 2, desc: "BTS content with a short performance; good engagement." },
     ];
-    
+
+    const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
+    const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
+    const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
+
 
     // START/LOAD/SAVE FUNCTIONS
 const saveGame = async (gameUsername, uidParam) => {
@@ -430,7 +526,13 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       });
       setMembers(loadedMembers);
       setTotalFans(data.totalFans || 0);
-      setSongs(JSON.parse(data.songs || "[]"));
+        const loadedSongs = JSON.parse(data.songs || "[]").map(song => ({
+            ...song,
+            baseSalesPotential: song.baseSalesPotential || 0,
+            weeklySales: song.weeklySales || [],
+            chartWeeksLeft: song.chartWeeksLeft ?? 0, // Handles old saves where this might not exist
+        }));
+        setSongs(loadedSongs);
       setTeams(JSON.parse(data.teams || "[]"));
         setTheaters(JSON.parse(data.theaters || "[]"));
       // --- MIGRATION LOGIC FOR OLD SAVES ---
@@ -510,7 +612,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
 
     // --- MEMBER/GROUP UTILITIES ---
 
-    const generateRandomName = () => {
+    const generateRandomMemberName = () => {
       const firstNames = ['Yui','Sakura','Miku','Haruka','Rina','Nana','Akari','Yuki','Aoi','Hana','Karin','Miyu','Saki','Hinata','Riko','Ayaka','Mei','Eri','Mio','Yuna','Kotone','Sumire','Reina','Noa','Tomomi','Hiyori','Ami','Nao','Sayaka','Asuka','Chihiro','Emi','Kokona','Misaki','Saeko','Nanami','Shiori','Aya','Kazumi','Arisa','Marina','Kanna','Azusa','Rin','Fumika','Suzuka','Nene','Akane','Mai','Yuuri','Seira','Momoka','Rei','Tsukasa','Ichika','Mafuyu','Yume','Kyouka','Maho','Sena','Tsumugi','Yurina','Himari','Mirei','Honoka','Ririka','Natsuki','Hikaru','Aina','Shizuku','Ryou','Kaho','Minori','Mariya','Ayame','Kokoro','Misao','Rion','Moeka','Haruna','Yuuna','Mizuki','Kanako','Ema','Suzu','Kotoha','Nagisa','Ayumi','Riona','Yuzuki','Mina','Chiaki','Nozomi','Miharu','Haruno','Risa','Saaya','Airu','Koharu','Rio','Fuka','Ruka','Hina','Sana','Mana','Kiri','Miki','Aira','Kiyomi','Satomi','Chisato','Miho','Yua','Meisa','Natsumi','Yuka','Sora','Riho','Ena','Kanon','Yuzuka','Moka','Himeka','Rika','Shio','Chiharu','Kumi','Aika','Natsue','Sae','Mikoto','Manami','Yoshino','Asumi','Sayo','Reika','Miyabi','Kaede'];
       const lastNames = ['Tanaka','Sato','Suzuki','Takahashi','Watanabe','Yamamoto','Kobayashi','Nakamura','Ito','Kato','Yoshida','Yamada','Sasaki','Yamaguchi','Matsumoto','Inoue','Kimura','Shimizu','Hayashi','Saito','Abe','Fujita','Okada','Goto','Kondo','Ishikawa','Nakajima','Harada','Otsuka','Hasegawa','Murakami','Kojima','Takagi','Kuroda','Takeda','Imai','Ando','Fukuda','Miyazaki','Ueda','Shibata','Kawai','Nagano','Hirano','Mizuno','Ono','Fujii','Sugiyama','Kishida','Endo','Noguchi','Oshima','Sakurai','Mochizuki','Tsukada','Aoki','Morimoto','Tamura','Oda','Matsuda','Azuma','Nishida','Sugimoto','Kubota','Kawamura','Ishii','Nakano','Kanda','Morita','Nagata','Ogawa','Kinoshita','Mori','Yoshikawa','Kawasaki','Higuchi','Suenaga','Kaneko','Miyamoto','Shinozaki','Kawaguchi','Hosoda','Koga','Okamoto','Kamei','Tsutsui','Arakawa','Imamura','Furukawa','Nishimura','Kubo','Okumura','Masuda','Ishida','Asano','Fukumoto','Sakai','Matsui','Iwasaki','Nakagawa','Haruna','Ueno','Fujiwara','Seki','Nojima','Hoshino','Chiba','Kikuchi','Tanimoto','Fukui','Ota','Umezu','Ohashi','Yano','Katayama','Maki','Kuroki','Hatta','Koike','Mogi','Inagaki','Mita','Sano','Yoshioka','Komatsu','Sogabe','Horii','Tsuchiya','Kurata','Sugawara','Tsuji','Ishizuka','Amano','Takeuchi','Nakata','Honma','Kitamura','Enomoto'];
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -1445,43 +1547,88 @@ const deleteTeam = (teamId) => {
         setShowModal(null);
     };
 
-    const scheduleNewSingle = ({ songData, productionData, releaseWeek }) => {
-        const totalCost = Object.keys(productionData).reduce((total, key) => {
+    const scheduleNewSingle = ({ songData, productionData, releaseWeek, physicalVersions }) => {
+        const baseCostPerVersion = 100000;
+        const productionTierCost = Object.keys(productionData).reduce((total, key) => {
             const choice = productionData[key];
             const tiers = { training: { standard: { cost: 0 }, workshop: { cost: 50000 }, overseas: { cost: 250000 }, bootcamp: { cost: 400000 }, elite: { cost: 650000 }, oneOnOne: { cost: 900000 } }, song: { inHouse: { cost: 0 }, rookie: { cost: 50000 }, external: { cost: 100000 }, trend: { cost: 180000 }, famous: { cost: 400000 }, hitmaker: { cost: 750000 } }, mv: { none: { cost: 0 }, practice: { cost: 20000 }, performance: { cost: 60000 }, location: { cost: 150000 }, storyline: { cost: 300000 }, cinematic: { cost: 600000 }, blockbuster: { cost: 1000000 } }, outfits: { existing: { cost: 0 }, recolor: { cost: 40000 }, custom: { cost: 120000 }, concept: { cost: 200000 }, luxury: { cost: 450000 } }, promo: { none: { cost: 0 }, social: { cost: 30000 }, teaser: { cost: 60000 }, variety: { cost: 120000 }, blitz: { cost: 200000 }, global: { cost: 400000 } } };
             return total + (tiers[key]?.[choice]?.cost || 0);
         }, 10000);
+        
+        const physicalCost = songData.releaseFormat === 'physical' ? baseCostPerVersion * physicalVersions : 0;
+        const totalCost = productionTierCost + physicalCost;
 
+        if (money < totalCost) {
+            setMessage("Not enough money for this production!");
+            return;
+        }
         setMoney(prev => prev - totalCost);
 
         const timeline = [];
         const weeksBefore = releaseWeek - week;
-        
-        if (productionData.training !== 'standard') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.2)), message: `Special training for "${songData.songName}" has begun!` });
-        if (productionData.song !== 'inHouse') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.4)), message: `The demo for "${songData.songName}" from the producer is complete!` });
-        if (productionData.outfits !== 'existing') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.6)), message: `The new custom outfits for "${songData.songName}" are being prepared.` });
-        if (productionData.mv !== 'none') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.75)), message: `MV filming for "${songData.songName}" is underway!` });
-        if (productionData.promo !== 'none') timeline.push({ week: releaseWeek - 1, message: `Promotions for "${songData.songName}" have started!` });
-        
-        const newScheduledSingle = {
+        if (productionData.training !== 'standard') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.2)), message: `Special training for "${songData.name}" has begun!` });
+        if (productionData.promo !== 'none') timeline.push({ week: releaseWeek - 1, message: `Promotions for "${songData.name}" have begun!` });
+
+        const newScheduledRelease = {
+            type: 'single',
             songData,
             productionData,
             releaseWeek,
-            timeline
+            physicalVersions, // <-- THE CRUCIAL ADDITION
+            timeline,
         };
 
-        setScheduledSingles(prev => [...prev, newScheduledSingle]);
+        setScheduledSingles(prev => [...prev, newScheduledRelease]);
         setShowModal(null);
-        setMessage(`Production for "${songData.songName}" scheduled for Week ${releaseWeek}! Cost: ¥${totalCost.toLocaleString()}`);
+        setMessage(`Production for "${songData.name}" scheduled for Week ${releaseWeek}! Cost: ¥${totalCost.toLocaleString()}`);
     };
 
+    const scheduleNewAlbum = ({ albumData, productionData, releaseWeek }) => {
+    const baseCostAlbum = 800000;
+    const albumPhysicalSurcharge = 200000;
+    
+    const productionTierCost = Object.keys(productionData).reduce((total, key) => {
+        const choice = productionData[key];
+        const tiers = { training: { standard: { cost: 0 }, workshop: { cost: 50000 }, overseas: { cost: 250000 }, bootcamp: { cost: 400000 }, elite: { cost: 650000 }, oneOnOne: { cost: 900000 } }, song: { inHouse: { cost: 0 }, rookie: { cost: 50000 }, external: { cost: 100000 }, trend: { cost: 180000 }, famous: { cost: 400000 }, hitmaker: { cost: 750000 } }, mv: { none: { cost: 0 }, practice: { cost: 20000 }, performance: { cost: 60000 }, location: { cost: 150000 }, storyline: { cost: 300000 }, cinematic: { cost: 600000 }, blockbuster: { cost: 1000000 } }, outfits: { existing: { cost: 0 }, recolor: { cost: 40000 }, custom: { cost: 120000 }, concept: { cost: 200000 }, luxury: { cost: 450000 } }, promo: { none: { cost: 0 }, social: { cost: 30000 }, teaser: { cost: 60000 }, variety: { cost: 120000 }, blitz: { cost: 200000 }, global: { cost: 400000 } } };
+        return total + (tiers[key]?.[choice]?.cost || 0);
+    }, 10000);
+
+    const totalCost = productionTierCost + baseCostAlbum + (albumData.releaseFormat === 'physical' ? albumPhysicalSurcharge : 0);
+
+    if (money < totalCost) {
+        setMessage("Not enough money for this album production!");
+        return;
+    }
+    setMoney(prev => prev - totalCost);
+
+    const timeline = [];
+    const weeksBefore = releaseWeek - week;
+    if (productionData.training !== 'standard') timeline.push({ week: week + Math.max(1, Math.floor(weeksBefore * 0.2)), message: `Special training for album "${albumData.name}" has begun!` });
+    if (productionData.promo !== 'none') timeline.push({ week: releaseWeek - 1, message: `Promotions for album "${albumData.name}" have begun!` });
+
+    const newScheduledRelease = {
+        type: 'album',
+        albumData,
+        productionData,
+        releaseWeek,
+        timeline,
+    };
+
+    setScheduledSingles(prev => [...prev, newScheduledRelease]);
+    setShowModal(null);
+    setMessage(`Production for album "${albumData.name}" scheduled for Week ${releaseWeek}! Cost: ¥${totalCost.toLocaleString()}`);
+};
+
+
     const executeSongRelease = (singleToRelease) => {
-      const { songData, productionData } = singleToRelease;
+      const { songData, productionData, physicalVersions } = singleToRelease;
       
       const titleTrack = songData.tracks[0];
       const senbatsuMemberIds = titleTrack.members.map(String);
-      const isSisterSong = songData.targetGroupId !== 'main';
-      const targetGroupName = songData.targetGroupId;
+      
+      // FIX #1: The data now uses `targetGroup` (the group's name) consistently.
+      const isSisterSong = songData.targetGroup !== 'main';
+      const targetGroupName = songData.targetGroup;
 
       let updatedMembers = [...members];
       let updatedSisterGroups = [...sisterGroups];
@@ -1516,8 +1663,8 @@ const deleteTeam = (teamId) => {
       const senbatsuMembers = allMembersAfterBonuses.filter(m => senbatsuMemberIds.includes(String(m.id)));
       
       const fanSales = senbatsuMembers.reduce((sum, m) => {
-        const hardcoreSales = (m.fans?.hardcore || 0) * 0.9; // 90% purchase rate for hardcore fans
-        const casualSales = (m.fans?.casual || 0) * 0.25; // 25% purchase rate for casual fans
+        const hardcoreSales = (m.fans?.hardcore || 0) * 0.8;
+        const casualSales = (m.fans?.casual || 0) * 0.30;
         return sum + hardcoreSales + casualSales;
       }, 0);
 
@@ -1525,18 +1672,19 @@ const deleteTeam = (teamId) => {
           return sum + (m ? ((m.singing || 0) + (m.dancing || 0)) / 2 : 0);
       }, 0) / (senbatsuMembers.length || 1);
 
-      const skillSales = avgSkill * 500; // Skill adds a bonus on top of fan sales
+      const skillPower = avgSkill * 20;
 
-      const salesMultipliers = {inHouse: 1.0, rookie: 1.05, external: 1.1, trend: 1.15, famous: 1.25, hitmaker: 1.4};
-      const fanMultipliers = {none: 1.0, practice: 1.05, performance: 1.08, location: 1.15, storyline: 1.20, cinematic: 1.30, blockbuster: 1.45};
-      const promoMultipliers = {none: 1.0, social: 1.1, teaser: 1.15, variety: 1.2, blitz: 1.25, global: 1.35};
+        let formatBonus = 1.0;
+        if (songData.releaseFormat === 'physical') {
+        formatBonus += 0.10;
+        if (physicalVersions > 1) {
+            formatBonus += (physicalVersions - 1) * 0.05;
+        }
+        }
 
-      const baseSales = fanSales + skillSales;
-      const sales = Math.floor(baseSales * (salesMultipliers[productionData.song] || 1));
-      const newFansTotal = Math.floor(sales / 10 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
-      const revenue = sales * 15;
+        const baseSalesPotential = (fanSales + skillPower) * formatBonus;
 
-      // --- NEW MULTI-TRACK FAN DISTRIBUTION LOGIC ---
+      const newFansTotal = Math.floor(baseSalesPotential / 20 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
 
       const calculateFanDistribution = (track, fanPool, memberRoster, pushedMembersList) => {
           if (!track || !track.members || track.members.length === 0 || fanPool === 0) {
@@ -1590,9 +1738,22 @@ const deleteTeam = (teamId) => {
           });
       }
       
-      // --- END NEW FAN DISTRIBUTION LOGIC ---
-
-      const newSong = { id: Date.now(), name: songData.songName, tracks: songData.tracks, sales, revenue, hasVideo: productionData.mv !== 'none', targetGroup: songData.targetGroupId, releaseWeek: week + 1, totalTracks: songData.tracks.length, salesHistory: [{ week: week + 1, sales }], production: productionData };
+        const newSong = {
+            id: Date.now(),
+            name: songData.name,
+            type: 'single', // Add this line
+            releaseFormat: songData.releaseFormat, // Add this line
+            tracks: songData.tracks,
+            baseSalesPotential: baseSalesPotential * formatBonus,
+            weeklySales: [],
+            chartWeeksLeft: 8,
+            hasVideo: productionData.mv !== 'none',
+            targetGroup: songData.targetGroup,
+            releaseWeek: week + 1,
+            totalTracks: songData.tracks.length,
+            salesHistory: [],
+            production: productionData
+        };
       
       const updateMemberHistoryAndFans = (m, sg = null) => {
           const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
@@ -1603,14 +1764,12 @@ const deleteTeam = (teamId) => {
               return m;
           }
           
-          const releasingGroupName = isSisterSong ? (sisterGroups.find(g => String(g.id) === targetGroupName)?.name || 'Unknown Group') : groupName;
+          const releasingGroupName = isSisterSong ? (sisterGroups.find(g => g.name === targetGroupName)?.name || 'Unknown Group') : groupName;
 
-          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.songName, songName: track.name, group: releasingGroupName }));
+          let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName }));
           const isTitleCenter = String(songData.tracks[0].center) === memberId;
           const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
           
-          // --- THIS IS THE FIX ---
-          // It now correctly adds new fans to the hardcore/casual object
           const hardcoreGain = Math.floor(fanGainForMember * 0.15);
           const casualGain = fanGainForMember - hardcoreGain;
 
@@ -1620,36 +1779,36 @@ const deleteTeam = (teamId) => {
                 hardcore: (m.fans?.hardcore || 0) + hardcoreGain,
                 casual: (m.fans?.casual || 0) + casualGain
               },
-              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.songName, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: releasingGroupName }] : [])], 
-              songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.songName, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: releasingGroupName, row: t.lineup[memberId] }))], 
+              // FIX #2 & #3: Using the correct `songData.name` for history records.
+              singlesParticipation: [...(m.singlesParticipation || []), ...(isTitleSenbatsu ? [{ singleId: newSong.id, singleName: songData.name, tracks: participatedTracks.map(t => t.name), week: week + 1, isCenter: isTitleCenter, isTitleTrackSenbatsu: true, group: releasingGroupName }] : [])], 
+              songsParticipation: [...(m.songsParticipation || []), ...participatedTracks.map(t => ({ songName: t.name, singleName: songData.name, week: week + 1, type: t.type, isCenter: String(t.center) === memberId, group: releasingGroupName, row: t.lineup[memberId] }))], 
               centerHistory: [...(m.centerHistory || []), ...newCenterHistoryEntries] 
           };
       };
 
       if (isSisterSong) {
           setSisterGroups(prev => prev.map(sg => {
-              let membersToUpdate = sg.members || [];
               if (sg.name === targetGroupName) {
-                  membersToUpdate = updatedSisterGroups.find(usg => usg.id === sg.id)?.members || membersToUpdate;
+                  const membersToUpdate = updatedSisterGroups.find(usg => usg.id === sg.id)?.members || sg.members || [];
+                  const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
+                  const sgSongs = [...(sg.songs || []), newSong];
+                  return { ...sg, songs: sgSongs, members: finalMembers };
               }
-              const finalMembers = membersToUpdate.map(m => updateMemberHistoryAndFans(m, sg));
-              const sgSongs = sg.name === targetGroupName ? [...(sg.songs || []), newSong] : sg.songs.slice();
-
-              return { ...sg, songs: sgSongs, members: finalMembers };
+              return sg;
           }));
       } else {
           setSongs(prev => [...(prev || []), newSong]);
           setMembers(prev => updatedMembers.map(m => updateMemberHistoryAndFans(m)));
           setSisterGroups(prev => prev.map(sg => {
-              if (sg.members.some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
+              if ((sg.members || []).some(m => songData.tracks.some(track => track.members.includes(`sg-${sg.id}-${m.id}`)))) {
                   return { ...sg, members: sg.members.map(m => updateMemberHistoryAndFans(m, sg)) };
               }
               return sg;
           }));
       }
 
-      setMoney(prev => prev + revenue);
-      const releaseMessage = `RELEASED: \"${songData.songName}\"! Revenue: ¥${revenue.toLocaleString()}, Fans: +${newFansTotal.toLocaleString()}`;
+      // FIX #4: Using the correct `songData.name` for the final release message.
+      const releaseMessage = `RELEASED: \"${songData.name}\"! It will begin charting next week. Initial Hype: +${newFansTotal.toLocaleString()} fans.`;
       addNotification({ type: 'success', message: releaseMessage });
       return releaseMessage;
     };
@@ -2215,6 +2374,54 @@ const deleteTeam = (teamId) => {
       setShowModal(null);
     };
 
+          const executeAlbumRelease = (albumToRelease) => {
+    const { albumData, productionData } = albumToRelease;
+    const allMemberIdsInAlbum = [...new Set(albumData.tracks.flatMap(t => t.members.map(String)))];
+    
+    allMemberIdsInAlbum.forEach(memberId => {
+        updateMemberState(memberId, m => {
+            const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
+            const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
+            return { ...m, singing: Math.min(100, (m.singing || 0) + trainingBuff), dancing: Math.min(100, (m.dancing || 0) + trainingBuff), morale: Math.min(100, (m.morale || 0) + moraleBuff) };
+        });
+    });
+    
+    const allMembersAfterBonuses = getAllAvailableMembers(true);
+    const participatingMembers = allMembersAfterBonuses.filter(m => allMemberIdsInAlbum.includes(String(m.id)));
+
+    const fanSales = participatingMembers.reduce((sum, m) => sum + ((m.fans?.hardcore || 0) * 0.9) + ((m.fans?.casual || 0) * 0.4), 0);
+    const avgSkill = participatingMembers.reduce((sum, m) => sum + ((m.singing || 0) + (m.dancing || 0)) / 2, 0) / (participatingMembers.length || 1);
+    const skillPower = avgSkill * 50;
+
+    let baseSalesPotential = fanSales + skillPower;
+    if (albumData.releaseFormat === 'physical') {
+        baseSalesPotential *= 1.25; // 25% bonus for physical albums
+    }
+
+    const newFansTotal = Math.floor(baseSalesPotential / 15 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
+
+    distributeFans(newFansTotal, allMemberIdsInAlbum);
+
+    const newAlbum = {
+        id: Date.now(),
+        name: albumData.name,
+        artist: albumData.artist,
+        tracks: albumData.tracks,
+        type: 'album',
+        baseSalesPotential: baseSalesPotential,
+        weeklySales: [],
+        chartWeeksLeft: 8,
+        releaseWeek: week + 1,
+        production: productionData,
+    };
+
+    setAlbums(prev => [...(prev || []), newAlbum]);
+
+    const releaseMessage = `RELEASED ALBUM: "${albumData.name}"! It will begin charting next week. Initial Hype: +${newFansTotal.toLocaleString()} fans.`;
+    addNotification({ type: 'success', message: releaseMessage });
+    return releaseMessage;
+};
+
 
     const nextWeek = () => {
 
@@ -2434,20 +2641,27 @@ const deleteTeam = (teamId) => {
 
       // Handle scheduled single events
       const remainingSingles = [];
-      scheduledSingles.forEach(single => {
-          const eventForThisWeek = single.timeline.find(e => e.week === newWeek);
-          if (eventForThisWeek && !eventForThisWeek.message.startsWith('RELEASE')) {
+            scheduledSingles.forEach(release => {
+          const eventForThisWeek = release.timeline.find(e => e.week === newWeek);
+          if (eventForThisWeek) {
               addNotification({ type: 'event', message: eventForThisWeek.message });
-              priorityMessage = eventForThisWeek.message; // A production event is a priority
+              priorityMessage = eventForThisWeek.message;
           }
 
-          if (single.releaseWeek === newWeek) {
-              const releaseMsg = executeSongRelease(single);
+          if (release.releaseWeek === newWeek) {
+              let releaseMsg = '';
+              // NEW: Check the type of release
+              if (release.type === 'album') {
+                  releaseMsg = executeAlbumRelease(release);
+              } else { // It's a single or an old save file
+                  releaseMsg = executeSongRelease(release);
+              }
+              
               if (releaseMsg) {
                   priorityMessage = releaseMsg; // A release is ALWAYS the highest priority
               }
           } else {
-              remainingSingles.push(single);
+              remainingSingles.push(release);
           }
       });
       setScheduledSingles(remainingSingles);
@@ -2459,6 +2673,84 @@ const deleteTeam = (teamId) => {
       const income = baseIncome + sisterIncome + varietyIncome;
       
       setMoney(prev => (prev || 0) + income);
+
+        // --- NEW: Weekly Charting Logic ---
+        const weeklySalesCurve = [0.35, 0.25, 0.15, 0.10, 0.05, 0.04, 0.03, 0.03]; // 8 weeks of sales
+        let weeklyChartRevenue = 0;
+        let weeklyChartReport = [];
+
+        // --- Process Main Group Charting Songs ---
+                // --- Process Main Group Charting Songs ---
+        setSongs(currentSongs => {
+            if (!currentSongs) return []; // Safety check
+            return currentSongs.map(song => {
+                if (song.chartWeeksLeft > 0) {
+                    const chartWeekIndex = 8 - song.chartWeeksLeft;
+                    const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * (salesMultipliers[song.production.song] || 1));
+                    const revenueThisWeek = salesThisWeek * 15;
+                    const fansThisWeek = Math.floor(salesThisWeek / 10 * (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1));
+
+                    weeklyChartRevenue += revenueThisWeek;
+
+                    const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
+                    const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
+                    distributeFans(fansThisWeek, uniqueMemberIds);
+
+                    weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
+                    
+                    return {
+                        ...song,
+                        chartWeeksLeft: song.chartWeeksLeft - 1,
+                        salesHistory: [...song.salesHistory, { week: newWeek, sales: salesThisWeek }],
+                        weeklySales: [...(song.weeklySales || []), salesThisWeek],
+                    };
+                }
+                return song;
+            });
+        });
+
+        // --- Process Sister Group Charting Songs ---
+        setSisterGroups(currentSisterGroups => {
+            if (!currentSisterGroups) return []; // Safety check
+            return currentSisterGroups.map(sg => {
+                if (!sg.songs || sg.songs.length === 0) return sg;
+
+                const newSgSongs = sg.songs.map(song => {
+                    if (song.chartWeeksLeft > 0) {
+                        const chartWeekIndex = 8 - song.chartWeeksLeft;
+                        const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * (salesMultipliers[song.production.song] || 1));
+                        const revenueThisWeek = salesThisWeek * 15;
+                        const fansThisWeek = Math.floor(salesThisWeek / 10 * (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1));
+
+                        weeklyChartRevenue += revenueThisWeek;
+                        
+                        const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
+                        const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
+                        distributeFans(fansThisWeek, uniqueMemberIds);
+                        
+                        weeklyChartReport.push(`${sg.name}'s ${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
+                        
+                        return {
+                            ...song,
+                            chartWeeksLeft: song.chartWeeksLeft - 1,
+                            salesHistory: [...song.salesHistory, { week: newWeek, sales: salesThisWeek }],
+                            weeklySales: [...(song.weeklySales || []), salesThisWeek],
+                        };
+                    }
+                    return song;
+                });
+
+                return { ...sg, songs: newSgSongs };
+            });
+        });
+
+        // Add the revenue to money
+        if (weeklyChartRevenue > 0) {
+            setMoney(prev => prev + weeklyChartRevenue);
+            addNotification({ type: 'info', message: `Chart Sales Report: ${weeklyChartReport.join(' ')}` });
+        }
+        // --- END OF WEEKLY SALES SINGLE ---
+
 
             // --- NEW: Monthly Financial Drain & Fan Churn ---
             let expenseNotification = '';
@@ -2693,7 +2985,7 @@ if (newWeek > 52 && newWeek % 52 === 1) { // Triggers on week 53, 105, 157, etc.
 
         const candidates = Array.from({ length: selectedTier.poolSize }, (_, i) => ({
             id: `candidate-${i}`,
-            name: generateRandomName(),
+            name: generateRandomMemberName(),
             vocal: generateStat(selectedTier.statMin, selectedTier.statMax),
             dance: generateStat(selectedTier.statMin, selectedTier.statMax),
             visual: generateStat(selectedTier.statMin, selectedTier.statMax),
@@ -2869,26 +3161,26 @@ return { ...baseMember, id: newId, homeGroup: sg ? sg.name : 'Unknown Group', ke
 
     return {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, albums, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
-startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 };
 };
 const App = () => {
     // Destructure everything from the custom hook
     const {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, albums, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, sisterGroups, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
-startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, generateRandomName, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -3368,8 +3660,8 @@ const CreateSongModal = () => {
     const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
     const [songName, setSongName] = useState('');
     const [tracks, setTracks] = useState([
-        { name: 'Title Track', type: 'title', members: [], center: null, lineup: {} },
-        { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }
+        { name: 'Title Track', unitName: 'Senbatsu', type: 'title', members: [], center: null, lineup: {} },
+        { name: 'B-Side 1', unitName: 'B-Side Unit', type: 'b-side', members: [], center: null, lineup: {}, cdType: 'common' }
     ]);
     const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
 
@@ -3377,7 +3669,12 @@ const CreateSongModal = () => {
     const [filterKey, setFilterKey] = useState('All');
 
     // --- Production and Scheduling State ---
-    const [step, setStep] = useState('selection'); // 'selection' or 'production'
+    const [step, setStep] = useState('type'); // 'type', 'selection', or 'production'
+    const [releaseType, setReleaseType] = useState(null); // 'single' or 'album'
+    const [albumName, setAlbumName] = useState('New Album');
+    const [albumTracks, setAlbumTracks] = useState([]);
+    const [selectedAlbumTrackIndex, setSelectedAlbumTrackIndex] = useState(0);
+
     const [releaseWeek, setReleaseWeek] = useState(week + 4);
 
     const productionTiers = {
@@ -3392,14 +3689,94 @@ const CreateSongModal = () => {
         training: 'standard', song: 'inHouse', mv: 'none', outfits: 'existing', promo: 'none'
     });
 
-    const totalProductionCost = Object.keys(productionChoices).reduce((total, key) => total + productionTiers[key][productionChoices[key]].cost, 10000);
+    const [releaseFormat, setReleaseFormat] = useState('digital');
+    const [physicalVersions, setPhysicalVersions] = useState(1);
+
+        const baseCostPerVersion = 100000;
+        const baseCostAlbum = 800000; // Base cost for producing a full album
+        const albumPhysicalSurcharge = 200000; // Fixed additional cost for physical albums
+
+        const productionChoicesCost = Object.keys(productionChoices).reduce((total, key) => total + productionTiers[key][productionChoices[key]].cost, 10000);
+
+        const totalProductionCost = 
+            productionChoicesCost + 
+            (
+                releaseType === 'album' 
+                    ? baseCostAlbum + (releaseFormat === 'physical' ? albumPhysicalSurcharge : 0)
+                    : (releaseFormat === 'physical' ? baseCostPerVersion * physicalVersions : 0)
+            );
     
+        useEffect(() => {
+            // This effect automatically calculates the number of physical versions
+            // needed based on the B-side track assignments for SINGLES.
+            if (releaseFormat === 'physical' && releaseType === 'single') {
+                const exclusiveTypes = new Set(
+                    tracks
+                        .filter(t => t.type === 'b-side' && t.cdType !== 'common')
+                        .map(t => t.cdType)
+                );
+                const numVersions = exclusiveTypes.size;
+                setPhysicalVersions(Math.max(1, numVersions));
+            }
+        }, [tracks, releaseFormat, releaseType]);
+
     // --- Functions ---
     const handleProductionChange = (category, value) => setProductionChoices(prev => ({ ...prev, [category]: value }));
     const updateTrackName = (index, newName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, name: newName } : track));
+    const updateUnitName = (index, newUnitName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, unitName: newUnitName } : track));
+    const updateTrackCDType = (index, newType) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, cdType: newType } : track));
+    
+    const handleReleaseTypeSelect = (type) => {
+        setReleaseType(type);
+        if (type === 'album') {
+            // Initialize with 1 Lead Track and 7 B-Sides for the album
+            setAlbumTracks([
+                { name: 'Lead Track', unitName: 'Senbatsu', type: 'title', members: [], center: null, lineup: {} },
+                ...Array.from({ length: 7 }, (_, i) => ({
+                    name: `B-Side ${i + 1}`,
+                    unitName: `Unit ${i + 2}`,
+                    type: 'b-side',
+                    members: [],
+                    center: null,
+                    lineup: {},
+                }))
+            ]);
+        }
+        setStep('selection');
+    };
+    // --- Functions for Album Tracks ---
+    const updateAlbumTrackName = (index, newName) => setAlbumTracks(prev => prev.map((track, i) => i === index ? { ...track, name: newName } : track));
+    const updateAlbumUnitName = (index, newUnitName) => setAlbumTracks(prev => prev.map((track, i) => i === index ? { ...track, unitName: newUnitName } : track));
+    const toggleAlbumMember = (memberId) => setAlbumTracks(prev => prev.map((track, index) => {
+        if (index !== selectedAlbumTrackIndex) return track;
+        const memberIdStr = String(memberId);
+        const isMemberSelected = track.members.map(String).includes(memberIdStr);
+        let newMembers;
+        let newLineup = { ...track.lineup };
+        if (isMemberSelected) {
+            newMembers = track.members.filter(id => String(id) !== memberIdStr);
+            delete newLineup[memberIdStr];
+        } else {
+            newMembers = [...track.members.map(String), memberIdStr];
+            newLineup[memberIdStr] = '5th Row'; // Default row
+        }
+        let newCenter = track.center;
+        if (!newMembers.includes(String(track.center))) newCenter = null;
+        return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
+    }));
+    const setAlbumCenter = (memberId) => setAlbumTracks(prev => prev.map((track, index) => {
+        if (index === selectedAlbumTrackIndex) {
+            const memberIdStr = String(memberId);
+            if (track.members.map(String).includes(memberIdStr)) {
+                return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr };
+            }
+        }
+        return track;
+    }));
+    const handleAlbumLineupChange = (memberId, row) => setAlbumTracks(prev => prev.map((track, index) => index === selectedAlbumTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
     const toggleMember = (memberId) => setTracks(prev => prev.map((track, index) => { if (index !== selectedTrackIndex) return track; const memberIdStr = String(memberId); const isMemberSelected = track.members.map(String).includes(memberIdStr); let newMembers; let newLineup = { ...track.lineup }; if (isMemberSelected) { newMembers = track.members.filter(id => String(id) !== memberIdStr); delete newLineup[memberIdStr]; } else { newMembers = [...track.members.map(String), memberIdStr]; newLineup[memberIdStr] = '5th Row'; } let newCenter = track.center; if (!newMembers.includes(String(track.center))) newCenter = null; return { ...track, members: newMembers, center: newCenter, lineup: newLineup }; }));
     const setCenter = (memberId) => setTracks(prev => prev.map((track, index) => { if (index === selectedTrackIndex) { const memberIdStr = String(memberId); if (track.members.map(String).includes(memberIdStr)) return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr }; } return track; }));
-    const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {} }]); setSelectedTrackIndex(tracks.length); };
+    const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, unitName: `Unit ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {}, cdType: 'common' }]); setSelectedTrackIndex(tracks.length); };
     const handleLineupChange = (memberId, row) => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
     
     // --- Data Derivation and Filtering ---
@@ -3471,13 +3848,102 @@ const CreateSongModal = () => {
         return null;
     };
     
+    const getMemberWarningForAlbum = (memberId) => {
+        const memberIdStr = String(memberId);
+        const otherTracks = albumTracks.filter((track, index) => index !== selectedAlbumTrackIndex && track.members.map(String).includes(memberIdStr));
+        if (otherTracks.length > 0) {
+            return `(In: ${otherTracks.map((t,i) => `Track ${albumTracks.indexOf(t)+1}`).join(', ')})`;
+        }
+        return null;
+    };
+
+    const handleToggleSelectAllFilteredForAlbum = () => {
+        const currentTrack = albumTracks[selectedAlbumTrackIndex];
+        if (!currentTrack) return;
+        
+        const visibleRoster = selectableMembers.filter(member => {
+            if (filterKey === 'Unchosen') {
+                const isMemberInAnyTrack = albumTracks.some(track => track.members.map(String).includes(String(member.id)));
+                return !isMemberInAnyTrack;
+            }
+            if (filterKey === 'All') return true;
+            const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
+            const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
+            const memberTeamName = memberData?.teamName;
+            if (filterKey === 'main' || filterKey === groupName) return !member.isSister;
+            if (member.homeGroup === filterKey) return true;
+            if (memberTeamName && memberTeamName === filterKey) return true;
+            return false;
+        });
+
+        const visibleIds = visibleRoster.map(m => String(m.id));
+        const allCurrentlySelected = visibleIds.every(id => currentTrack.members.map(String).includes(id));
+        
+        setAlbumTracks(prev => prev.map((track, index) => {
+            if (index !== selectedAlbumTrackIndex) return track;
+            let newMembers;
+            let newLineup = { ...track.lineup };
+            if (allCurrentlySelected) {
+                newMembers = track.members.filter(id => !visibleIds.includes(String(id)));
+                visibleIds.forEach(id => delete newLineup[id]);
+            } else {
+                const newIdsToAdd = visibleIds.filter(id => !track.members.map(String).includes(id));
+                newMembers = [...track.members, ...newIdsToAdd];
+                newIdsToAdd.forEach(id => { if (!newLineup[id]) newLineup[id] = '5th Row'; });
+            }
+            let newCenter = track.center;
+            if (!newMembers.map(String).includes(String(track.center))) newCenter = null;
+            return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
+        }));
+    };
+
+
     const handleSchedule = () => {
         if (money < totalProductionCost) return setMessage("Not enough money for this production!");
-        const songData = { songName: songName.trim(), tracks: tracks.map(t => ({ ...t, members: (t.members || []).map(String).filter(id => getMemberById(id)) })), targetGroupId: targetGroup };
-        scheduleNewSingle({ songData, productionData: productionChoices, releaseWeek });
-    };
         
-        const PyramidVisualization = ({ lineup, members, center }) => {
+        const songData = { 
+            name: songName.trim(), 
+            targetGroup: targetGroup, 
+            releaseFormat: releaseFormat,
+            // THIS IS THE FIX: We are now explicitly copying every property
+            // to ensure 'unitName' is preserved.
+            tracks: tracks.map(t => ({ 
+                name: t.name,
+                unitName: t.unitName,
+                type: t.type,
+                members: (t.members || []).map(String).filter(id => getMemberById(id)),
+                center: t.center,
+                lineup: t.lineup,
+                cdType: t.cdType
+            })),
+        };
+        
+        scheduleNewSingle({ 
+            songData, 
+            productionData: productionChoices, 
+            releaseWeek,
+            physicalVersions 
+        });
+    };
+
+    const handleConfirmAlbum = () => {
+        if (money < totalProductionCost) return setMessage("Not enough money for this album!");
+        
+        // If targetGroup is 'main', use the main group's name. Otherwise, use targetGroup (which will be the sister group's name).
+        const artistName = targetGroup === 'main' ? groupName : targetGroup;
+
+        const albumDataObject = {
+            name: albumName.trim(),
+            artist: artistName,
+            tracks: albumTracks,
+            releaseFormat: releaseFormat,
+        };
+
+        scheduleNewAlbum({ albumData: albumDataObject, productionData: productionChoices, releaseWeek });
+    };
+
+
+    const PyramidVisualization = ({ lineup, members, center }) => {
             const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
             members.forEach(member => { const row = lineup[String(member.id)]; if (rows[row]) rows[row].push(member); });
             Object.keys(rows).forEach(row => rows[row].sort((a, b) => (b.fans || 0) - (a.fans || 0)));
@@ -3500,6 +3966,31 @@ const CreateSongModal = () => {
             );
         };
 
+    const renderTypeSelectionStep = () => (
+        <div className="text-center p-8" style={{minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+            <h3 className="text-3xl font-bold mb-6 dark:text-gray-100">What do you want to produce?</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl w-full">
+                <button
+                    onClick={() => handleReleaseTypeSelect('single')}
+                    className="p-8 bg-blue-500 text-white rounded-xl shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-300 transform hover:-translate-y-1"
+                >
+                    <Music size={32} className="mx-auto mb-3" />
+                    <span className="font-bold text-xl">New Single</span>
+                    <p className="text-sm text-blue-100 mt-1">A standard release with a title track and B-sides.</p>
+                </button>
+                <button
+                    onClick={() => handleReleaseTypeSelect('album')}
+                    className="p-8 bg-purple-500 text-white rounded-xl shadow-lg hover:bg-purple-600 focus:outline-none focus:ring-4 focus:ring-purple-300 dark:focus:ring-purple-800 transition-all duration-300 transform hover:-translate-y-1"
+                >
+                    <Layers size={32} className="mx-auto mb-3" />
+                    <span className="font-bold text-xl">Original Album</span>
+                    <p className="text-sm text-purple-100 mt-1">A full-length album with all-new songs.</p>
+                </button>
+            </div>
+        </div>
+    );
+
+
         const renderSelectionStep = () => (
             <>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -3514,7 +4005,20 @@ const CreateSongModal = () => {
                         </div>
                         <div>
                             <h4 className="font-semibold mb-1 dark:text-gray-200">Single Name</h4>
-                            <input type="text" value={songName} onChange={(e) => setSongName(e.target.value)} className="w-full p-2 border rounded text-lg bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" placeholder="e.g., Flying Get"/>
+
+                        <div className="flex items-center gap-2 w-full max-w-xs">
+                            <input
+                                type="text"
+                                value={songName}
+                                onChange={(e) => setSongName(e.target.value)}
+                                className="w-full p-1.5 text-base rounded-md dark:bg-gray-800 dark:text-gray-200 border dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Single Name"
+                            />
+                            <button onClick={() => setSongName(generateRandomName())} className="p-1.5 bg-pink-300 text-white rounded-lg hover:bg-pink-400 transition-colors" title="Generate Random Name">
+                                <Shuffle size={16} />
+                            </button>
+                        </div>
+
                         </div>
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">Tracks ({tracks.length})</h4>
@@ -3522,10 +4026,40 @@ const CreateSongModal = () => {
                                 {tracks.map((track, index) => (
                                     <div key={index} className={`p-3 border rounded-lg cursor-pointer ${selectedTrackIndex === index ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700'}`} onClick={() => setSelectedTrackIndex(index)}>
                                         <div className='flex justify-between items-center mb-1'>
-                                            <span className={`font-bold text-sm ${selectedTrackIndex === index ? 'text-white' : 'dark:text-gray-200'}`}>{track.type === 'title' ? 'Title' : `B-Side ${index + 1}`}</span>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type.toUpperCase()}</span>
+                                            <span className={`font-bold text-sm ${selectedTrackIndex === index ? 'text-white' : 'dark:text-gray-200'}`}>{track.type === 'title' ? 'Title' : `B-Side ${index}`}</span>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); updateTrackName(index, generateRandomName()); }} className="p-1 rounded-md bg-pink-300 text-white hover:bg-pink-400 transition-colors" title="Generate Random Name">
+                                                    <Shuffle size={14} />
+                                                </button>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type.toUpperCase()}</span>
+                                            </div>
                                         </div>
-                                        <input type="text" value={track.name} onChange={(e) => updateTrackName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-full p-1 border rounded text-sm mt-1 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-100 text-gray-800' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Track Name"/>
+
+                                    <div className="flex gap-2 mt-1">
+                                        <input type="text" value={track.name} onChange={(e) => updateTrackName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-1/2 p-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-400 dark:bg-blue-600 text-white placeholder-gray-200 border-blue-500' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Track Name"/>
+                                        <input type="text" value={track.unitName} onChange={(e) => updateUnitName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-1/2 p-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-400 dark:bg-blue-600 text-white placeholder-gray-200 border-blue-500' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Unit Name"/>
+                                    </div>
+
+                        {/* --- NEW: Physical CD Type Selector --- */}
+                        {releaseFormat === 'physical' && track.type === 'b-side' && (
+                            <div className="mt-2">
+                                <label className={`text-xs font-semibold ${selectedTrackIndex === index ? 'text-white' : 'dark:text-gray-300'}`}>CD Type</label>
+                                <select
+                                    value={track.cdType || 'common'}
+                                    onChange={(e) => { e.stopPropagation(); updateTrackCDType(index, e.target.value); }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`w-full p-1 border rounded text-xs mt-1 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTrackIndex === index ? 'bg-blue-400 dark:bg-blue-600 text-white placeholder-gray-200 border-blue-500' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`}
+                                >
+                                    <option value="common">Common (All versions)</option>
+                                    <option value="A">Type A Exclusive</option>
+                                    <option value="B">Type B Exclusive</option>
+                                    <option value="C">Type C Exclusive</option>
+                                    <option value="D">Type D Exclusive</option>
+                                </select>
+                            </div>
+                        )}
+
+
                                     </div>
                                 ))}
                             </div>
@@ -3626,14 +4160,151 @@ const CreateSongModal = () => {
                          <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
                     </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-gray-700">
-                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded px-4">Cancel</button>
-                    <button onClick={() => setStep('production')} disabled={!songName.trim() || tracks.some(t => t.members.length === 0)} className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-400 px-4 font-bold">
-                        Next: Production
+                <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
+                    <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
+                        Back
                     </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded px-4">Cancel</button>
+                        <button onClick={() => setStep('production')} disabled={!songName.trim() || tracks.some(t => t.members.length === 0)} className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-400 px-4 font-bold">
+                            Next: Production
+                        </button>
+                    </div>
                 </div>
             </>
         );
+
+        const renderAlbumSelectionStep = () => {
+            const currentTrack = albumTracks[selectedAlbumTrackIndex];
+            const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
+
+            return (
+            <>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* --- Left Column: Album/Track setup --- */}
+                    <div className="lg:col-span-3 space-y-4">
+                        <div>
+                            <h4 className="font-semibold mb-1 dark:text-gray-200">Target Group</h4>
+                            <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                                {allGroups.map(g => <option key={g.id} value={g.name}>{g.name} ({g.isSister ? 'Sister' : 'Main'})</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-1 dark:text-gray-200">Album Name</h4>
+                            <div className="flex items-center gap-2 w-full max-w-xs">
+                                <input type="text" value={albumName} onChange={(e) => setAlbumName(e.target.value)} className="w-full p-1.5 text-base rounded-md dark:bg-gray-800 dark:text-gray-200 border dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Album Name"/>
+                                <button onClick={() => setAlbumName(generateRandomName())} className="p-1.5 bg-pink-300 text-white rounded-lg hover:bg-pink-400 transition-colors" title="Generate Random Name">
+                                    <Shuffle size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">Tracks ({albumTracks.length})</h4>
+                            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-2">
+                                {albumTracks.map((track, index) => (
+                                    <div key={index} className={`p-3 border rounded-lg cursor-pointer ${selectedAlbumTrackIndex === index ? 'bg-purple-500 text-white shadow-lg' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700'}`} onClick={() => setSelectedAlbumTrackIndex(index)}>
+                                        <div className='flex justify-between items-center mb-1'>
+                                            <span className={`font-bold text-sm ${selectedAlbumTrackIndex === index ? 'text-white' : 'dark:text-gray-200'}`}>{track.type === 'title' ? 'Lead Track' : `B-Side ${index}`}</span>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); updateAlbumTrackName(index, generateRandomName()); }} className="p-1 rounded-md bg-pink-300 text-white hover:bg-pink-400 transition-colors" title="Generate Random Name">
+                                                    <Shuffle size={14} />
+                                                </button>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type === 'title' ? 'LEAD' : 'B-SIDE'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-1">
+                                            <input type="text" value={track.name} onChange={(e) => updateAlbumTrackName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-1/2 p-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 ${selectedAlbumTrackIndex === index ? 'bg-purple-400 dark:bg-purple-600 text-white placeholder-gray-200 border-purple-500' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Track Name"/>
+                                            <input type="text" value={track.unitName} onChange={(e) => updateAlbumUnitName(index, e.target.value)} onClick={(e) => e.stopPropagation()} className={`w-1/2 p-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 ${selectedAlbumTrackIndex === index ? 'bg-purple-400 dark:bg-purple-600 text-white placeholder-gray-200 border-purple-500' : 'bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'}`} placeholder="Unit Name"/>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- Center Column: Selection & Lineup --- */}
+                    <div className="lg:col-span-5 space-y-4">
+                        <div>
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">1. Member Selection for: <span className="text-purple-600 dark:text-purple-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
+                                <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
+                                {allGroups.map(g => <button key={g.id} onClick={() => setFilterKey(g.name)} className={`px-3 py-1 text-xs rounded ${filterKey === g.name ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{g.name}</button>)}
+                                {(teams || []).map(team => <button key={team.id} onClick={() => setFilterKey(team.name)} className={`px-3 py-1 text-xs rounded ${filterKey === team.name ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{team.name}</button>)}
+                            </div>
+                            <button onClick={handleToggleSelectAllFilteredForAlbum} className="w-full mb-2 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
+                            <div className="border rounded p-2 h-96 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-sm">
+                                {selectableMembers.filter(member => {
+                                    if (filterKey === 'Unchosen') return !albumTracks.some(track => track.members.map(String).includes(String(member.id)));
+                                    if (filterKey === 'All') return true;
+                                    const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
+                                    const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
+                                    const memberTeamName = memberData?.teamName;
+                                    if (filterKey === 'main' || filterKey === groupName) return !member.isSister;
+                                    if (member.homeGroup === filterKey) return true;
+                                    if (memberTeamName && memberTeamName === filterKey) return true;
+                                    return false;
+                                }).map(member => (
+                                    <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium dark:text-gray-200">{member.name}</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                Vo. {Math.round(member.singing)} Da. {Math.round(member.dancing)} Va. {Math.round(member.variety)} Fans: {getTotalFansForMember(member).toLocaleString()}
+                                                {getMemberWarningForAlbum(member.id) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarningForAlbum(member.id)}</span>}
+                                            </span>
+                                        </div>
+                                        <button onClick={() => toggleAlbumMember(member.id)} className={`px-2 py-1 text-xs rounded ${currentTrack?.members.map(String).includes(String(member.id)) ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                                            {currentTrack?.members.map(String).includes(String(member.id)) ? 'Remove' : 'Add'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2 dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                            <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
+                                        <tr className="text-left"><th className="p-2 font-bold dark:text-gray-200">Member</th><th className="p-2 font-bold dark:text-gray-200">Row</th><th className="p-2 text-center font-bold dark:text-gray-200">Center</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectableSenbatsu.sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a)).map(member => (
+                                            <tr key={member.id} className="border-t dark:border-gray-700">
+                                                <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
+                                                <td className="p-2">
+                                                    <select value={currentTrack?.lineup[String(member.id)] || '5th Row'} onChange={(e) => handleAlbumLineupChange(member.id, e.target.value)} className="w-full p-1 border rounded text-xs bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                                        <option>1st Row</option><option>2nd Row</option><option>3rd Row</option><option>4th Row</option><option>5th Row</option>
+                                                    </select>
+                                                </td>
+                                                <td className="p-2 text-center"><input type="radio" name={`center-radio-album-${selectedAlbumTrackIndex}`} checked={String(currentTrack?.center) === String(member.id)} onChange={() => setAlbumCenter(member.id)} className="form-radio h-4 w-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500"/></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {selectableSenbatsu.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 p-4">Select members to assign positions.</p>}
+                            </div>
+                        </div>
+                    </div>
+                    {/* --- Right Column: Visualizer --- */}
+                    <div className="lg:col-span-4">
+                         <h4 className="font-semibold mb-2 text-center lg:text-left dark:text-gray-200">3. Formation Visualizer</h4>
+                         <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} />
+                    </div>
+                </div>
+                <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
+                    <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
+                        Back
+                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded px-4">Cancel</button>
+                        <button onClick={() => setStep('production')} disabled={!albumName.trim() || albumTracks.some(t => t.members.length === 0)} className="p-2 bg-purple-500 text-white rounded disabled:bg-gray-400 px-4 font-bold">
+                            Next: Production
+                        </button>
+                    </div>
+                </div>
+            </>
+        );
+    };
 
         const renderProductionStep = () => (
             <>
@@ -3656,6 +4327,56 @@ const CreateSongModal = () => {
                         </div>
                     ))}
                 </div>
+
+                <div className="mt-6 pt-4 border-t dark:border-gray-700">
+                    <h4 className="font-bold text-lg text-center mb-3 dark:text-gray-200">Release Format</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+                        <label className={`p-4 border rounded-lg cursor-pointer ${releaseFormat === 'digital' ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-300' : 'bg-gray-50 dark:bg-gray-800'}`}>
+                            <div className="flex items-center">
+                                <input type="radio" name="release-format" value="digital" checked={releaseFormat === 'digital'} onChange={(e) => setReleaseFormat(e.target.value)} className="form-radio h-5 w-5 text-blue-600"/>
+                                <div className="ml-3">
+                                    <p className="font-bold text-md">{releaseType === 'album' ? 'Digital Album' : 'Digital Single'}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">Standard release on streaming platforms.</p>
+                                </div>
+                            </div>
+                        </label>
+                        <label className={`p-4 border rounded-lg cursor-pointer ${releaseFormat === 'physical' ? 'bg-green-100 border-green-400 ring-2 ring-green-300' : 'bg-gray-50 dark:bg-gray-800'}`}>
+                            <div className="flex items-center">
+                                <input type="radio" name="release-format" value="physical" checked={releaseFormat === 'physical'} onChange={(e) => setReleaseFormat(e.target.value)} className="form-radio h-5 w-5 text-green-600"/>
+                                <div className="ml-3">
+                                    <p className="font-bold text-md">{releaseType === 'album' ? 'Physical Album' : 'Physical Single'}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">A physical CD release. High cost, high reward.</p>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    {releaseType === 'album' && (
+                        <div className="mt-4 p-4 max-w-3xl mx-auto bg-purple-50 dark:bg-gray-800 rounded-lg text-center">
+                            <h4 className="font-bold text-lg dark:text-gray-200">Album Production Costs</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                Base Cost (Digital): ¥{baseCostAlbum.toLocaleString()}
+                                <br/>
+                                Additional Cost (Physical): ¥{albumPhysicalSurcharge.toLocaleString()}
+                            </p>
+                        </div>
+                    )}
+
+                    {releaseFormat === 'physical' && releaseType === 'single' && (
+                        <div className="mt-4 p-4 max-w-3xl mx-auto bg-green-50 dark:bg-gray-800 rounded-lg text-center">
+                            <label className="font-semibold block mb-2 dark:text-gray-200">Number of Physical Versions</label>
+                            <div className="flex items-center justify-center">
+                                <input type="text" readOnly value={`${physicalVersions} Version(s)`} className="w-32 text-center p-1 font-bold bg-white dark:bg-gray-700 rounded-md border dark:border-gray-600"/>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Calculated automatically based on the number of "Type-Exclusive" B-sides.
+                                <br />
+                                Base Cost: ¥100,000 per version.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 <div className="mt-6 pt-4 border-t dark:border-gray-700 space-y-4">
                     <div>
                         <h4 className="font-bold text-lg text-center mb-2 dark:text-gray-200">Schedule Release Date</h4>
@@ -3664,7 +4385,7 @@ const CreateSongModal = () => {
                                 <option key={w} value={w}>Week {w} ({getFormattedDateForWeek(w)})</option>
                             ))}
                         </select>
-                        <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-1">Single will be released on this week.</p>
+                        <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-1">Release will happen at the start of this week.</p>
                     </div>
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-900">
                         <button onClick={() => setStep('selection')} className="w-full md:w-auto p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded px-4 font-bold order-3 md:order-1">Back</button>
@@ -3672,19 +4393,26 @@ const CreateSongModal = () => {
                             <p className="text-lg font-bold dark:text-gray-200">Total Production Cost: <span className={totalProductionCost > money ? 'text-red-500' : 'text-green-500'}>¥{totalProductionCost.toLocaleString()}</span></p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Your Balance: ¥{money.toLocaleString()}</p>
                         </div>
-                        <button onClick={handleSchedule} disabled={totalProductionCost > money} className="w-full md:w-auto p-2 bg-green-500 text-white rounded disabled:bg-gray-400 px-6 font-bold text-lg order-1 md:order-3">
-                            Schedule Single
+                        <button 
+                            onClick={releaseType === 'single' ? handleSchedule : handleConfirmAlbum} 
+                            disabled={totalProductionCost > money || (releaseType === 'single' && (!songName.trim() || tracks.some(t => t.members.length === 0)))}
+                            className="w-full md:w-auto p-2 bg-green-500 text-white rounded disabled:bg-gray-400 px-6 font-bold text-lg order-1 md:order-3"
+                        >
+                            {releaseType === 'single' ? 'Schedule Single' : 'Produce Album'}
                         </button>
                     </div>
                 </div>
             </>
         );
 
-        return (
-            <ModalWrapper title={<span className="flex items-center"><Music size={24} className="mr-2"/> Create New Single (Step {step === 'selection' ? 1 : 2} of 2)</span>} maxWidth="max-w-7xl">
-                {step === 'selection' ? renderSelectionStep() : renderProductionStep()}
-            </ModalWrapper>
-        );
+    return (
+        <ModalWrapper title={<span className="flex items-center"><Music size={24} className="mr-2"/> New Release Production</span>} maxWidth="max-w-7xl">
+            {step === 'type' && renderTypeSelectionStep()}
+            {step === 'selection' && releaseType === 'single' && renderSelectionStep()}
+                {step === 'selection' && releaseType === 'album' && renderAlbumSelectionStep()}
+            {step === 'production' && renderProductionStep()}
+        </ModalWrapper>
+    );
     };
 
     const PerformanceDetailsModal = () => {
@@ -3773,112 +4501,272 @@ const CreateSongModal = () => {
     };
 
     const SingleDetailsModal = () => {
-      const single = modalData;
-      if (!single) return null;
+        const single = modalData;
+        if (!single) return null;
+    
+        const memberMap = getAllAvailableMembers(true).reduce((map, m) => {
+            map[String(m.id)] = m;
+            return map;
+        }, {});
   
-      const memberMap = getAllAvailableMembers(true).reduce((map, m) => {
-          map[String(m.id)] = m;
-          return map;
-      }, {});
+          const getMemberNames = (memberIds) => {
+              if (!memberIds) return [];
+              return memberIds.map(id => {
+                  const member = memberMap[String(id)];
+                  return member ? member.name : 'Unknown Member';
+              });
+          };
   
-      // --- CORRECTED TIER LIST ---
-      const productionTiers = {
-          training: { standard: { name: 'Standard', cost: 0 }, workshop: { name: 'Workshop', cost: 50000 }, overseas: { name: 'Overseas', cost: 150000 }, bootcamp: { name: 'Bootcamp', cost: 250000 }, elite: { name: 'Elite', cost: 500000 }, oneOnOne: { name: 'One-on-One', cost: 1000000 } },
-          song: { inHouse: { name: 'In-house', cost: 0 }, rookie: { name: 'Rookie', cost: 25000 }, external: { name: 'External', cost: 75000 }, trend: { name: 'Trend-setter', cost: 150000 }, famous: { name: 'Famous', cost: 300000 }, hitmaker: { name: 'Hitmaker', cost: 750000 } },
-          mv: { none: { name: 'None', cost: 0 }, practice: { name: 'Practice', cost: 10000 }, performance: { name: 'Performance', cost: 30000 }, location: { name: 'Location', cost: 75000 }, storyline: { name: 'Storyline', cost: 200000 }, cinematic: { name: 'Cinematic', cost: 500000 }, blockbuster: { name: 'Blockbuster', cost: 1500000 } },
-          outfits: { default: { name: 'Default', cost: 0 }, custom: { name: 'Custom', cost: 15000 }, concept: { name: 'Concept', cost: 50000 }, luxury: { name: 'Luxury', cost: 120000 } },
-          promo: { none: { name: 'None', cost: 0 }, social: { name: 'Social', cost: 5000 }, teaser: { name: 'Teaser', cost: 20000 }, variety: { name: 'Variety', cost: 80000 }, blitz: { name: 'Blitz', cost: 200000 }, global: { name: 'Global', cost: 500000 } }
-      };
-      // --- END CORRECTION ---
   
-      const ProductionInfo = () => {
-          if (!single.production) {
-              return (
-                  <div className="p-3 border rounded-lg bg-gray-50 text-sm dark:text-gray-900">
-                      <h4 className="font-semibold mb-2 flex items-center"><DollarSign size={16} className="mr-2"/> Production Details</h4>
-                      <p className="text-gray-500 dark:text-gray-600">No detailed production data for this older single.</p>
-                      <p className="font-bold mt-2">Base Release Cost: ¥10,000</p>
-                  </div>
-              );
-          }
+        const productionTiers = {
+            training: { standard: { name: 'Standard', cost: 0 }, workshop: { name: 'Workshop', cost: 50000 }, overseas: { name: 'Overseas', cost: 150000 }, bootcamp: { name: 'Bootcamp', cost: 250000 }, elite: { name: 'Elite', cost: 500000 }, oneOnOne: { name: 'One-on-One', cost: 1000000 } },
+            song: { inHouse: { name: 'In-house', cost: 0 }, rookie: { name: 'Rookie', cost: 25000 }, external: { name: 'External', cost: 75000 }, trend: { name: 'Trend-setter', cost: 150000 }, famous: { name: 'Famous', cost: 300000 }, hitmaker: { name: 'Hitmaker', cost: 750000 } },
+            mv: { none: { name: 'None', cost: 0 }, practice: { name: 'Practice', cost: 10000 }, performance: { name: 'Performance', cost: 30000 }, location: { name: 'Location', cost: 75000 }, storyline: { name: 'Storyline', cost: 200000 }, cinematic: { name: 'Cinematic', cost: 500000 }, blockbuster: { name: 'Blockbuster', cost: 1500000 } },
+            outfits: { existing: { name: 'Existing', cost: 0 }, recolor: { name: 'Recolor', cost: 40000 }, custom: { name: 'Custom', cost: 120000 }, concept: { name: 'Concept', cost: 200000 }, luxury: { name: 'Luxury', cost: 450000 } },
+            promo: { none: { name: 'None', cost: 0 }, social: { name: 'Social', cost: 5000 }, teaser: { name: 'Teaser', cost: 20000 }, variety: { name: 'Variety', cost: 80000 }, blitz: { name: 'Blitz', cost: 200000 }, global: { name: 'Global', cost: 500000 } }
+        };
   
-          const totalCost = Object.keys(single.production).reduce((total, key) => {
-              const choice = single.production[key];
-              return total + (productionTiers[key]?.[choice]?.cost || 0);
-          }, 10000);
-  
-          return (
-              <div className="p-3 border rounded-lg bg-gray-50 text-xs dark:text-gray-900">
-                  <h4 className="font-semibold mb-2 flex items-center text-sm"><DollarSign size={16} className="mr-2"/> Production Summary</h4>
-                  <ul className="space-y-1 list-disc list-inside">
-                      {Object.keys(single.production).map(key => (
-                          <li key={key}>
-                              <span className="font-semibold capitalize">{key}:</span> {productionTiers[key]?.[single.production[key]]?.name || 'N/A'}
-                          </li>
-                      ))}
-                  </ul>
-                  <p className="font-bold text-sm mt-3 pt-2 border-t">Total Production Cost: ¥{totalCost.toLocaleString()}</p>
-              </div>
-          );
-      };
-  
-      const TrackLineup = ({ track }) => {
-          if (!track.lineup || !track.members) return null;
-          const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-          const unassigned = [];
-          track.members.forEach(memberId => {
-              const row = track.lineup[String(memberId)];
-              const member = memberMap[String(memberId)];
-              if (member) {
-                  if (rows[row]) { rows[row].push(member); }
-                  else { unassigned.push(member); }
-              }
-          });
-          return (
-            <div className="mt-3 pt-2 border-t text-xs space-y-1">
-                {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName =>
-                    (rows[rowName] && rows[rowName].length > 0) ? (
-                        <div key={rowName}>
-                            <span className="font-semibold text-gray-800 dark:text-gray-200">{rowName}:</span>
-                            <span className="text-gray-600 dark:text-gray-400 ml-1">{rows[rowName].map(m => m.name).join(', ')}</span>
-                        </div>
-                    ) : null
-                )}
-                {unassigned.length > 0 && (
-                    <div><span className="font-semibold">Unassigned:</span><span className="text-gray-600 dark:text-gray-400 ml-1">{unassigned.map(m => m.name).join(', ')}</span></div>
-                )}
-            </div>
-          );
-      };
-      
-      // --- CORRECTED GROUP NAME LOGIC ---
-      const releasingGroupName = single.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(single.targetGroup))?.name || single.targetGroup);
-
-      return (
-          <ModalWrapper title={`${single.name} Single`} maxWidth="max-w-4xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
-                <div className="p-3 border rounded-lg bg-gray-50 space-y-1 dark:text-gray-900">
-                    <p><strong>Released by:</strong> {releasingGroupName}</p>
-                    <p><strong>Release Date:</strong> {getFormattedDateForWeek(single.releaseWeek)}</p>
-                    <p><strong>Total Sales:</strong> {single.sales.toLocaleString()}</p>
-                    <p><strong>Total Revenue:</strong> <span className="font-bold text-green-600">¥{single.revenue.toLocaleString()}</span></p>
+        const totalSales = (single.weeklySales || []).reduce((a, b) => a + b, 0) + (single.sales || 0);
+        const totalRevenue = totalSales * 15;
+    
+        const ProductionInfo = () => {
+            if (!single.production) {
+                return (
+                    <div className="p-3 border rounded-lg bg-gray-50 text-sm dark:text-gray-900">
+                        <h4 className="font-semibold mb-2 flex items-center"><DollarSign size={16} className="mr-2"/> Production Details</h4>
+                        <p className="text-gray-500 dark:text-gray-600">No detailed production data for this older single.</p>
+                        <p className="font-bold mt-2">Base Release Cost: ¥10,000</p>
+                    </div>
+                );
+            }
+    
+            const totalCost = Object.keys(single.production).reduce((total, key) => {
+                const choice = single.production[key];
+                return total + (productionTiers[key]?.[choice]?.cost || 0);
+            }, 10000);
+    
+            return (
+                <div className="p-3 border rounded-lg bg-gray-50 text-xs dark:text-gray-900">
+                    <h4 className="font-semibold mb-2 flex items-center text-sm"><DollarSign size={16} className="mr-2"/> Production Summary</h4>
+                    <ul className="space-y-1 list-disc list-inside">
+                        {Object.keys(single.production).map(key => (
+                            <li key={key}>
+                                <span className="font-semibold capitalize">{key}:</span> {productionTiers[key]?.[single.production[key]]?.name || 'N/A'}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="font-bold text-sm mt-3 pt-2 border-t">Total Production Cost: ¥{totalCost.toLocaleString()}</p>
                 </div>
-                <ProductionInfo />
-              </div>
-
-              <h4 className="font-semibold text-lg mb-3 border-t pt-3 flex items-center dark:text-gray-100"><Music size={18} className="mr-2"/> Track Listing ({single.totalTracks})</h4>
-              <div className="space-y-3">
-                  {(single.tracks || []).map((track, index) => (
-                      <div key={index} className="p-4 border rounded-lg bg-white shadow-sm dark:bg-gray-800 dark:text-gray-200">
-                          <div className="flex justify-between items-center">
-                              <span className="font-bold text-base">{track.name}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type.toUpperCase()}</span>
+            );
+        };
+    
+        const TrackLineup = ({ track }) => {
+            if (!track.lineup || !track.members) return null;
+            const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+            const unassigned = [];
+            track.members.forEach(memberId => {
+                const row = track.lineup[String(memberId)];
+                const member = memberMap[String(memberId)];
+                if (member) {
+                    if (rows[row]) { rows[row].push(member); }
+                    else { unassigned.push(member); }
+                }
+            });
+            return (
+              <div className="mt-3 pt-2 border-t text-xs space-y-1">
+                        {['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'].map(rowName =>
+                      (rows[rowName] && rows[rowName].length > 0) ? (
+                          <div key={rowName}>
+                              <span className="font-semibold text-gray-800 dark:text-gray-200">{rowName}:</span>
+                              <span className="text-gray-600 dark:text-gray-400 ml-1">{rows[rowName].map(m => m.name).join(', ')}</span>
                           </div>
-                          <p className="text-sm mt-2"><strong>Center:</strong> <span className="font-medium">{memberMap[String(track.center)]?.name || 'N/A'}</span></p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1"><strong>Senbatsu Count:</strong> <span className="font-medium">{(track.members || []).length}</span></p>
-                          <TrackLineup track={track} />
+                      ) : null
+                  )}
+                  {unassigned.length > 0 && (
+                      <div><span className="font-semibold">Unassigned:</span><span className="text-gray-600 dark:text-gray-400 ml-1">{unassigned.map(m => m.name).join(', ')}</span></div>
+                  )}
+              </div>
+            );
+        };
+        
+        const releasingGroupName = single.targetGroup === 'main' ? groupName : (sisterGroups.find(sg => String(sg.id) === String(single.targetGroup))?.name || single.targetGroup);
+  
+  const allReleases = [...pastReleases, ...albums].sort((a, b) => b.releaseWeek - a.releaseWeek);
+  
+  
+        return (
+            <ModalWrapper title={`${single.name} - Single Details`} maxWidth="max-w-4xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
+                  <div className="p-3 border rounded-lg bg-gray-50 space-y-2 dark:text-gray-900">
+                      <p><strong>Released by:</strong> {releasingGroupName}</p>
+                      <p><strong>Release Date:</strong> {getFormattedDateForWeek(single.releaseWeek)}</p>
+                      <p><strong>Total Sales:</strong> {totalSales.toLocaleString()}</p>
+                      <p><strong>Total Revenue:</strong> <span className="font-bold text-green-600">¥{totalRevenue.toLocaleString()}</span></p>
+                      <p><strong>Charting Status:</strong> 
+                          {single.chartWeeksLeft > 0 ? 
+                              <span className="font-semibold text-green-700"> {single.chartWeeksLeft} weeks left</span> : 
+                              <span className="text-gray-500"> Finished</span>}
+                      </p>
+                       {single.baseSalesPotential > 0 && (
+                           <p><strong>Base Sales Potential:</strong> {Math.floor(single.baseSalesPotential).toLocaleString()}</p>
+                      )}
+                  </div>
+                  <ProductionInfo />
+                </div>
+  
+                {(single.weeklySales || []).length > 0 && (
+                  <div className="mb-4">
+                      <h4 className="font-semibold text-lg mb-2 border-t pt-3 flex items-center dark:text-gray-100"><BarChart2 size={18} className="mr-2"/> Weekly Chart Performance</h4>
+                      <div className="max-h-32 overflow-y-auto bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border">
+                        <ul className="text-sm space-y-1">
+                            {single.weeklySales.map((sales, index) => (
+                                <li key={index} className="flex justify-between">
+                                    <span>Week {single.releaseWeek + index}:</span>
+                                    <span className="font-mono">{sales.toLocaleString()} units</span>
+                                </li>
+                            ))}
+                        </ul>
                       </div>
-                  ))}
+                  </div>
+                )}
+  
+                <div className="mt-4">
+                    <h3 className="text-lg font-bold mb-2 flex items-center dark:text-gray-200 pt-3 border-t">
+                        <Music size={20} className="mr-2"/> Track Listing ({single.tracks.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {single.releaseFormat === 'physical' && single.type === 'single' ? (
+                            (() => {
+                                const commonTracks = single.tracks.filter(t => t.type === 'title' || t.cdType === 'common');
+                                const exclusiveTracks = single.tracks.reduce((acc, track) => {
+                                    if (track.cdType && track.cdType !== 'common') {
+                                        if (!acc[track.cdType]) acc[track.cdType] = [];
+                                        acc[track.cdType].push(track);
+                                    }
+                                    return acc;
+                                }, {});
+  
+                                const TrackCard = ({ track, exclusiveType }) => {
+                                    const centerMember = track.center ? memberMap[String(track.center)] : null;
+                                    const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                                    const unassigned = [];
+                                    if (track.lineup && track.members) {
+                                        track.members.forEach(memberId => {
+                                            const member = memberMap[String(memberId)];
+                                            if (member) {
+                                                const row = track.lineup[String(memberId)];
+                                                if (row && rows[row]) rows[row].push(member.name);
+                                                else unassigned.push(member.name);
+                                            }
+                                        });
+                                    } else if (track.members) {
+                                        track.members.forEach(memberId => {
+                                            const member = memberMap[String(memberId)];
+                                            if (member) unassigned.push(member.name);
+                                        });
+                                    }
+  
+                                    return (
+                                        <div className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-3">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
+                                                    {track.name}
+                                                    {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
+                                                </h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                                    exclusiveType ? 'bg-blue-200 text-blue-800' : 
+                                                    track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-gray-200 text-gray-800'
+                                                }`}>
+                                                    {exclusiveType ? `TYPE ${exclusiveType} EXCLUSIVE` : (track.type === 'title' ? 'TITLE' : 'COMMON B-SIDE')}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                                                <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
+                                                <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                                {Object.entries(rows).map(([rowName, members]) => members.length > 0 && (
+                                                    <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p>
+                                                ))}
+                                                {unassigned.length > 0 && (
+                                                    <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                };
+  
+                                return (
+                                    <div>
+                                        {commonTracks.map((track, index) => <TrackCard key={`common-${index}`} track={track} />)}
+                                        {Object.entries(exclusiveTracks).map(([type, tracksOfType]) => (
+                                            <div key={type}>
+                                                {tracksOfType.map((track, index) => <TrackCard key={`exclusive-${type}-${index}`} track={track} exclusiveType={type} />)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()
+                        ) : (                          
+                          // Digital Releases or Albums view
+                          single.tracks.map((track, index) => {
+                              const centerMember = track.center ? memberMap[String(track.center)] : null;
+                              const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                              const unassigned = [];
+                              if (track.lineup && track.members) {
+                                  track.members.forEach(memberId => {
+                                      const member = memberMap[String(memberId)];
+                                      if (member) {
+                                          const row = track.lineup[String(memberId)];
+                                          if (row && rows[row]) {
+                                              rows[row].push(member.name);
+                                          } else {
+                                              unassigned.push(member.name);
+                                          }
+                                      }
+                                  });
+                              } else if (track.members) {
+                                   track.members.forEach(memberId => {
+                                      const member = memberMap[String(memberId)];
+                                      if (member) unassigned.push(member.name);
+                                   });
+                              }
+    
+                              return (
+                                  <div key={index} className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                      <div className="flex justify-between items-start">
+                                          {/* THIS IS THE FIX */}
+                                          <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
+                                              {track.name}
+                                              {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
+                                          </h4>
+                                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
+                                              {track.type || 'TRACK'}
+                                          </span>
+                                      </div>
+                                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                                          <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
+                                          <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                          
+                                          {Object.entries(rows).map(([rowName, members]) => {
+                                              if (members.length > 0) {
+                                                  return (
+                                                      <p key={rowName}>
+                                                          <span className="font-semibold">{rowName}:</span> {members.join(', ')}
+                                                      </p>
+                                                  );
+                                              }
+                                              return null;
+                                          })}
+                                          {unassigned.length > 0 && (
+                                              <p>
+                                                  <span className="font-semibold">Members:</span> {unassigned.join(', ')}
+                                              </p>
+                                          )}
+                                      </div>
+                                  </div>
+                              );
+                          })
+                      )}
+                  </div>
               </div>
           </ModalWrapper>
       );
@@ -6102,124 +6990,78 @@ if (!gameStarted) {
 
 
 {/* ----- DISCOGRAPHY TAB ----- */}
-{currentTab === 'discography' && (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-    <div className="md:col-span-2 lg:col-span-3">
-      <h2 className="text-base font-bold mb-2 text-gray-900 dark:text-gray-100">
-        Discography ({groupName} - Main Group)
-      </h2>
+{currentTab === 'discography' && (() => {
+    // A reusable component to display any release
+    const ReleaseCard = ({ release }) => {
+        const totalSales = (release.weeklySales || []).reduce((a, b) => a + b, 0);
+        const isAlbum = release.type === 'album';
 
-      <button
-        onClick={createSong}
-        className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md mb-2 flex items-center transition-colors duration-200"
-      >
-        <Plus size={16} className="mr-1" /> Produce New Single
-      </button>
-
-      <div className="space-y-2">
-        {/* Main Group Singles */}
-        {(songs || []).map(song => (
-          <div
-            key={song.id}
-            className="p-2 rounded-md shadow-md flex justify-between items-center 
-                       bg-white dark:bg-gray-800 
-                       text-gray-900 dark:text-gray-100 
-                       border border-gray-200 dark:border-gray-700 
-                       transition-colors duration-300"
-          >
-            <div>
-              <h3 className="font-bold text-sm">{song.name} (Wk {song.releaseWeek})</h3>
-              <p className="text-xs text-gray-700 dark:text-gray-300">
-                Total Sales: {song.sales.toLocaleString()} | Tracks: {song.totalTracks}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setModalData(song);
-                setShowModal('singleDetails');
-              }}
-              className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs flex items-center transition-colors"
-            >
-              <ChevronDown size={14} /> Details
-            </button>
-          </div>
-        ))}
-
-        {/* Sister Group Singles */}
-        <h3 className="font-bold pt-2 border-t mt-2 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700">
-          Sister Group Singles
-        </h3>
-
-        {(sisterGroups || []).map(sg => (
-          <div key={sg.id}>
-            <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mt-1">
-              {sg.name} Singles:
-            </h4>
-
-            {(sg.songs || []).map(song => (
-              <div
-                key={sg.id + '-' + song.id}
-                className="p-1.5 ml-2 rounded shadow-sm flex justify-between items-center my-1 
-                           bg-gray-100 dark:bg-gray-800 
-                           text-gray-900 dark:text-gray-100 
-                           border border-gray-200 dark:border-gray-700 
-                           transition-colors duration-200"
-              >
-                <div>
-                  <h5 className="font-bold text-xs">
-                    {song.name} (Wk {song.releaseWeek})
-                  </h5>
-                  <p className="text-xs text-gray-700 dark:text-gray-300">
-                    Sales: {song.sales.toLocaleString()} | Tracks: {song.totalTracks}
-                  </p>
+        return (
+            <div className={`p-2 rounded-md shadow-sm flex justify-between items-center bg-white dark:bg-gray-800 border ${isAlbum ? 'border-purple-300 dark:border-purple-700' : 'border-gray-200 dark:border-gray-700'}`}>
+                <div className="flex items-center">
+                    {isAlbum 
+                        ? <Library size={24} className="text-purple-500 mr-3 flex-shrink-0" /> 
+                        : <Music size={24} className="text-blue-500 mr-3 flex-shrink-0" />}
+                    <div>
+                        <h3 className="font-bold text-sm flex items-center">
+                            {release.name} (Wk {release.releaseWeek})
+                            {release.chartWeeksLeft > 0 && <span className="ml-2 text-xs font-normal text-green-500 bg-green-100 dark:bg-green-900 dark:text-green-300 px-1.5 py-0.5 rounded-full">Charting</span>}
+                        </h3>
+                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                            {isAlbum ? 'Album' : 'Single'} | Total Sales: {totalSales.toLocaleString()} | Tracks: {release.tracks.length}
+                        </p>
+                    </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setModalData(song);
-                    setShowModal('singleDetails');
-                  }}
-                  className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
+                    onClick={() => { setModalData(release); setShowModal('singleDetails'); }}
+                    className="px-4 py-1.5 text-sm font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
-                  Details
+                    Details
                 </button>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
-    {currentTab === 'history' && (
-      <div>
-          <h2 className="text-base font-bold mb-2">Performance History</h2>
-          <div className="space-y-2">
-              {(performanceHistory || []).map(p => (
-                  <div
-                      key={p.id}
-                      className="p-2 rounded-md shadow-md flex justify-between items-center bg-white dark:bg-gray-800"
-                  >
-                      <div>
-                          <h3 className="font-bold text-sm">{p.name} (Wk {p.week})</h3>
-                          <p className="text-xs text-gray-700 dark:text-gray-300">
-                              Category: {p.category || 'N/A'} | Revenue: ¥{(p.revenue || 0).toLocaleString()}
-                          </p>
-                      </div>
-                      <button
-                          onClick={() => {
-                              setModalData(p);
-                              setShowModal('performanceDetails');
-                          }}
-                          className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs"
-                      >
-                          Details
-                      </button>
-                  </div>
-              ))}
-              {(!performanceHistory || performanceHistory.length === 0) && <p className="text-gray-500 p-2 text-sm">No performances recorded yet.</p>}
-          </div>
-      </div>
-    )}
+            </div>
+        );
+    };
+
+    // Filter main group releases (both singles and albums)
+    const mainGroupReleases = [
+        ...(songs || []).filter(s => s.targetGroup === 'main' || s.targetGroup === groupName), 
+        ...(albums || []).filter(a => a.artist === groupName)
+    ].sort((a, b) => b.releaseWeek - a.releaseWeek);
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <h2 className="text-base font-bold mb-2 text-gray-900 dark:text-gray-100">Discography</h2>
+                <button onClick={createSong} className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md mb-2 flex items-center">
+                    <Plus size={16} className="mr-1" /> Produce New Release
+                </button>
+                <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mt-1 mb-2">{groupName} Releases:</h3>
+                <div className="space-y-2">
+                    {mainGroupReleases.length > 0 ? mainGroupReleases.map(release => <ReleaseCard key={release.id} release={release} />) : <p className="text-xs text-gray-500">No releases yet for the main group.</p>}
+                </div>
+            </div>
+
+            {(sisterGroups || []).map(sg => {
+                // For each sister group, filter both their singles AND any albums released by them
+                const sgReleases = [
+                    ...(sg.songs || []), 
+                    ...(albums || []).filter(a => a.artist === sg.name)
+                ].sort((a, b) => b.releaseWeek - a.releaseWeek);
+                
+                if (sgReleases.length === 0) return null;
+                
+                return (
+                    <div key={sg.id} className="pt-2 border-t border-gray-300 dark:border-gray-700">
+                        <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mt-1 mb-2">{sg.name} Releases:</h3>
+                        <div className="space-y-2">
+                            {sgReleases.map(release => <ReleaseCard key={release.id} release={release} />)}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+})()}
 
             {/* ----- ACTIVITIES TAB ----- */}
 {currentTab === 'activities' && (
