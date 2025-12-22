@@ -1774,74 +1774,85 @@ const deleteTeam = (teamId) => {
     const executeSongRelease = (singleToRelease) => {
       const { songData, productionData, physicalVersions } = singleToRelease;
       
-      const titleTrack = songData.tracks[0];
-      const senbatsuMemberIds = titleTrack.members.map(String);
-      
-      // FIX #1: The data now uses `targetGroup` (the group's name) consistently.
+      // --- START: FINAL CORRECTED BLOCK ---
+      const titleTrack = songData.tracks.find(t => t.type === 'title');
+      if (!titleTrack) {
+        console.error("No title track found for release:", songData.name);
+        return songData;
+      }
+
       const isSisterSong = songData.targetGroup !== 'main';
       const targetGroupName = songData.targetGroup;
 
-      let updatedMembers = [...members];
-      let updatedSisterGroups = [...sisterGroups];
+      // Correctly extract member IDs from the new snapshot format.
+      const senbatsuMemberIds = (titleTrack.members || []).map(m => String(m.id));
 
-      const applyBonuses = (member) => {
-        const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
-        const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
-        return {
-          ...member,
-          singing: Math.min(100, (member.singing || 0) + trainingBuff),
-          dancing: Math.min(100, (member.dancing || 0) + trainingBuff),
-          morale: Math.min(100, (member.morale || 0) + moraleBuff)
-        };
+      // This function applies bonuses to a member object IN MEMORY.
+      const applyBonusesToMember = (member) => {
+        // Only apply bonuses if the member is in this single's senbatsu.
+        if (senbatsuMemberIds.includes(String(member.rosterId || member.id))) {
+            const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
+            const moraleBuff = ['custom', 'concept', 'luxury'].includes(productionData.outfits) ? 10 : 0;
+            
+            // Return a new object with bonuses applied.
+            return {
+                ...member,
+                singing: Math.min(100, (member.singing || 0) + trainingBuff),
+                dancing: Math.min(100, (member.dancing || 0) + trainingBuff),
+                morale: Math.min(100, (member.morale || 0) + moraleBuff)
+            };
+        }
+        return member; // Return original member if not in senbatsu.
       };
-
-      if (isSisterSong) {
-        updatedSisterGroups = sisterGroups.map(sg => {
-          if (sg.name === targetGroupName) {
-            return { ...sg, members: sg.members.map(m => senbatsuMemberIds.some(smId => smId === `sg-${sg.id}-${m.id}`) ? applyBonuses(m) : m) };
-          }
-          return sg;
-        });
-      } else {
-        updatedMembers = members.map(m => senbatsuMemberIds.includes(String(m.id)) ? applyBonuses(m) : m);
-      }
       
+      // Create temporary, in-memory versions of the complete rosters with bonuses applied.
+      const updatedMembers = members.map(applyBonusesToMember);
+      const updatedSisterGroups = sisterGroups.map(sg => ({
+        ...sg,
+        members: (sg.members || []).map(applyBonusesToMember)
+      }));
+
+      // Re-create the `allMembersAfterBonuses` variable using these updated rosters. THIS FIXES THE CRASH.
       const allMembersAfterBonuses = [
         ...updatedMembers,
-        ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({...m, id: `sg-${sg.id}-${m.id}` })))
+        ...updatedSisterGroups.flatMap(sg => (sg.members || []).map(m => ({ ...m, id: sg.id ? `sg-${sg.id}-${m.id}` : m.id })))
       ];
-      
-      const senbatsuMembers = allMembersAfterBonuses.filter(m => senbatsuMemberIds.includes(String(m.id)));
-      
-      const fanSales = senbatsuMembers.reduce((sum, m) => {
+
+      // Find the specific senbatsu members from the bonus-applied list.
+      const senbatsuMembersWithBonuses = allMembersAfterBonuses.filter(m => senbatsuMemberIds.includes(String(m.id)));
+
+      // Calculate sales & skill using the immediate, post-bonus data. THIS FIXES THE "0 SALES" BUG.
+      const fanSales = senbatsuMembersWithBonuses.reduce((sum, m) => {
         const hardcoreSales = (m.fans?.hardcore || 0) * 0.8;
         const casualSales = (m.fans?.casual || 0) * 0.30;
         return sum + hardcoreSales + casualSales;
       }, 0);
 
-      const avgSkill = senbatsuMembers.reduce((sum, m) => {
+      const avgSkill = senbatsuMembersWithBonuses.reduce((sum, m) => {
           return sum + (m ? ((m.singing || 0) + (m.dancing || 0)) / 2 : 0);
-      }, 0) / (senbatsuMembers.length || 1);
+      }, 0) / (senbatsuMembersWithBonuses.length || 1);
 
       const skillPower = avgSkill * 20;
 
-        let formatBonus = 1.0;
-        if (songData.releaseFormat === 'physical') {
+      let formatBonus = 1.0;
+      if (songData.releaseFormat === 'physical') {
         formatBonus += 0.10;
+        const physicalVersions = songData.tracks.filter(t => t.cdType !== 'digital').length;
         if (physicalVersions > 1) {
             formatBonus += (physicalVersions - 1) * 0.05;
         }
-        }
+      }
 
-        const baseSalesPotential = (fanSales + skillPower) * formatBonus;
+      const baseSalesPotential = (fanSales + skillPower) * formatBonus;
 
       const newFansTotal = Math.floor(baseSalesPotential / 20 * (fanMultipliers[productionData.mv] || 1) * (promoMultipliers[productionData.promo] || 1));
+      // --- END: FINAL CORRECTED BLOCK ---
 
       const calculateFanDistribution = (track, fanPool, memberRoster, pushedMembersList) => {
           if (!track || !track.members || track.members.length === 0 || fanPool === 0) {
               return {};
           }
-          const trackMemberIds = track.members.map(String);
+          const trackMemberIds = track.members.map(m => String(m.id));
           const trackMembers = memberRoster.filter(m => trackMemberIds.includes(String(m.id)));
           const rowWeights = { '1st Row': 5, '2nd Row': 4, '3rd Row': 3, '4th Row': 2, '5th Row': 1 };
           const luckModifiers = trackMembers.map(() => 0.7 + (Math.random() * 0.6));
@@ -1910,7 +1921,7 @@ const deleteTeam = (teamId) => {
           const memberId = sg ? `sg-${sg.id}-${m.id}` : String(m.id);
           const fanGainForMember = finalFanGains[memberId] || 0;
 
-          const participatedTracks = songData.tracks.filter(track => track.members.includes(memberId));
+          const participatedTracks = songData.tracks.filter(track => (track.members || []).map(mem => String(mem.id)).includes(memberId));
           if (participatedTracks.length === 0 && fanGainForMember === 0) {
               return m;
           }
@@ -1919,7 +1930,7 @@ const deleteTeam = (teamId) => {
 
             let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName, type: track.type }));
           const isTitleCenter = String(songData.tracks[0].center) === memberId;
-          const isTitleSenbatsu = songData.tracks[0].members.includes(memberId);
+          const isTitleSenbatsu = (songData.tracks[0].members || []).map(mem => String(mem.id)).includes(memberId);
           
           const hardcoreGain = Math.floor(fanGainForMember * 0.15);
           const casualGain = fanGainForMember - hardcoreGain;
@@ -2066,7 +2077,7 @@ const deleteTeam = (teamId) => {
             fansGained: fanGain,
             attendance: totalTicketsSold,
             capacity: venue.capacity,
-            members: performingMembers.map(m => m.name),
+            members: performingMembers.map(m => m.rosterId || m.id),
             tracks: setlist,
             targetGroup: targetGroup,
             kageAna: details.kageAna,
@@ -2148,7 +2159,8 @@ const deleteTeam = (teamId) => {
             revenue: totalRevenue,
             profit: agencyProfit, // Log agency profit
             fansGained: fanGain,
-            members: performingMembers.map(m => m.name),
+            members: performingMembers.map(m => m.rosterId || m.id),
+
             tracks: setlist,
         };
         setPerformanceHistory(prev => [newEntry, ...prev]);
@@ -2527,8 +2539,7 @@ const deleteTeam = (teamId) => {
 
           const executeAlbumRelease = (albumToRelease) => {
     const { albumData, productionData } = albumToRelease;
-    const allMemberIdsInAlbum = [...new Set(albumData.tracks.flatMap(t => t.members.map(String)))];
-    
+    const allMemberIdsInAlbum = [...new Set(albumData.tracks.flatMap(t => (t.members || []).map(m => String(m.id))))];      
     allMemberIdsInAlbum.forEach(memberId => {
         updateMemberState(memberId, m => {
             const trainingBuff = {standard: 0, workshop: 5, overseas: 15, bootcamp: 20, elite: 25, oneOnOne: 30}[productionData.training] || 0;
@@ -2603,9 +2614,10 @@ const deleteTeam = (teamId) => {
     }
 
     allMemberIdsInAlbum.forEach(memberId => {
-    const participatedTracks = albumData.tracks.filter(track =>
-        track.members.map(String).includes(String(memberId))
-    );
+        const participatedTracks = albumData.tracks.filter(track =>
+            (track.members || []).map(mem => String(mem.id)).includes(String(memberId))
+        );    
+    
     if (participatedTracks.length === 0) return;
 
     updateMemberState(memberId, m => {
@@ -2921,7 +2933,7 @@ const deleteTeam = (teamId) => {
                         const fansThisWeek = Math.floor((salesThisWeek / 10) * fanMultiplier);
                         weeklyChartRevenue += revenueThisWeek;
 
-                        const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
+                        const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
                         const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
                         distributeFans(fansThisWeek, uniqueMemberIds);
 
@@ -2966,7 +2978,7 @@ const deleteTeam = (teamId) => {
 
                             weeklyChartRevenue += revenueThisWeek;
                             
-                            const allMemberIdsInSingle = song.tracks.flatMap(t => t.members.map(String));
+                            const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
                             const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
                             distributeFans(fansThisWeek, uniqueMemberIds);
                             
@@ -4136,22 +4148,30 @@ const CreateSongModal = () => {
     const handleSchedule = () => {
         if (money < totalProductionCost) return setMessage("Not enough money for this production!");
         
-        const songData = { 
-            name: songName.trim(), 
-            targetGroup: targetGroup, 
-            releaseFormat: releaseFormat,
-            // THIS IS THE FIX: We are now explicitly copying every property
-            // to ensure 'unitName' is preserved.
-            tracks: tracks.map(t => ({ 
-                name: t.name,
-                unitName: t.unitName,
-                type: t.type,
-                members: (t.members || []).map(String).filter(id => getMemberById(id)),
-                center: t.center,
-                lineup: t.lineup,
-                cdType: t.cdType
+const songData = {
+    name: songName.trim(),
+    targetGroup: targetGroup,
+    releaseFormat: releaseFormat,
+    tracks: tracks.map(t => {
+        const trackMembers = (t.members || []).map(String).map(id => getMemberById(id)).filter(Boolean);
+        return {
+            name: t.name,
+            unitName: t.unitName,
+            type: t.type,
+            members: trackMembers.map(member => ({
+                id: member.rosterId || member.id,
+                name: member.name,
+                teamName: member.teamName,
+                displayGroupName: member.isSisterMember ? member.displayGroupName : groupName,
+                isSisterMember: member.isSisterMember,
+                isKenkyuusei: !member.teamName
             })),
+            center: t.center,
+            lineup: t.lineup,
+            cdType: t.cdType
         };
+    }),
+};
         
         scheduleNewSingle({ 
             songData, 
@@ -4170,8 +4190,25 @@ const CreateSongModal = () => {
         const albumDataObject = {
             name: albumName.trim(),
             artist: artistName,
-            tracks: albumTracks,
             releaseFormat: releaseFormat,
+            tracks: albumTracks.map(t => {
+                const trackMembers = (t.members || []).map(String).map(id => getMemberById(id)).filter(Boolean);
+                return {
+                    name: t.name,
+                    unitName: t.unitName,
+                    type: t.type,
+                    members: trackMembers.map(member => ({
+                        id: member.rosterId || member.id,
+                        name: member.name,
+                        teamName: member.teamName,
+                        displayGroupName: member.isSisterMember ? member.displayGroupName : groupName,
+                        isSisterMember: member.isSisterMember,
+                        isKenkyuusei: !member.teamName
+                    })),
+                    center: t.center,
+                    lineup: t.lineup
+                };
+            }),
         };
 
         scheduleNewAlbum({ albumData: albumDataObject, productionData: productionChoices, releaseWeek });
@@ -4724,9 +4761,54 @@ const CreateSongModal = () => {
               </div>
 
               <h4 className="font-semibold text-lg mb-2 border-t pt-3 mt-3 flex items-center dark:text-gray-100"><Users size={18} className="mr-2"/> Performers ({(performance.members || []).length})</h4>
-              <div className="text-sm p-2 border rounded max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-800 dark:text-gray-300">
-                  {(performance.members && performance.members.length > 0) ? (performance.members || []).join(', ') : <p className="text-gray-500 italic">No members recorded.</p>}
-              </div>
+            <div className="text-sm p-2 border rounded max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-800 dark:text-gray-300">
+                {(() => {
+                    if (!performance.members || performance.members.length === 0) {
+                        return <p className="text-gray-500 italic">No members recorded.</p>;
+                    }
+                    
+                    // This handles old history entries that only stored names
+                    if (typeof performance.members[0] === 'string' && !String(performance.members[0]).match(/^sg-/)) {
+                        return <p>{performance.members.join(', ')}</p>
+                    }
+
+                    const memberObjects = performance.members.map(id => getMemberById(id)).filter(Boolean);
+
+                    const memberGroups = memberObjects.reduce((acc, member) => {
+                        if (!member) return acc;
+                        
+                        let groupKey;
+                        const mainGroupName = groupName || 'Hoshimi01';
+
+                        if (member.isSisterMember) {
+                            const sgName = member.displayGroupName || member.homeGroup || 'Sister Group';
+                            groupKey = member.teamName ? `${sgName} Team ${member.teamName}` : `${sgName} Kenkyuusei`;
+                        } else {
+                            groupKey = member.teamName ? `Team ${member.teamName}` : `${mainGroupName} Kenkyuusei`;
+                        }
+                        
+                        if (!acc[groupKey]) {
+                            acc[groupKey] = [];
+                        }
+                        acc[groupKey].push(member);
+                        return acc;
+                    }, {});
+
+                    return (
+                        <div className="space-y-2">
+                            {Object.entries(memberGroups).sort((a, b) => a[0].localeCompare(b[0])).map(([groupKeyName, membersInGroup]) => (
+                                <div key={groupKeyName}>
+                                    <p className="font-semibold text-pink-600 dark:text-pink-400">
+                                        {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
+                                            {membersInGroup.map(m => m.name).join(', ')}
+                                        </span>
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })()}
+            </div>
 
               <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                   <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Close</button>
@@ -4772,68 +4854,55 @@ const CreateSongModal = () => {
             );
         };
         
-            const TeamGroupedLineup = ({ track }) => {
-                if (!track || !track.members) return null;
-    
-                const memberGroups = track.members.reduce((acc, memberId) => {
-                    const member = memberMap[String(memberId)];
-                    if (!member) return acc;
-    
-                    let groupKey;
-    
-                    if (member.homeGroup !== 'main') { 
-                        // This is a Sister Group member
-                        const sgName = member.displayGroupName || member.homeGroup || 'Sister Group';
-                        // FIX: Append 'Kenkyuusei' if the member has no team.
-                        groupKey = member.teamName ? `${sgName} Team ${member.teamName}` : `${sgName} Kenkyuusei`;
-                    } else {
-                        // This is a Main Group member
-                        const mainGroupName = groupName || 'Hoshimi01';
-                        groupKey = member.teamName ? `Team ${member.teamName}` : `${mainGroupName} Kenkyuusei`;
-                    }
-                    
-                    if (!acc[groupKey]) {
-                        acc[groupKey] = [];
-                    }
-                    acc[groupKey].push(member);
-                    return acc;
-                }, {});
-    
-                const getSortPriority = (groupKey) => {
-                    const isTeam = groupKey.includes(' Team ');
-                    const isKKS = groupKey.includes('Kenkyuusei');
-                    const isMain = groupKey.startsWith(groupName) || groupKey.startsWith('Team ');
-    
-                    // FIX: Adjusted sorting priorities for consistency
-                    if (isMain && isTeam) return 1;      // Main Group Team
-                    if (isMain && isKKS) return 2;      // Main Group Kenkyuusei
-                    if (!isMain && isTeam) return 3;     // Sister Group Team
-                    if (!isMain && isKKS) return 4;     // Sister Group Kenkyuusei
-                    return 5;
-                };
-    
-                const centerMemberId = String(track.center);
-    
-                return (
-                    <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
-                        {Object.keys(memberGroups)
-                            .sort((a, b) => getSortPriority(a) - getSortPriority(b) || a.localeCompare(b))
-                            .map(groupKeyName => (
-                            <div key={groupKeyName} className="mt-1 text-sm">
-                                <p className="font-semibold text-pink-600 dark:text-pink-400">
-                                    {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
-                                        {memberGroups[groupKeyName].map(member => (
-                                            <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
-                                                {member.name}
-                                            </span>
-                                        )).reduce((prev, curr) => [prev, ', ', curr])}
-                                    </span>
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                );
-            };
+        const TeamGroupedLineup = ({ track }) => {
+            if (!track || !track.members || track.members.length === 0) return null;
+
+            // This handles old history entries that might just have IDs
+            if (typeof track.members[0] !== 'object') {
+                return <p className="text-sm italic mt-2 text-gray-500">Could not load historical team data for this old entry.</p>;
+            }
+
+            const memberGroups = track.members.reduce((acc, member) => {
+                if (!member) return acc;
+                let groupKey;
+                const mainGroupName = groupName || 'Hoshimi01';
+
+                if (member.isSisterMember) {
+                    const sgName = member.displayGroupName || 'Sister Group';
+                    groupKey = member.isKenkyuusei ? `${sgName} Kenkyuusei` : `${sgName} Team ${member.teamName}`;
+                } else {
+                    groupKey = member.isKenkyuusei ? `${mainGroupName} Kenkyuusei` : `Team ${member.teamName}`;
+                }
+                
+                if (!acc[groupKey]) {
+                    acc[groupKey] = [];
+                }
+                acc[groupKey].push(member);
+                return acc;
+            }, {});
+
+            const centerMemberId = String(track.center);
+
+            return (
+                <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
+                    {Object.keys(memberGroups)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map(groupKeyName => (
+                        <div key={groupKeyName} className="mt-1 text-sm">
+                            <p className="font-semibold text-pink-600 dark:text-pink-400">
+                                {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
+                                    {memberGroups[groupKeyName].map(member => (
+                                        <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
+                                            {member.name}
+                                        </span>
+                                    )).reduce((prev, curr) => [prev, ', ', curr])}
+                                </span>
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
         const Trivia = () => {
             const triviaItems = [];
 
@@ -4847,9 +4916,9 @@ const CreateSongModal = () => {
             const titleTrack = release.tracks.find(t => t.type === 'title');
             
             if (titleTrack) {
-                const firstTimeSenbatsu = titleTrack.members.map(id => memberMap[String(id)]).filter(member => 
-                    member && (member.singlesParticipation || []).filter(p => p.isTitleTrackSenbatsu).length === 1
-                );
+                const firstTimeSenbatsu = (titleTrack.members || []).map(m => memberMap[String(m.id)]).filter(member => 
+    member && (member.singlesParticipation || []).filter(p => p.isTitleTrackSenbatsu).length === 1
+);
 
                 if (firstTimeSenbatsu.length > 0) {
                     triviaItems.push(`First time in a title track Senbatsu for ${formatNames(firstTimeSenbatsu.map(m => m.name))}.`);
@@ -4866,7 +4935,7 @@ const CreateSongModal = () => {
                 }
             }
             
-            const allParticipatingIds = [...new Set(release.tracks.flatMap(t => t.members))];
+            const allParticipatingIds = [...new Set(release.tracks.flatMap(t => (t.members || []).map(m => m.id)))];
             const firstTimeParticipation = allParticipatingIds.map(id => memberMap[String(id)]).filter(member =>
                 member && (member.singlesParticipation || []).filter(p => p.singleId === release.id).length > 0 && (member.singlesParticipation || []).length === 1
             );
@@ -7422,6 +7491,37 @@ if (!gameStarted) {
         </div>
     );
 })()}
+
+{/* ----- HISTORY TAB ----- */}
+{currentTab === 'history' && (
+  <div>
+    <h2 className="text-xl font-bold mb-4">Performance History</h2>
+    <div className="space-y-3">
+      {(performanceHistory || []).map(p => (
+        <div key={p.id} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <div>
+            <h3 className="font-bold">{p.name}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Week {p.week} | {p.category}
+            </p>
+            <p className="text-xs mt-1">
+              <span className="font-semibold text-green-600">Profit: ¥{p.profit.toLocaleString()}</span> | 
+              <span className="font-semibold text-blue-600"> Fans: +{p.fansGained.toLocaleString()}</span>
+            </p>
+          </div>
+          <button 
+            onClick={() => { setModalData(p); setShowModal('performanceDetails'); }}
+            className="px-3 py-1.5 text-sm font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700"
+          >
+            Details
+          </button>
+        </div>
+      ))}
+      {performanceHistory.length === 0 && <p className="text-gray-500">No performances recorded yet.</p>}
+    </div>
+  </div>
+)}
+
 
             {/* ----- ACTIVITIES TAB ----- */}
 {currentTab === 'activities' && (
