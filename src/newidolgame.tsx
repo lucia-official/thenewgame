@@ -3,11 +3,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyObject = any;
 
-import { DndContext, useDraggable, useDroppable, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { 
   Star, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
   Upload, Building, Tv, GripVertical, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
@@ -1681,10 +1681,14 @@ const deleteTeam = (teamId) => {
       addNotification({ type: 'Election', message: electionMessage });
     };
 
-    const createSong = () => {
-      setModalData({ targetGroupId: 'main' }); 
-      setShowModal('createSong');
-    };
+        const createSong = () => {
+        setModalData({ 
+            targetGroupId: 'main', 
+            songs: songs, 
+            sisterGroups: sisterGroups 
+        }); 
+        setShowModal('createSong');
+        };
     
     const createCustomSetlist = () => {
       setShowModal('customSetlist');
@@ -1861,7 +1865,7 @@ const deleteTeam = (teamId) => {
           const luckModifiers = trackMembers.map(() => 0.7 + (Math.random() * 0.6));
           const memberWeights = trackMembers.map((member, index) => {
               const isPushed = pushedMembersList.map(String).includes(String(member.id));
-              const isCenter = String(track.center) === String(member.id);
+              const isCenter = (track.center || []).includes(String(member.id));
               const row = track.lineup[String(member.id)];
               let weight = rowWeights[row] || 1;
               if (isCenter) weight = 7;
@@ -1879,10 +1883,19 @@ const deleteTeam = (teamId) => {
                   distributedFans += gain;
               });
           }
-          const remainder = fanPool - distributedFans;
-          if (remainder > 0 && track.center) {
-              gains[String(track.center)] = (gains[String(track.center)] || 0) + remainder;
-          }
+            const remainder = fanPool - distributedFans;
+            if (remainder > 0 && track.center && track.center.length > 0) {
+                // Distribute the remainder evenly among all centers
+                const remainderPerCenter = Math.floor(remainder / track.center.length);
+                track.center.forEach(centerId => {
+                    gains[String(centerId)] = (gains[String(centerId)] || 0) + remainderPerCenter;
+                });
+                // Give any leftover fans to the first center
+                const finalRemainder = remainder % track.center.length;
+                if (finalRemainder > 0) {
+                    gains[String(track.center[0])] = (gains[String(track.center[0])] || 0) + finalRemainder;
+                }
+            }
           return gains;
       };
 
@@ -1931,8 +1944,8 @@ const deleteTeam = (teamId) => {
           
           const releasingGroupName = isSisterSong ? (sisterGroups.find(g => g.name === targetGroupName)?.name || 'Unknown Group') : groupName;
 
-            let newCenterHistoryEntries = participatedTracks.filter(track => String(track.center) === memberId).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName, type: track.type }));
-          const isTitleCenter = String(songData.tracks[0].center) === memberId;
+            let newCenterHistoryEntries = participatedTracks.filter(track => (track.center || []).includes(memberId)).map(track => ({ week: week + 1, singleName: songData.name, songName: track.name, group: releasingGroupName, type: track.type }));
+          const isTitleCenter = (songData.tracks[0].center || []).includes(memberId);
           const isTitleSenbatsu = (songData.tracks[0].members || []).map(mem => String(mem.id)).includes(memberId);
           
           const hardcoreGain = Math.floor(fanGainForMember * 0.15);
@@ -2862,7 +2875,7 @@ const deleteTeam = (teamId) => {
         description: 'เรื่องเริ่มจากบรรยากาศในวงที่แฟน ๆ สังเกตว่าตึงผิดปกติ ทั้งในคลิปเบื้องหลังและไลฟ์สด สมาชิกเดี่ยวคนหนึ่งเริ่มแสดงพฤติกรรม “เงียบกดดัน” เช่น ไม่ร่วมบทสนทนา ตอบสั้น ๆ ตัดจบประโยค หรือทำให้บรรยากาศตกทันทีที่เข้าฉาก บางช่วงถึงขั้นเหมือนหลีกเลี่ยงการทำงานเป็นทีม ทำให้คนดูเริ่มตั้งคำถามว่ามีการใช้อำนาจทางอารมณ์เพื่อควบคุมคนอื่นหรือไม่ แม้ไม่มีหลักฐานคำด่าตรง ๆ แต่ความต่อเนื่องของท่าทีและพลังงานที่เปลี่ยนไปทำให้เรื่องนี้ยิ่งน่ากลัว เพราะมันทำร้ายคนอื่นได้โดยไม่ต้องพูดคำเดียว'
       },
               
-      ];
+      ];              
       if (scandalRoll < 0.05 && members.length > 0) { 
           const target = members[Math.floor(Math.random() * members.length)];
           const scandal = scandalTypes[Math.floor(Math.random() * scandalTypes.length)];
@@ -2905,13 +2918,29 @@ const deleteTeam = (teamId) => {
       });
       setScheduledSingles(remainingSingles);
 
-      // Handle weekly income and stats
+      // Handle weekly income and stats and create a breakdown
+      const incomeBreakdown = [];
+      let totalWeeklyIncome = 0;
+
       const baseIncome = Math.floor((totalFans || 0) * 2);
+      if (baseIncome > 0) {
+          incomeBreakdown.push(`Base: ¥${baseIncome.toLocaleString()}`);
+          totalWeeklyIncome += baseIncome;
+      }
+
       const sisterIncome = (sisterGroups || []).reduce((s, g) => s + (g.income || 0), 0);
+      if (sisterIncome > 0) {
+          incomeBreakdown.push(`Sister Groups: ¥${sisterIncome.toLocaleString()}`);
+          totalWeeklyIncome += sisterIncome;
+      }
+
       const varietyIncome = (varietyShows || []).reduce((s, v) => s + (v.income || 0), 0);
-      const income = baseIncome + sisterIncome + varietyIncome;
-      
-      setMoney(prev => (prev || 0) + income);
+      if (varietyIncome > 0) {
+          incomeBreakdown.push(`Variety Shows: ¥${varietyIncome.toLocaleString()}`);
+          totalWeeklyIncome += varietyIncome;
+      }
+
+      setMoney(prev => (prev || 0) + totalWeeklyIncome);
 
         // --- Process Main Group Charting Songs ---
                 // --- Process Main Group Charting Songs ---
@@ -3035,24 +3064,35 @@ const deleteTeam = (teamId) => {
 
                 // --- Hardcore/Casual Fan Churn Logic ---
                 let totalFansActuallyLost = 0;
+                // First, calculate the total fans that will be lost before updating the state
+                const allMembersForChurn = [...members, ...(sisterGroups || []).flatMap(sg => sg.members || [])];
+                allMembersForChurn.forEach(member => {
+                    if (member.fans && typeof member.fans === 'object') {
+                        const casualFans = member.fans.casual || 0;
+                        totalFansActuallyLost += Math.ceil(casualFans * 0.05);
+                    }
+                });
+
+                // Now, define the update function which will be used to update the state
                 const updateMemberFansForChurn = (member) => {
                   if (!member.fans || typeof member.fans !== 'object') return member;
                   const casualFans = member.fans.casual || 0;
                   const hardcoreFans = member.fans.hardcore || 0;
-                  const fansLost = Math.ceil(casualFans * 0.05); // 5% of casual fans churn
-                  totalFansActuallyLost += fansLost;
+                  const fansLost = Math.ceil(casualFans * 0.05);
                   return {
                     ...member,
                     fans: { hardcore: hardcoreFans, casual: Math.max(0, casualFans - fansLost) }
                   };
                 };
-                
-                setMembers(prev => prev.map(m => updateMemberFansForChurn(m)));
+
+                // Update the state using the function above
+                setMembers(prev => prev.map(updateMemberFansForChurn));
                 setSisterGroups(prev => prev.map(sg => ({
                     ...sg,
                     members: (sg.members || []).map(m => updateMemberFansForChurn(m))
                 })));
-                
+
+                // Finally, create the notification with the correct total, which was calculated synchronously
                 expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()} (Salaries & Upkeep). Lost ${totalFansActuallyLost.toLocaleString()} fans due to churn.`;
                 addNotification({ type: 'info', message: expenseNotification });
             }
@@ -3076,11 +3116,13 @@ const deleteTeam = (teamId) => {
         } else if (expenseNotification) { // <-- This is new
             setMessage(expenseNotification);
         } else {
-            setMessage(`Week ${newWeek}: +¥${income.toLocaleString()}. ${campMessage}`); 
+            const incomeDetails = incomeBreakdown.length > 0 ? `(${incomeBreakdown.join(', ')})` : '';
+            setMessage(`Week ${newWeek}: +¥${totalWeeklyIncome.toLocaleString()} ${incomeDetails}. ${campMessage}`);
         }
       
       // Always add income to the notification log for history
-      addNotification({ type: 'info', message: `+¥${income.toLocaleString()} income.` });
+      addNotification({ type: 'info', message: `+¥${totalWeeklyIncome.toLocaleString()} income.` });
+
       if (campMessage && !priorityMessage.includes('camp')) { // Only log if not already the main message
           addNotification({ type: 'info', message: campMessage });
       }
@@ -3912,9 +3954,29 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
       );
     };
 
-const CreateSongModal = () => {
+    const CreateSongModal = () => {
+    
+    // This is the new component for our drag overlay
+    const DragOverlayChip = ({ member }) => {
+        if (!member) return null;
+        return (
+            <div className="p-1 rounded text-center cursor-grabbing transition-all duration-200 bg-yellow-400 text-black ring-2 ring-yellow-200 shadow-xl">
+                <div className="flex flex-col items-center leading-tight" style={{ userSelect: 'none' }}>
+                    <span className="font-semibold text-[11px]">{member.nickname || member.name.split(' ')[0]}</span>
+                    <span className="text-[10px] text-gray-800">
+                        Vo:{Math.round(member.singing)} Da:{Math.round(member.dancing)} Va:{Math.round(member.variety)}
+                    </span>
+                    <span className="text-[10px] text-blue-700 font-medium">
+                        Fans: {getTotalFansForMember(member).toLocaleString()}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+
     // --- Basic Song State ---
-    const { targetGroupId } = modalData;
+    const { targetGroupId, songs, sisterGroups } = modalData;    
     const allGroups = [{ id: 'main', name: groupName, isSister: false }, ...(sisterGroups || []).map(sg => ({ id: sg.id, name: sg.name, isSister: true }))];
     const [targetGroup, setTargetGroup] = useState(targetGroupId || allGroups[0].name);
     const [songName, setSongName] = useState('');
@@ -3940,6 +4002,7 @@ const CreateSongModal = () => {
     });
 
     const [releaseFormat, setReleaseFormat] = useState('digital');
+    const [draggingMember, setDraggingMember] = useState(null);
     const [physicalVersions, setPhysicalVersions] = useState(1);
 
         const baseCostPerVersion = 100000;
@@ -3955,8 +4018,180 @@ const CreateSongModal = () => {
                     ? baseCostAlbum + (releaseFormat === 'physical' ? albumPhysicalSurcharge : 0)
                     : (releaseFormat === 'physical' ? baseCostPerVersion * physicalVersions : 0)
             );
+
+            const handleRandomizeRows = () => {
+                const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+                const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+                    if (index !== currentIndex) return track;
     
-        useEffect(() => {
+                    const members = [...track.members];
+                    const centerId = track.center;
+                    const nonCenterMembers = members.filter(id => String(id) !== String(centerId));
+                    const shuffled = nonCenterMembers.sort(() => 0.5 - Math.random());
+                    const newLineup = {};
+                    if (centerId) newLineup[centerId] = '1st Row';
+    
+                    shuffled.forEach((id, i) => {
+                        if (i < 5) newLineup[id] = '2nd Row';
+                        else if (i < 10) newLineup[id] = '3rd Row';
+                        else if (i < 16) newLineup[id] = '4th Row';
+                        else newLineup[id] = '5th Row';
+                    });
+                    return { ...track, lineup: newLineup };
+                });
+                if (releaseType === 'album') setAlbumTracks(updateFn);
+                else setTracks(updateFn);
+            };
+
+            const handleRandomizeByFans = (trackIndex, numToSelect) => {
+            // This is the fix: We get the REAL current index here...
+            const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+            // ... and ignore the 'trackIndex' argument that was causing the bug.
+
+            const allTracks = releaseType === 'album' ? albumTracks : tracks;
+            
+            const allChosenMemberIds = new Set(allTracks.flatMap(t => t.members.map(String)));
+            const unchosenPool = selectableMembers.filter(m => !allChosenMemberIds.has(String(m.id)));
+
+            if (unchosenPool.length === 0) return;
+
+            unchosenPool.sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a));
+
+            const num = Math.min(numToSelect, unchosenPool.length);
+            const selectedIds = unchosenPool.slice(0, num).map(m => String(m.id));
+
+            const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+                // We use the REAL current index to find the correct track to modify.
+                if (index !== currentIndex) return track;
+
+                const newMembers = [...new Set([...track.members, ...selectedIds])];
+                const newLineup = { ...track.lineup };
+                selectedIds.forEach(id => { if (!newLineup[id]) newLineup[id] = '5th Row'; });
+                return { ...track, members: newMembers, lineup: newLineup };
+            });
+
+            if (releaseType === 'album') setAlbumTracks(updateFn);
+            else setTracks(updateFn);
+        };
+    const handleRankRowsByFans = () => {
+        const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+        const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+            if (index !== currentIndex || !track.members || track.members.length === 0) return track;
+
+            const trackMembers = track.members.map(id => getMemberById(String(id))).filter(Boolean);
+            const centerId = track.center ? String(track.center) : null;
+            const membersToRank = trackMembers.filter(m => String(m.rosterId || m.id) !== centerId);
+
+            membersToRank.sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a));
+
+            const newLineup = { ...track.lineup };
+            const totalToRank = membersToRank.length;
+            const secondRowSize = Math.ceil(totalToRank * 0.3);
+            const thirdRowSize = Math.floor(totalToRank * 0.4);
+
+            membersToRank.forEach((member, memberIndex) => {
+                const memberIdStr = String(member.rosterId || member.id);
+                if (memberIndex < secondRowSize) newLineup[memberIdStr] = '2nd Row';
+                else if (memberIndex < secondRowSize + thirdRowSize) newLineup[memberIdStr] = '3rd Row';
+                else newLineup[memberIdStr] = '4th Row';
+            });
+            
+            if (centerId) newLineup[centerId] = '1st Row';
+
+            return { ...track, lineup: newLineup };
+        });
+
+        if (releaseType === 'album') setAlbumTracks(updateFn);
+        else setTracks(updateFn);
+    };
+
+    const historicalTracks = [
+        ...(songs || []).flatMap(release =>
+            (release.tracks || []).map(track => ({
+                id: `${release.id}-${track.name}-${release.targetGroup}`,
+                name: `${track.name} (from ${release.name})`,
+                data: {
+                    members: (track.members || []).map(m => String(m.id)),
+                    center: track.center || [],
+                    lineup: track.lineup || {}
+                }
+            }))
+        ),
+        ...(sisterGroups || []).flatMap(sg =>
+            (sg.songs || []).flatMap(release =>
+                (release.tracks || []).map(track => ({
+                    id: `${release.id}-${track.name}-${sg.id}`,
+                    name: `${track.name} (from ${sg.name}'s ${release.name})`,
+                    data: {
+                        members: (track.members || []).map(m => String(m.id)),
+                        center: track.center ? String(track.center) : null,
+                        lineup: track.lineup || {}
+                    }
+                }))
+            )
+        )
+    ].sort((a, b) => {
+        const idA = parseInt(a.id.split('-')[0], 10);
+        const idB = parseInt(b.id.split('-')[0], 10);
+        if (idB !== idA) return idB - idA;
+        return a.name.localeCompare(b.name);
+    });
+
+    const applyPreviousLineup = (trackId) => {
+        if (!trackId) return;
+
+        // Find the historical data
+        const selectedHistory = historicalTracks.find(t => t.id === trackId);
+        if (!selectedHistory) return;
+
+        const { members: historicMemberIds, center: historicCenterId, lineup: historicLineup } = selectedHistory.data;
+
+        // Get all currently available members for this release
+        const availableMemberIds = new Set(selectableMembers.map(m => String(m.rosterId || m.id)));
+
+        // Filter the old lineup to only include currently available members
+        const newMemberIds = historicMemberIds.filter(id => availableMemberIds.has(String(id)));
+        
+        // Validate the center
+        const newCenterIds = (historicCenterId || []).filter(id => availableMemberIds.has(String(id)));
+
+        // Clean the lineup object, removing any members who are no longer available
+        const newHotlineup = Object.keys(historicLineup).reduce((acc, key) => {
+            if (newMemberIds.includes(String(key))) {
+                acc[key] = historicLineup[key];
+            }
+            return acc;
+        }, {});
+
+        // Update the state for the currently selected track
+        const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+            const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+            if (index !== currentIndex) return track;
+
+            // Overwrite the lineup completely with the imported data
+            return {
+                ...track,
+                members: newMemberIds,
+                center: newCenterIds,
+                lineup: newHotlineup
+            };
+        });
+
+        if (releaseType === 'album') {
+            setAlbumTracks(updateFn);
+        } else {
+            setTracks(updateFn);
+        }
+
+        // Reset dropdown to default after selection
+        const singleDropdown = document.getElementById('import-lineup');
+        const albumDropdown = document.getElementById('import-lineup-album');
+        if(singleDropdown) singleDropdown.value = "";
+        if(albumDropdown) albumDropdown.value = "";
+    };
+
+
+            useEffect(() => {
             // This effect automatically calculates the number of physical versions
             // needed based on the B-side track assignments for SINGLES.
             if (releaseFormat === 'physical' && releaseType === 'single') {
@@ -3976,11 +4211,18 @@ const CreateSongModal = () => {
     const updateUnitName = (index, newUnitName) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, unitName: newUnitName } : track));
     const updateTrackCDType = (index, newType) => setTracks(prev => prev.map((track, i) => i === index ? { ...track, cdType: newType } : track));
     
-    const sensors = useSensors(
+        const sensors = useSensors(
         useSensor(PointerSensor, {
-            // Require the mouse to move by 5 pixels before activating a drag
+            // For mouse: require the mouse to move 5 pixels before activating a drag
             activationConstraint: {
                 distance: 5,
+            },
+        }),
+        useSensor(TouchSensor, {
+            // For touch: require a 250ms press delay to start a drag
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5, // User can move their finger 5px during the delay
             },
         })
     );
@@ -3989,42 +4231,33 @@ const CreateSongModal = () => {
     const [activeDragId, setActiveDragId] = useState(null);
 
     const handleDragStart = (event) => {
-        setActiveDragId(event.active.id);
+        const { active } = event;
+        setActiveDragId(active.id);
+        // Find the member once and store it in state to prevent lookups on every frame
+        setDraggingMember(getMemberById(active.id));
     };
 
     const handleDragEnd = (event) => {
         setActiveDragId(null);
+        setDraggingMember(null); // Clear the dragging member from state
         const { active, over } = event;
 
         if (over && active.id !== over.id) {
-            // Check if we are dropping onto a formation row
             if (String(over.id).startsWith('formation-row-')) {
                 const memberId = active.id;
                 const rowName = String(over.id).replace('formation-row-', '');
-                
                 if (releaseType === 'album') {
                     handleAlbumLineupChange(memberId, rowName);
                 } else {
                     handleLineupChange(memberId, rowName);
                 }
-            } else {
-                // This is for reordering the list itself
-                const oldIndex = selectableSenbatsu.findIndex(m => m.id === active.id);
-                const newIndex = selectableSenbatsu.findIndex(m => m.id === over.id);
-
-                // This part is more complex and depends on how you want reordering to work.
-                // For now, we will focus on dropping on the pyramid.
             }
         }
     };
 
-    const DraggableMemberRow = ({ member, track, trackIndex }) => {
+    const DraggableMemberRow = memo(({ member, track, trackIndex }) => {
         const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: member.id });
-        const style = {
-            transform: CSS.Transform.toString(transform),
-            transition,
-        };
-
+        const style = { transform: CSS.Transform.toString(transform), transition };
         const isCenter = String(track?.center) === String(member.id);
         const lineupChangeHandler = releaseType === 'album' ? handleAlbumLineupChange : handleLineupChange;
         const centerHandler = releaseType === 'album' ? setAlbumCenter : setCenter;
@@ -4032,12 +4265,7 @@ const CreateSongModal = () => {
 
         return (
             <tr ref={setNodeRef} style={style} {...attributes} className={`${isCenter ? 'bg-yellow-100 dark:bg-yellow-900' : ''}`}>
-                {/* DRAG HANDLE */}
-                <td 
-                    className="p-2 cursor-grab" 
-                    style={{ touchAction: 'none', userSelect: 'none' }} // This prevents text selection
-                    {...listeners}
-                >
+                <td className="p-2 cursor-grab" style={{ touchAction: 'none', userSelect: 'none' }} {...listeners}>
                     <GripVertical size={18} className="text-gray-400" />
                 </td>
                 <td className="p-2 font-medium dark:text-gray-200">{member.name}</td>
@@ -4047,24 +4275,30 @@ const CreateSongModal = () => {
                     </select>
                 </td>
                 <td className="p-2 text-center">
-                    <input type="radio" name={radioName} checked={isCenter} onChange={() => centerHandler(member.id)} className="form-radio h-4 w-4 text-blue-600" />
+                            <input 
+                                type="checkbox" 
+                                name={radioName} 
+                                checked={(track?.center || []).includes(String(member.id))} 
+                                onChange={() => centerHandler(member.id)} 
+                                className="form-checkbox h-4 w-4 text-blue-600" 
+                            />
                 </td>
             </tr>
         );
-    };
+    });
 
     const handleReleaseTypeSelect = (type) => {
         setReleaseType(type);
         if (type === 'album') {
             // Initialize with 1 Lead Track and 7 B-Sides for the album
             setAlbumTracks([
-                { name: 'Lead Track', unitName: 'Senbatsu', type: 'title', members: [], center: null, lineup: {} },
+                { name: 'Lead Track', unitName: 'Senbatsu', type: 'title', members: [], center: [], lineup: {} },
                 ...Array.from({ length: 7 }, (_, i) => ({
                     name: `B-Side ${i + 1}`,
                     unitName: `Unit ${i + 2}`,
                     type: 'b-side',
                     members: [],
-                    center: null,
+                    center: [],
                     lineup: {},
                 }))
             ]);
@@ -4087,23 +4321,46 @@ const CreateSongModal = () => {
             newMembers = [...track.members.map(String), memberIdStr];
             newLineup[memberIdStr] = '5th Row'; // Default row
         }
-        let newCenter = track.center;
-        if (!newMembers.includes(String(track.center))) newCenter = null;
-        return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
+            let newCenter = (track.center || []).filter(centerId => newMembers.includes(String(centerId)));
+            return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
     }));
-    const setAlbumCenter = (memberId) => setAlbumTracks(prev => prev.map((track, index) => {
-        if (index === selectedAlbumTrackIndex) {
-            const memberIdStr = String(memberId);
-            if (track.members.map(String).includes(memberIdStr)) {
-                return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr };
-            }
+const setAlbumCenter = (memberId) => {
+    setAlbumTracks(prev => prev.map((track, index) => {
+        if (index !== selectedAlbumTrackIndex) return track;
+
+        const memberIdStr = String(memberId);
+        const currentCenters = track.center || [];
+        let newCenters;
+
+        if (currentCenters.includes(memberIdStr)) {
+            newCenters = currentCenters.filter(id => id !== memberIdStr);
+        } else {
+            newCenters = [...currentCenters, memberIdStr];
         }
-        return track;
+        return { ...track, center: newCenters };
     }));
+};
     const handleAlbumLineupChange = (memberId, row) => setAlbumTracks(prev => prev.map((track, index) => index === selectedAlbumTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
     const toggleMember = (memberId) => setTracks(prev => prev.map((track, index) => { if (index !== selectedTrackIndex) return track; const memberIdStr = String(memberId); const isMemberSelected = track.members.map(String).includes(memberIdStr); let newMembers; let newLineup = { ...track.lineup }; if (isMemberSelected) { newMembers = track.members.filter(id => String(id) !== memberIdStr); delete newLineup[memberIdStr]; } else { newMembers = [...track.members.map(String), memberIdStr]; newLineup[memberIdStr] = '5th Row'; } let newCenter = track.center; if (!newMembers.includes(String(track.center))) newCenter = null; return { ...track, members: newMembers, center: newCenter, lineup: newLineup }; }));
-    const setCenter = (memberId) => setTracks(prev => prev.map((track, index) => { if (index === selectedTrackIndex) { const memberIdStr = String(memberId); if (track.members.map(String).includes(memberIdStr)) return { ...track, center: String(track.center) === memberIdStr ? null : memberIdStr }; } return track; }));
-    const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, unitName: `Unit ${prev.length}`, type: 'b-side', members: [], center: null, lineup: {}, cdType: 'common' }]); setSelectedTrackIndex(tracks.length); };
+    const setCenter = (memberId) => {
+        setTracks(prev => prev.map((track, index) => {
+            if (index !== selectedTrackIndex) return track;
+
+            const memberIdStr = String(memberId);
+            const currentCenters = track.center || [];
+            let newCenters;
+
+            if (currentCenters.includes(memberIdStr)) {
+                // If already a center, remove them
+                newCenters = currentCenters.filter(id => id !== memberIdStr);
+            } else {
+                // If not a center, add them
+                newCenters = [...currentCenters, memberIdStr];
+            }
+            return { ...track, center: newCenters };
+        }));
+    };
+    const addTrack = () => { setTracks(prev => [...prev, { name: `B-Side ${prev.length}`, unitName: `Unit ${prev.length}`, type: 'b-side', members: [], center: [], lineup: {}, cdType: 'common' }]); setSelectedTrackIndex(tracks.length); };
     const handleLineupChange = (memberId, row) => setTracks(prev => prev.map((track, index) => index === selectedTrackIndex ? { ...track, lineup: { ...track.lineup, [String(memberId)]: row } } : track));
     const handleRandomizeMembers = (trackIndex, numToSelect) => {
     const currentTrack = releaseType === 'album' ? albumTracks[trackIndex] : tracks[trackIndex];
@@ -4140,28 +4397,7 @@ const CreateSongModal = () => {
     }
 };
 
-const handleRandomizeRows = (trackIndex) => {
-    const updateFn = (prevTracks) => prevTracks.map((track, index) => {
-        if (index !== trackIndex) return track;
-        if (!track.members || track.members.length === 0) return track;
-
-        const rows = ['1st Row', '2nd Row', '3rd Row', '4th Row', '5th Row'];
-        const newLineup = { ...track.lineup };
-        track.members.forEach(memberId => {
-            const randomRow = rows[Math.floor(Math.random() * rows.length)];
-            newLineup[String(memberId)] = randomRow;
-        });
-        return { ...track, lineup: newLineup };
-    });
-
-    if (releaseType === 'album') {
-        setAlbumTracks(updateFn);
-    } else {
-        setTracks(updateFn);
-    }
-};
-
-    // --- Data Derivation and Filtering ---
+// --- Data Derivation and Filtering ---
     let selectableMembers = [];
     if (targetGroup === 'main') {
         const mainMembers = members.filter(m => m.homeGroup === 'main' && m.isAvailable);
@@ -4175,8 +4411,11 @@ const handleRandomizeRows = (trackIndex) => {
             selectableMembers = [...selectableMembers, ...mainGroupKennin];
         }
     }
+    selectableMembers.sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a));
+
     const currentTrack = tracks[selectedTrackIndex];
     const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
+
 
     // **BUG FIX**: Moved filtering logic here so the 'Toggle' button can use it.
     const visibleRoster = selectableMembers.filter(member => {
@@ -4215,8 +4454,7 @@ const handleRandomizeRows = (trackIndex) => {
                 newMembers = [...track.members, ...newIdsToAdd];
                 newIdsToAdd.forEach(id => { if (!newLineup[id]) newLineup[id] = '5th Row'; });
             }
-            let newCenter = track.center;
-            if (!newMembers.map(String).includes(String(track.center))) newCenter = null;
+            let newCenter = (track.center || []).filter(centerId => newMembers.includes(String(centerId)));
             return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
         }));
     };
@@ -4351,51 +4589,27 @@ const songData = {
 
 
     const PyramidVisualization = ({ lineup, members, center, activeDragId }) => {
-        // This is a new sub-component to make the member chips draggable
-        const DraggableChip = ({ member }) => {
-            const { attributes, listeners, setNodeRef } = useDraggable({
-                id: member.id,
-            });
-
-            // This makes the chip a drag handle and applies the correct styling
+        const DraggableChip = memo(({ member }) => {
+            const { attributes, listeners, setNodeRef } = useDraggable({ id: member.id });
             return (
-                <div 
-                    ref={setNodeRef} 
-                    {...listeners} 
-                    {...attributes}
-                    className={`p-2 rounded text-center cursor-grab transition-all duration-200 ${String(center) === String(member.id) ? 'bg-yellow-400 text-black ring-2 ring-yellow-200' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100'}`}
-                >
+                <div ref={setNodeRef} {...listeners} {...attributes} style={{ touchAction: 'none' }} className={`p-1 rounded text-center cursor-grab transition-all duration-200 ${(center || []).includes(String(member.id)) ? 'bg-yellow-400 text-black ring-2 ring-yellow-200' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100'}`}>
                     <div className="flex flex-col items-center leading-tight" style={{ userSelect: 'none' }}>
                         <span className="font-semibold text-[11px]">{member.nickname || member.name.split(' ')[0]}</span>
-                        <span className="text-[10px] text-gray-600 dark:text-gray-400">
-                            Vo:{Math.round(member.singing)} Da:{Math.round(member.dancing)} Va:{Math.round(member.variety)}
-                        </span>
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                            Fans: {getTotalFansForMember(member).toLocaleString()}
-                        </span>
+                        <span className="text-[10px] text-gray-600 dark:text-gray-400">Vo:{Math.round(member.singing)} Da:{Math.round(member.dancing)} Va:{Math.round(member.variety)}</span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Fans: {getTotalFansForMember(member).toLocaleString()}</span>
                     </div>
                 </div>
             );
-        };
+        });
 
         const DroppableRow = ({ rowName, children }) => {
             const { setNodeRef, isOver } = useDroppable({ id: `formation-row-${rowName}` });
-            const style = {
-                transition: 'background-color 0.2s ease-in-out',
-                backgroundColor: isOver ? 'rgba(34, 197, 94, 0.2)' : undefined,
-                border: isOver ? '2px dashed #22C55E' : '2px dashed transparent',
-                padding: '8px',
-                borderRadius: '8px',
-                minHeight: '40px'
-            };
+            const style = { transition: 'background-color 0.2s ease-in-out', backgroundColor: isOver ? 'rgba(34, 197, 94, 0.2)' : undefined, border: isOver ? '2px dashed #22C55E' : '2px dashed transparent', padding: '8px', borderRadius: '8px', minHeight: '40px' };
             return <div ref={setNodeRef} style={style}>{children}</div>;
         };
 
         const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-        members.forEach(member => {
-            const row = lineup[String(member.id)];
-            if (rows[row]) rows[row].push(member);
-        });
+        members.forEach(member => { const row = lineup[String(member.id)]; if (rows[row]) rows[row].push(member); });
         Object.keys(rows).forEach(row => rows[row].sort((a, b) => (b.fans || 0) - (a.fans || 0)));
 
         return (
@@ -4405,14 +4619,7 @@ const songData = {
                     <div key={rowName} className="flex flex-col items-center w-full">
                         <DroppableRow rowName={rowName}>
                             <div className="flex justify-center flex-wrap gap-2">
-                                {rows[rowName].length > 0 ? (
-                                    rows[rowName].map(member => (
-                                        // We now use our new DraggableChip component here
-                                        <DraggableChip key={member.id} member={member} />
-                                    ))
-                                ) : (
-                                    <p className="text-xs text-gray-400">Drop members here</p>
-                                )}
+                                {rows[rowName].length > 0 ? (rows[rowName].map(member => (<DraggableChip key={member.id} member={member} />))) : (<p className="text-xs text-gray-400">Drop members here</p>)}
                             </div>
                         </DroppableRow>
                         <p className="text-xs text-gray-500 mt-1">{rowName} ({rows[rowName].length})</p>
@@ -4530,12 +4737,32 @@ const songData = {
                     <div className="lg:col-span-5 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">1. Senbatsu Selection for: <span className="text-blue-600 dark:text-blue-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
+                            <div className="mb-3">
+                                <label htmlFor="import-lineup" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Import Lineup From...</label>
+                                <select
+                                    id="import-lineup"
+                                    onChange={(e) => applyPreviousLineup(e.target.value)}
+                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    <option value="">-- Select a past track --</option>
+                                        {historicalTracks.map(track => (
+                                            <option key={track.id} value={track.id}>
+                                                {track.name}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+
                                 <div className="flex items-center gap-2 mb-2">
                                     <input type="number" id={`random-members-input-${selectedTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
                                     <button onClick={() => {
                                         const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
                                         if (input) handleRandomizeMembers(selectedTrackIndex, parseInt(input.value, 10));
                                     }} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Random Members</button>
+                                        <button onClick={() => {
+                                            const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
+                                            if (input) handleRandomizeByFans(selectedTrackIndex, parseInt(input.value, 10));
+                                        }} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Select by Fans</button>
                                 </div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
@@ -4593,10 +4820,13 @@ const songData = {
                             </div>
                         </div>
                         <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
-                        <button onClick={() => handleRandomizeRows(selectedAlbumTrackIndex)} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
-                    </div>
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                            <div className="flex gap-1">
+                                <button onClick={handleRandomizeRows} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
+                                <button onClick={() => handleRankRowsByFans(selectedAlbumTrackIndex)} className="px-2 py-1 text-xs bg-cyan-500 text-white rounded">Rank Rows by Fans</button>
+                            </div>
+                        </div>
                             <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
@@ -4625,9 +4855,7 @@ const songData = {
                             <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} activeDragId={activeDragId} />
                         </div>
                     </div>
-                    <DragOverlay>
-                {activeDragId ? <div className="p-2 rounded bg-blue-300 font-semibold shadow-lg">Dragging {getMemberById(activeDragId)?.name}</div> : null}
-            </DragOverlay>
+                    <DragOverlay>{draggingMember ? <DragOverlayChip member={draggingMember} /> : null}</DragOverlay>
                     </DndContext>
                     <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
                     <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
@@ -4695,12 +4923,31 @@ const songData = {
                     <div className="lg:col-span-5 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-2 dark:text-gray-200">1. Member Selection for: <span className="text-purple-600 dark:text-purple-400 font-bold">{currentTrack?.name || 'Track'}</span></h4>
+                                <div className="mb-3">
+                                    <label htmlFor="import-lineup-album" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Import Lineup From...</label>
+                                    <select
+                                        id="import-lineup-album"
+                                        onChange={(e) => applyPreviousLineup(e.target.value)}
+                                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
+                                    >
+                                        <option value="">-- Select a past track --</option>
+                                            {historicalTracks.map(track => (
+                                                <option key={track.id} value={track.id}>
+                                                    {track.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <input type="number" id={`random-album-members-input-${selectedAlbumTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
                                     <button onClick={() => {
                                         const input = document.getElementById(`random-album-members-input-${selectedAlbumTrackIndex}`);
                                         if (input) handleRandomizeMembers(selectedAlbumTrackIndex, parseInt(input.value, 10));
                                     }} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Random Members</button>
+                                        <button onClick={() => {
+                                            const input = document.getElementById(`random-album-members-input-${selectedAlbumTrackIndex}`);
+                                            if (input) handleRandomizeByFans(selectedAlbumTrackIndex, parseInt(input.value, 10));                                                ;
+                                        }} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Select by Fans</button>
                                 </div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
@@ -4737,10 +4984,13 @@ const songData = {
                             </div>
                         </div>
                         <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
-                                    <button onClick={() => handleRandomizeRows(selectedAlbumTrackIndex)} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
-                                </div>
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-semibold dark:text-gray-200">2. Line-up & Center Assignment</h4>
+                            <div className="flex gap-1">
+                                <button onClick={handleRandomizeRows} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Randomize Rows</button>
+                                <button onClick={handleRankRowsByFans} className="px-2 py-1 text-xs bg-cyan-500 text-white rounded">Rank Rows by Fans</button>
+                            </div>
+                        </div>
                             <div className="max-h-96 overflow-y-auto border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-900">
@@ -4770,10 +5020,7 @@ const songData = {
                          <PyramidVisualization lineup={currentTrack?.lineup || {}} members={selectableSenbatsu} center={currentTrack?.center} activeDragId={activeDragId} />
                 </div>
             </div>
-            <DragOverlay>
-                {activeDragId ? <div className="p-2 rounded bg-purple-300 font-semibold shadow-lg">Dragging {getMemberById(activeDragId)?.name}</div> : null}
-            </DragOverlay>
-                     
+                <DragOverlay>{draggingMember ? <DragOverlayChip member={draggingMember} /> : null}</DragOverlay>
                 <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-700">
                     <button onClick={() => setStep('type')} className="p-2 bg-gray-400 text-white rounded px-4 font-bold hover:bg-gray-500">
                         Back
@@ -5092,7 +5339,7 @@ const songData = {
                 return acc;
             }, {});
 
-            const centerMemberId = String(track.center);
+            const centerMemberIds = Array.isArray(track.center) ? track.center.map(String) : [String(track.center)];
 
             return (
                 <div className="mt-3 pt-3 border-t border-dashed dark:border-gray-600">
@@ -5103,7 +5350,7 @@ const songData = {
                             <p className="font-semibold text-pink-600 dark:text-pink-400">
                                 {groupKeyName}: <span className="font-normal text-gray-700 dark:text-gray-300">
                                     {memberGroups[groupKeyName].map(member => (
-                                        <span key={member.id} className={String(member.id) === centerMemberId ? 'font-bold' : ''}>
+                                        <span key={member.id} className={centerMemberIds.includes(String(member.id)) ? 'font-bold' : ''}>
                                             {member.name}
                                         </span>
                                     )).reduce((prev, curr) => [prev, ', ', curr])}
@@ -5132,27 +5379,29 @@ const songData = {
 );
 
                 if (firstTimeSenbatsu.length > 0) {
-                    triviaItems.push(`First time in a title track Senbatsu for ${formatNames(firstTimeSenbatsu.map(m => m.name))}.`);
+                    triviaItems.push(`First Time Senbatsu of ${formatNames(firstTimeSenbatsu.map(m => m.name))}.`);
                 }
 
-                if (titleTrack.center) {
-                    const centerMember = memberMap[String(titleTrack.center)];
-                    if (centerMember) {
-                        const titleCenterCount = (centerMember.centerHistory || []).filter(h => h.type === 'title').length;
-                        if (titleCenterCount === 1) {
-                            triviaItems.push(`First time as a title track Center for ${centerMember.name}.`);
-                        }
+                if (titleTrack.center && titleTrack.center.length > 0) {
+                    const firstTimeACenters = titleTrack.center
+                        .map(id => memberMap[String(id)])
+                        .filter(member => {
+                            if (!member) return false;
+                            const titleCenterCount = (member.centerHistory || []).filter(h => h.type === 'title').length;
+                            return titleCenterCount === 1;
+                        });
+                    if (firstTimeACenters.length > 0) {
+                        triviaItems.push(`First A-Side Single Center of ${formatNames(firstTimeACenters.map(m => m.name))}.`);
                     }
                 }
-            }
-            
+            }            
             const allParticipatingIds = [...new Set(release.tracks.flatMap(t => (t.members || []).map(m => m.id)))];
             const firstTimeParticipation = allParticipatingIds.map(id => memberMap[String(id)]).filter(member =>
                 member && (member.singlesParticipation || []).filter(p => p.singleId === release.id).length > 0 && (member.singlesParticipation || []).length === 1
             );
 
             if (firstTimeParticipation.length > 0) {
-                triviaItems.push(`First single participation for ${formatNames(firstTimeParticipation.map(m => m.name))}.`);
+                triviaItems.push(`First Single Participation of ${formatNames(firstTimeParticipation.map(m => m.name))}.`);
             }
 
             const bSideTracks = release.tracks.filter(t => t.type === 'b-side');
@@ -5166,7 +5415,7 @@ const songData = {
 
             if (firstTimeBSideCenters.length > 0) {
                 const uniqueNames = [...new Set(firstTimeBSideCenters.map(m => m.name))];
-                triviaItems.push(`First time as a B-side Center for ${formatNames(uniqueNames)}.`);
+                triviaItems.push(`First B-Side Center of ${formatNames(uniqueNames)}.`);
             }
 
             if (triviaItems.length === 0) return null;
@@ -5242,8 +5491,9 @@ const songData = {
                                     }, {});
   
                                     const TrackCard = ({ track, exclusiveType }) => {
-                                        const centerMember = track.center ? memberMap[String(track.center)] : null;
-                                        const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                                        const centerNames = Array.isArray(track.center)
+                                        ? track.center.map(id => memberMap[String(id)]?.name).filter(Boolean).join(', ')
+                                        : (track.center && memberMap[String(track.center)] ? memberMap[String(track.center)].name : 'N/A');                                        const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
                                         const unassigned = [];
                                             if (track.lineup && track.members) {
                                                 track.members.forEach(memberObject => {
@@ -5277,8 +5527,7 @@ const songData = {
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                                                    <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
-                                                    <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                                    <p><span className="font-semibold">Center:</span> {centerNames}</p>                                                    <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
                                                     {Object.entries(rows).map(([rowName, members]) => members.length > 0 && (
                                                         <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p>
                                                     ))}
@@ -5302,48 +5551,51 @@ const songData = {
                                     );
                                 })()
                             ) : (                          
-                              release.tracks.map((track, index) => {
-                                  const centerMember = track.center ? memberMap[String(track.center)] : null;
-                                  const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
-                                  const unassigned = [];
-                                if (track.lineup && track.members) {
-                                    track.members.forEach(memberObject => {
-                                        const row = track.lineup[String(memberObject.id)];
-                                        if (row && rows[row]) {
-                                            rows[row].push(memberObject.name);
-                                        } else {
-                                            unassigned.push(memberObject.name);
-                                        }
-                                    });
+                                release.tracks.map((track, index) => {
+                                    const centerNames = Array.isArray(track.center)
+                                        ? track.center.map(id => memberMap[String(id)]?.name).filter(Boolean).join(', ')
+                                        : (track.center && memberMap[String(track.center)] ? memberMap[String(track.center)].name : 'N/A');
 
-                                  } else if (track.members) {
-                                       track.members.forEach(memberId => {
-                                          const member = memberMap[String(memberId)];
-                                          if (member) unassigned.push(member.name);
-                                       });
-                                  }
-        
-                                  return (
-                                      <div key={index} className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                          <div className="flex justify-between items-start">
-                                              <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
-                                                  {track.name}
-                                                  {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
-                                              </h4>
-                                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
-                                                  {track.type || 'TRACK'}
-                                              </span>
-                                          </div>
-                                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                                              <p><span className="font-semibold">Center:</span> {centerMember ? centerMember.name : 'N/A'}</p>
-                                              <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
-                                              {Object.entries(rows).map(([rowName, members]) => { if (members.length > 0) { return ( <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p> ); } return null; })}
-                                              {unassigned.length > 0 && ( <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p> )}
-                                          </div>
-                                          <TeamGroupedLineup track={track} />
-                                      </div>
-                                  );
-                              })
+                                    const rows = { '1st Row': [], '2nd Row': [], '3rd Row': [], '4th Row': [], '5th Row': [] };
+                                    const unassigned = [];
+                                    if (track.lineup && track.members) {
+                                        track.members.forEach(memberObject => {
+                                            const row = track.lineup[String(memberObject.id)];
+                                            if (row && rows[row]) {
+                                                rows[row].push(memberObject.name);
+                                            } else {
+                                                unassigned.push(memberObject.name);
+                                            }
+                                        });
+
+                                    } else if (track.members) {
+                                        track.members.forEach(memberId => {
+                                            const member = memberMap[String(memberId)];
+                                            if (member) unassigned.push(member.name);
+                                        });
+                                    }
+
+                                    return (
+                                        <div key={index} className="p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">
+                                                    {track.name}
+                                                    {track.unitName && <span className="font-normal italic text-gray-600 dark:text-gray-400"> / {track.unitName}</span>}
+                                                </h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
+                                                    {track.type || 'TRACK'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                                                <p><span className="font-semibold">Center:</span> {centerNames || 'N/A'}</p>
+                                                <p><span className="font-semibold">Senbatsu Count:</span> {track.members ? track.members.length : 0}</p>
+                                                {Object.entries(rows).map(([rowName, members]) => { if (members.length > 0) { return ( <p key={rowName}><span className="font-semibold">{rowName}:</span> {members.join(', ')}</p> ); } return null; })}
+                                                {unassigned.length > 0 && ( <p><span className="font-semibold">Members:</span> {unassigned.join(', ')}</p> )}
+                                            </div>
+                                            <TeamGroupedLineup track={track} />
+                                        </div>
+                                    );
+                                })
                           )
                         ) : (
                         // UNIFIED LOGIC: Display all tracks with full details
