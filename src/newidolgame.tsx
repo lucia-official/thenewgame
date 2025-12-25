@@ -358,6 +358,7 @@ const promoMultipliers = { none: 1, tier1: 1.05, tier2: 1.1, tier3: 1.15, tier4:
     const [scandals, setScandals] = useState([]);
     const [statistics, setStatistics] = useState({ totalRevenue: 0, totalConcerts: 0, totalSongs: 0, revenueHistory: [] });
     const [modalData, setModalData] = useState(null);
+    const [activeScandal, setActiveScandal] = useState(null);
     const [selectedSisterGroup, setSelectedSisterGroup] = useState(null);
     const [selectedTheaterTeam, setSelectedTheaterTeam] = useState(null);
     const [username, setUsername] = useState('Guest');
@@ -1534,10 +1535,97 @@ const deleteTeam = (teamId) => {
             setModalData({ member, speech: response });
             setShowModal('graduationTalk');
         };
- 
+       
+        const handleScandalResponse = (responseType) => {
+            if (!activeScandal) return;
+    
+        const scandalResponseOptions = {
+            deny: { text: 'Deny Publicly', cost: 10000, description: 'Issue a strong denial. Risky, but could work.' },
+            apologize: { text: 'Apologize', cost: 5000, description: 'Issue a formal apology. Admits guilt but shows sincerity.' },
+            suspend: { text: 'Suspend Member (4 Weeks)', cost: 0, description: 'Suspend the member from all activities. Shows you are taking action.' },
+            ignore: { text: 'Ignore', cost: 0, description: 'Do nothing and hope the story blows over. Unpredictable.' },
+        };
+
+            const { member, scandal } = activeScandal;
+            const responseOption = scandalResponseOptions[responseType];
+            let fanLossMultiplier = 1;
+            let moraleHitMultiplier = 1;
+            let stressChange = 0;
+            let message = '';
+    
+            // Apply cost, ensuring money doesn't go below zero
+            if (money < responseOption.cost) {
+                addNotification({ type: 'error', message: "Not enough money to take this action!" });
+                return; // Stop if you can't afford it
+            }
+            setMoney(prev => prev - responseOption.cost);
+    
+            switch(responseType) {
+                case 'deny':
+                    const successChance = scandal.severity === 'High' ? 0.2 : (scandal.severity === 'Mid' ? 0.5 : 0.8);
+                    if (Math.random() < successChance) {
+                        // Successful denial
+                        fanLossMultiplier = 0.2; // Only lose 20% of the base
+                        moraleHitMultiplier = 0.5; // Less morale hit
+                        stressChange = 10;
+                        message = `The denial was successful! The public seems to believe your side of the story, and the damage was minimal.`;
+                    } else {
+                        // Failed denial (backlash)
+                        fanLossMultiplier = 2.5; // 2.5x the fan loss
+                        moraleHitMultiplier = 2.0;
+                        stressChange = 40;
+                        message = `The denial backfired horribly! The public saw through it, and the scandal has gotten much worse.`;
+                    }
+                    break;
+                case 'apologize':
+                    fanLossMultiplier = 1.0;
+                    moraleHitMultiplier = 1.2; // Apologizing is stressful
+                    stressChange = 20;
+                    message = `A formal apology was issued. While some fans are disappointed, many appreciate the honesty.`;
+                    break;
+                case 'suspend':
+                    fanLossMultiplier = 0.8;
+                    moraleHitMultiplier = 2.5; // Suspension is a huge morale hit
+                    stressChange = 10;
+                    updateMemberState(member.id, m => ({
+                        ...m,
+                        isAvailable: false,
+                        returningWeek: week + 4,
+                    }));
+                    message = `${member.name} has been suspended for 4 weeks. The public sees that you are taking action, but the member is devastated.`;
+                    break;
+                case 'ignore':
+                    fanLossMultiplier = Math.random() * 2 + 0.5; // Anywhere from 50% to 250% of base loss
+                    moraleHitMultiplier = 1.0;
+                    stressChange = 5;
+                    message = `You chose to ignore the scandal. The story fizzled out... for now. The impact was unpredictable.`;
+                    break;
+            }
+    
+            const fanLoss = Math.floor( ((member.fans.hardcore || 0) + (member.fans.casual || 0)) * scandal.baseFanLoss * fanLossMultiplier );
+            const moraleHit = Math.floor(scandal.baseMoraleHit * moraleHitMultiplier);
+            
+            updateMemberState(member.id, m => {
+                const newHardcore = Math.max(0, (m.fans.hardcore || 0) - Math.floor(fanLoss * 0.7));
+                const newCasual = Math.max(0, (m.fans.casual || 0) - Math.floor(fanLoss * 0.3));
+                return {
+                    ...m,
+                    fans: { hardcore: newHardcore, casual: newCasual },
+                    morale: Math.max(0, m.morale - moraleHit),
+                    stress: Math.min(100, m.stress + stressChange),
+                    graduationUrgency: Math.min(100, (m.graduationUrgency || 0) + scandal.baseUrgency)
+                }
+            });
+    
+            addNotification({ type: 'Scandal', message: `${member.name}'s Scandal: ${message}` });
+            setMessage(`Handled ${member.name}'s scandal. Result: ${fanLoss.toLocaleString()} fans lost.`);
+            
+            setActiveScandal(null);
+            setShowModal(null);
+        };
 
 
-    const holdTheaterShow = ({ teamId, venueOwnerId, concertTheme, travelCost }) => {
+        const holdTheaterShow = ({ teamId, venueOwnerId, concertTheme, travelCost }) => {
         setShowModal(null);
 
         const team = teamId ? teams.find(t => t.id === teamId) : null;
@@ -3086,70 +3174,90 @@ const createSong = () => {
       if (activeTour) return progressTour();
       
       const scandalRoll = Math.random();
-      const scandalTypes = [
-        {
-          type: 'Paparazzi Dating Photo',
-          description: 'A blurry photo surfaces showing a member getting too close to an unidentified person in a private setting. The media is speculating about a secret relationship, and fans are in an uproar.',
-          baseFanLoss: 0.15, // 15% fan loss
-          baseMoraleHit: 30,
-          baseUrgency: 40,
-        },
-        {
-          type: 'Leaked Private Messages',
-          description: 'Screenshots of a private conversation have been leaked online. In them, the member complains about work, the fans, or another member in a negative light. The sense of betrayal is palpable.',
-          baseFanLoss: 0.10,
-          baseMoraleHit: 25,
-          baseUrgency: 30,
-        },
-        {
-          type: 'Underage Drinking/Smoking Allegation',
-          description: 'A photo from a party, possibly old, shows the member near alcoholic beverages or cigarettes. Even if untrue, the allegation is damaging public perception and tainting their pure image.',
-          baseFanLoss: 0.20,
-          baseMoraleHit: 40,
-          baseUrgency: 50,
-        },
-        {
-          type: 'Reported Rudeness to Staff',
-          description: 'An anonymous staff member has posted online about being treated poorly by the member. Fans are questioning their beloved idol\'s true personality behind the scenes.',
-          baseFanLoss: 0.05,
-          baseMoraleHit: 15,
-          baseUrgency: 20,
-        },
-        {
-          type: 'Past Bullying Rumors',
-          description: 'An old classmate has come forward with allegations of bullying from the member\'s school days. The story is spreading fast, with netizens digging for "proof".',
-          baseFanLoss: 0.12,
-          baseMoraleHit: 35,
-          baseUrgency: 35,
-        },
-        {
-          type: 'Family Member Causing Trouble',
-          description: 'A parent or sibling of the member has made controversial statements online or is using their connection for personal gain, causing a backlash by association.',
-          baseFanLoss: 0.03,
-          baseMoraleHit: 20,
-          baseUrgency: 15,
-        },
-        {
-          type: 'Association with a Disreputable Person',
-          description: 'The member was spotted with an individual known for shady business or a bad reputation. The media is questioning their judgment and character by association.',
-          baseFanLoss: 0.08,
-          baseMoraleHit: 25,
-          baseUrgency: 25,
-        }
-      ];
+      const scandalsByImpact = {
+        low: [
+          {
+            type: 'Reported Rudeness to Staff',
+            severity: 'Low',
+            description: 'An anonymous staff member has posted online about being treated poorly by the member. Fans are questioning their beloved idol\'s true personality behind the scenes.',
+            baseFanLoss: 0.05,
+            baseMoraleHit: 15,
+            baseUrgency: 20,
+          },
+          {
+            type: 'Family Member Causing Trouble',
+            severity: 'Low',
+            description: 'A parent or sibling of the member has made controversial statements online or is using their connection for personal gain, causing a backlash by association.',
+            baseFanLoss: 0.03,
+            baseMoraleHit: 20,
+            baseUrgency: 15,
+          },
+        ],
+        mid: [
+          {
+            type: 'Leaked Private Messages',
+            severity: 'Mid',
+            description: 'Screenshots of a private conversation have been leaked online. In them, the member complains about work, the fans, or another member in a negative light. The sense of betrayal is palpable.',
+            baseFanLoss: 0.10,
+            baseMoraleHit: 25,
+            baseUrgency: 30,
+          },
+          {
+            type: 'Past Bullying Rumors',
+            severity: 'Mid',
+            description: 'An old classmate has come forward with allegations of bullying from the member\'s school days. The story is spreading fast, with netizens digging for "proof".',
+            baseFanLoss: 0.12,
+            baseMoraleHit: 35,
+            baseUrgency: 35,
+          },
+          {
+            type: 'Association with a Disreputable Person',
+            severity: 'Mid',
+            description: 'The member was spotted with an individual known for shady business or a bad reputation. The media is questioning their judgment and character by association.',
+            baseFanLoss: 0.08,
+            baseMoraleHit: 25,
+            baseUrgency: 25,
+          },
+        ],
+        high: [
+          {
+            type: 'Paparazzi Dating Photo',
+            severity: 'High',
+            description: 'A blurry photo surfaces showing a member getting too close to an unidentified person in a private setting. The media is speculating about a secret relationship, and fans are in an uproar.',
+            baseFanLoss: 0.15,
+            baseMoraleHit: 30,
+            baseUrgency: 40,
+          },
+          {
+            type: 'Underage Drinking/Smoking Allegation',
+            severity: 'High',
+            description: 'A photo from a party, possibly old, shows the member near alcoholic beverages or cigarettes. Even if untrue, the allegation is damaging public perception and tainting their pure image.',
+            baseFanLoss: 0.20,
+            baseMoraleHit: 40,
+            baseUrgency: 50,
+          },
+        ],
+      };
+
+  if (scandalRoll < 1.0 && members.length > 0) { 
+      const target = members[Math.floor(Math.random() * members.length)];
       
-      if (scandalRoll < 0.05 && members.length > 0) { 
-          const target = members[Math.floor(Math.random() * members.length)];
-          const scandal = scandalTypes[Math.floor(Math.random() * scandalTypes.length)];
-        // Increase graduation urgency due to scandal
-        updateMemberState(target.id, m => ({
-            ...m,
-            graduationUrgency: Math.min(100, (m.graduationUrgency || 0) + 50) 
-        }));
-          setModalData({ member: target, type: scandal.type, description: scandal.description });
-          setShowModal('scandal');
-          return;
+      // --- NEW: Weighted Scandal Selection ---
+      let scandal;
+      const impactRoll = Math.random();
+      if (impactRoll < 0.05) { // 5% chance for a High impact scandal
+          scandal = scandalsByImpact.high[Math.floor(Math.random() * scandalsByImpact.high.length)];
+      } else if (impactRoll < 0.30) { // 25% chance for a Mid impact scandal
+          scandal = scandalsByImpact.mid[Math.floor(Math.random() * scandalsByImpact.mid.length)];
+      } else { // 70% chance for a Low impact scandal
+          scandal = scandalsByImpact.low[Math.floor(Math.random() * scandalsByImpact.low.length)];
       }
+
+      // Set the active scandal and show the decision modal
+      setActiveScandal({ member: target, scandal: scandal });
+      setShowModal('scandalDecision');
+      return; // Stop the rest of nextWeek to focus on the decision
+  }
 
       const newWeek = week + 1;
       let priorityMessage = '';
@@ -3876,26 +3984,26 @@ const createSong = () => {
 
     return {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
 startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 };
 };
 const App = () => {
     // Destructure everything from the custom hook
     const {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
 startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -4281,125 +4389,6 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
       );
   };
   
-
-    const ScandalModal = () => {
-      const { member, type, description } = modalData;
-      if (!member) return null;
-
-      const handleChoice = (choice) => {
-          let messageText = '';
-          let moraleChange = 0;
-          let fanChanges = { hardcore: 0, casual: 0 };
-          
-          const currentFans = member.fans || { hardcore: 0, casual: 0 };
-          const intelligence = member.intelligence || 0;
-          const roll = Math.random();
-
-          if (choice === 'apologize') {
-              // --- NEW: Apology success is based on Intelligence ---
-              const apologySuccessChance = 0.4 + (intelligence / 200); // Base 40%, up to 90%
-              
-              if(roll < apologySuccessChance) {
-                  // Well-received apology
-                  fanChanges.casual = -Math.floor(currentFans.casual * 0.15);
-                  fanChanges.hardcore = -Math.floor(currentFans.hardcore * 0.02);
-                  moraleChange = -15;
-                  messageText = `${member.name} gives a sincere apology. The situation stabilizes, though some fans are disappointed.`;
-              } else {
-                  // Poorly-received apology
-                  fanChanges.casual = -Math.floor(currentFans.casual * 0.30);
-                  fanChanges.hardcore = -Math.floor(currentFans.hardcore * 0.10);
-                  moraleChange = -35;
-                  messageText = `${member.name}'s apology is seen as insincere. The damage to her reputation is significant.`;
-              }
-              // Member is suspended for 4 weeks regardless of outcome.
-              updateMemberState(member.id, m => ({ ...m, isAvailable: false, returningWeek: week + 4 }));
-
-          } else if (choice === 'deny') {
-              // --- NEW: Denial success is based on Intelligence (High Risk) ---
-              const denialSuccessChance = 0.1 + (intelligence / 150); // Base 10%, up to ~76%
-              
-              if (roll < denialSuccessChance) { // Denial succeeds
-                  fanChanges.casual = Math.floor(getTotalFansForMember(member) * 0.1);
-                  moraleChange = 10;
-                  messageText = `Success! With a clever explanation, the public believes the denial. ${member.name}'s image is strengthened.`;
-              } else { // Denial fails catastrophically
-                  fanChanges.casual = -Math.floor(currentFans.casual * 0.50);
-                  fanChanges.hardcore = -Math.floor(currentFans.hardcore * 0.25);
-                  moraleChange = -50;
-                  messageText = `Disaster! The denial was proven false. ${member.name} is seen as a liar, causing massive backlash.`;
-              }
-
-          } else { // 'ignore'
-              // --- NEW: Ignoring has a small chance of success, slightly helped by Intelligence ---
-              const ignoreSuccessChance = 0.1 + (intelligence / 1000); // Base 10%, up to 20%
-              
-              if (roll < ignoreSuccessChance) { // Get away with it
-                  messageText = `Surprisingly, the scandal blew over with no major impact as public attention moved elsewhere.`;
-              } else { // Ignoring it fails
-                  fanChanges.casual = -Math.floor(currentFans.casual * 0.25);
-                  moraleChange = -30;
-                  messageText = `Ignoring it was a mistake. The scandal festered, damaging ${member.name}'s reputation.`;
-              }
-          }
-
-          updateMemberState(member.id, m => {
-              const currentHC = m.fans?.hardcore || 0;
-              const currentC = m.fans?.casual || 0;
-              return { 
-                  ...m, 
-                  fans: {
-                      hardcore: Math.max(0, currentHC + fanChanges.hardcore),
-                      casual: Math.max(0, currentC + fanChanges.casual),
-                  },
-                  morale: Math.max(0, Math.min(100, (m.morale || 0) + moraleChange)) 
-              };
-          });
-          
-          let details = [];
-          if (fanChanges.hardcore !== 0) {
-              const sign = fanChanges.hardcore > 0 ? '+' : '';
-              details.push(`Hardcore Fans: ${sign}${fanChanges.hardcore.toLocaleString()}`);
-          }
-          if (fanChanges.casual !== 0) {
-              const sign = fanChanges.casual > 0 ? '+' : '';
-              details.push(`Casual Fans: ${sign}${fanChanges.casual.toLocaleString()}`);
-          }
-          if (moraleChange !== 0) {
-              details.push(`Morale: ${moraleChange > 0 ? '+' : ''}${moraleChange}`);
-          }
-
-          let finalMessage = messageText;
-          if (details.length > 0) {
-              finalMessage += ` (${details.join(', ')})`;
-          }
-          
-          addNotification({ type: 'scandal', message: finalMessage });
-          setMessage(finalMessage);
-          setShowModal(null);
-      };
-      
-      return (
-          <ModalWrapper title="SCANDAL ALERT!" maxWidth="max-w-2xl">
-              <div className="p-1">
-                  <p className="mb-2"><strong>Member:</strong> {member.name}</p>
-                  <div className="p-3 bg-red-50 dark:bg-gray-800 border-l-4 border-red-500 rounded-r-lg mb-4">
-                      <h4 className="font-bold text-red-800 dark:text-red-300">{type}</h4>
-                      <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{description}</p>
-                  </div>
-                  <p className="mb-4 text-gray-700 dark:text-gray-300">This requires immediate management action. Your decision will affect her fans and morale, and the group's reputation.</p>
-              
-                  <h5 className="font-semibold mb-2">Choose your action:</h5>
-                  <div className="grid grid-cols-1 gap-3">
-                      <button onClick={() => handleChoice('apologize')} className="p-3 bg-red-100 text-red-800 rounded font-bold border-l-4 border-red-500 hover:bg-red-200 transition-colors">1. Public Apology & Hiatus</button>
-                      <button onClick={() => handleChoice('deny')} className="p-3 bg-blue-100 text-blue-800 rounded font-bold border-l-4 border-blue-500 hover:bg-blue-200 transition-colors">2. Strong Denial (High Risk)</button>
-                      <button onClick={() => handleChoice('ignore')} className="p-3 bg-gray-200 text-gray-800 rounded font-bold border-l-4 border-gray-500 hover:bg-gray-300 transition-colors">3. Ignore It</button>
-                  </div>
-                  <p className="text-xs text-center mt-4 text-gray-500">The game will resume after you make a decision.</p>
-              </div>
-          </ModalWrapper>
-      );
-    };
 
     const ElectionSummaryModal = () => {
         const { participating, nonParticipating, onConfirm } = modalData;
@@ -7403,6 +7392,68 @@ const PerformanceResultModal = () => {
         );
     };
 
+const ScandalDecisionModal = () => {
+    if (!activeScandal) return null;
+    const { member, scandal } = activeScandal;
+
+    const scandalResponseOptions = {
+        deny: { text: 'Deny Publicly', cost: 10000, description: 'Issue a strong denial. Risky, but could work.' },
+        apologize: { text: 'Apologize', cost: 5000, description: 'Issue a formal apology. Admits guilt but shows sincerity.' },
+        suspend: { text: 'Suspend Member (4 Weeks)', cost: 0, description: 'Suspend the member from all activities. Shows you are taking action.' },
+        ignore: { text: 'Ignore', cost: 0, description: 'Do nothing and hope the story blows over. Unpredictable.' },
+    };
+
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-xl rounded-2xl bg-gray-800 bg-opacity-70 border border-gray-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+                {/* Header */}
+                <div className="p-4 flex justify-between items-center bg-white bg-opacity-10">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold uppercase tracking-wider bg-red-500 bg-opacity-80 text-white py-1 px-3 rounded-full">SCANDAL</span>
+                        <h3 className="font-bold text-lg text-white">Scandal Erupted!</h3>
+                    </div>
+                    <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-5 grid gap-4">
+                    {/* Main scandal info */}
+                    <div className="text-center text-white">
+                        <h3 className="text-2xl font-bold">{member.name}</h3>
+                        <p className="text-sm text-gray-300 mb-4">is embroiled in a scandal!</p>
+                        <div className="p-4 bg-red-900 bg-opacity-40 border border-red-500/50 rounded-lg text-left">
+                            <h4 className="font-bold text-red-300">{scandal.type}</h4>
+                            <p className="text-sm italic mt-1 text-white-200">"{scandal.description}"</p>
+                        </div>
+                    </div>
+
+                    {/* Response options */}
+                    <div className="mt-4">
+                        <h4 className="font-semibold text-center mb-3 text-gray-200">How will you respond?</h4>
+                        <div className="space-y-3">
+                            {Object.entries(scandalResponseOptions).map(([key, option]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => handleScandalResponse(key)}
+                                    className="w-full text-left p-3 border border-white/10 rounded-lg hover:bg-white/10 bg-white/5 text-white transition-colors"
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold">{option.text}</span>
+                                        <span className="font-semibold text-yellow-400">¥{option.cost.toLocaleString()}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-300">{option.description}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
     const SaveGameModal = () => {
         const [saveUsername, setSaveUsername] = useState(username);
@@ -9972,7 +10023,6 @@ if (!gameStarted) {
         {showModal === 'trainingCamp' && <TrainingCampModal />}
         {showModal === 'createSisterGroup' && <CreateSisterGroupModal />}
         {showModal === 'customSetlist' && <CustomSetlistModal />}
-        {showModal === 'scandal' && modalData && <ScandalModal />}
         {showModal === 'sisterGroupDisband' && modalData && <SisterGroupDisbandModal />}
         {showModal === 'editGroupName' && modalData && <EditGroupNameModal />}
         {showModal === 'performancePrep' && <PerformanceModal />}
@@ -9987,6 +10037,7 @@ if (!gameStarted) {
         {showModal === 'graduationTalk' && <GraduationTalkModal />}
         {showModal === 'electionSummary' && <ElectionSummaryModal />}
         {showModal === 'electionResult' && <ElectionResultModal />}
+        {showModal === 'scandalDecision' && <ScandalDecisionModal />}
 
       </div>
     );
