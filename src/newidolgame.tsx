@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities';
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { 
   Star, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
-  Upload, Building, Tv, GripVertical, Gift, Trophy, Sparkles, AlertCircle, Zap, Globe, 
+  Upload, Building, Tv, GripVertical, Gift, Goal, Trophy, Sparkles, AlertCircle, Zap, Globe, 
   Film, Plane, GraduationCap, Shirt, Camera, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
@@ -20,6 +20,21 @@ import {
 import { getApps, initializeApp } from "firebase/app";;
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, setLogLevel } from 'firebase/firestore';
+
+const getTheaterCapacity = (level) => {
+    if (level === 1) return 100;
+    if (level === 2) return 250;
+    if (level === 3) return 500;
+    return 0;
+};
+
+const getTicketPrice = (level) => {
+    if (level === 1) return 1000;
+    if (level === 2) return 1500;
+    if (level === 3) return 2000;
+    return 0;
+};
+
 
 
 const productionTiers = {
@@ -123,6 +138,35 @@ const hometowns = [
     return hometowns[Math.floor(Math.random() * hometowns.length)];
 };
 
+const electionSpeechTemplates = {
+    center: [
+        "I can't believe it... To be standing here, as #1... This isn't my victory. It's ours. Thank you!",
+        "Is this a dream? All I can say is thank you to the fans who believed in me. I will lead this group with all my heart!",
+        "From the bottom of my heart, thank you! I promise to become a center that everyone can be proud of. We'll aim for the top together!"
+    ],
+    rankUp: [
+        "My rank went up! Thank you so much for your support! Next year, I'm aiming even higher!",
+        "I'm so happy you've given me this rank. I'll work hard to live up to it and show you an even better version of myself.",
+        "Wow... thank you! Seeing my name climb higher is the best feeling. I won't let you down!"
+    ],
+    rankDown: [
+        "I'm a little disappointed with this rank, but this feeling will only motivate me to work harder. Please continue to watch over me.",
+        "This result is frustrating, but it's a sign that I still have room to grow. I'll come back stronger next year.",
+        "To everyone who supported me, I'm sorry I couldn't meet your expectations. I will use this to fuel my comeback."
+    ],
+    newRank: [
+        "My name was called! I didn't think I would rank... thank you! This is the happiest day of my life!",
+        "To be given a rank in this amazing group... I'm speechless. Thank you for finding me!",
+        "I can't stop shaking. Thank you for giving me this wonderful stage to stand on. I'll do my best!"
+    ],
+    holdRank: [
+        "Thank you for allowing me to keep this spot. It's an honor, and I'll continue to cherish it and work hard.",
+        "Maintaining your position is a battle in itself. Thank you for your unwavering support. I love you all!",
+        "This rank feels just as special as the first time. Thank you for believing in me again this year."
+    ]
+};
+
+
 // --- NEW: Global Fan Calculation Helper ---
 const getTotalFansForMember = (member) => {
     if (!member || !member.fans) return 0;
@@ -132,6 +176,17 @@ const getTotalFansForMember = (member) => {
     }
     return (member.fans.hardcore || 0) + (member.fans.casual || 0);
 };
+
+
+const getGraduationRisk = (member) => {
+    if (!member || member.isGraduating) return { text: '', color: '' };
+    const urgency = member.graduationUrgency || 0;
+    if (urgency > 85) return { text: 'At Risk of Graduation', color: 'text-red-500' };
+    if (urgency > 60) return { text: 'Considering Future', color: 'text-yellow-500' };
+    if (urgency > 35) return { text: 'Early Warning (Starting to think of Graduation)', color: 'text-pink-500' };
+    return { text: '', color: '' }; // No need to show for low urgency
+};
+
 
 
 // --- Custom Hook for Game Logic and State Management ---
@@ -352,7 +407,10 @@ const promoMultipliers = { none: 1, tier1: 1.05, tier2: 1.1, tier3: 1.15, tier4:
     const [scheduledSingles, setScheduledSingles] = useState([]);
     const [auditionCandidates, setAuditionCandidates] = useState([]);
     const [pushedMembers, setPushedMembers] = useState([]);
-
+    const [electionVotePool, setElectionVotePool] = useState(0);
+    const [isCampaignActive, setIsCampaignActive] = useState(false);
+    const [campaignEndWeek, setCampaignEndWeek] = useState(0);
+    const [isElectionSingleFinished, setIsElectionSingleFinished] = useState(false);
 
     // Performance Types Data
     const performanceTypes = [
@@ -436,6 +494,10 @@ const saveGame = async (gameUsername, uidParam) => {
     groupName,
     money,
     week,
+    electionVotePool,
+    isCampaignActive,
+    campaignEndWeek,
+
     members: JSON.stringify(members),
     totalFans,
     songs: JSON.stringify(songs),
@@ -528,7 +590,8 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setGroupName(data.groupName || "");
       setMoney(data.money || 0);
       setWeek(data.week || 1);
-      const loadedMembers = JSON.parse(data.members || "[]").map(member => {
+      const loadedMembers = JSON.parse(data.members || "[]").map(rawMember => {
+        const member = { ...rawMember, electionHype: rawMember.electionHype || 0, isCurrentCenter: rawMember.isCurrentCenter || false, relationships: rawMember.relationships || { friends: [], rivals: [] } };
         // Migration: If fans is a number, convert to the new object structure
         if (typeof member.fans === 'number' || !member.fans) {
           const fanCount = typeof member.fans === 'number' ? member.fans : 0;
@@ -545,6 +608,10 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       });
       setMembers(loadedMembers);
       setTotalFans(data.totalFans || 0);
+      setElectionVotePool(data.electionVotePool || 0);
+        setIsCampaignActive(data.isCampaignActive || false);
+        setCampaignEndWeek(data.campaignEndWeek || 0);
+
         const loadedSongs = JSON.parse(data.songs || "[]").map(song => ({
             ...song,
             baseSalesPotential: song.baseSalesPotential || 0,
@@ -554,6 +621,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
         setSongs(loadedSongs);
       setTeams(JSON.parse(data.teams || "[]"));
         setTheaters(JSON.parse(data.theaters || "[]"));
+
       // --- MIGRATION LOGIC FOR OLD SAVES ---
       const loadedBuildings = JSON.parse(data.buildings || "{}");
       if (loadedBuildings.hasOwnProperty('theater')) {
@@ -586,7 +654,8 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
         }
       const loadedSisterGroups = JSON.parse(data.sisterGroups || "[]").map(sg => {
         if (!sg.members) return sg;
-        const migratedMembers = sg.members.map(member => {
+        const migratedMembers = sg.members.map(rawMember => {
+            const member = { ...rawMember, electionHype: rawMember.electionHype || 0, isCurrentCenter: rawMember.isCurrentCenter || false, relationships: rawMember.relationships || { friends: [], rivals: [] } };
           if (typeof member.fans === 'number' || !member.fans) {
             const fanCount = typeof member.fans === 'number' ? member.fans : 0;
             return {
@@ -747,7 +816,7 @@ const getMainGroupRoster = () => {
   );
   
   const combined = [...mainRoster, ...sisterRoster];
-  return combined.sort((a,b) => (b.fans || 0) - (a.fans || 0));
+  return combined.sort((a,b) => getTotalFansForMember(b) - getTotalFansForMember(a));
 };
 
     const getAllAvailableMembers = (includeSisterGroups = false) => {
@@ -820,40 +889,29 @@ const getMemberById = (memberId) => {
     };
 
 const getMemberGroupStatus = (member) => {
-  let parts = [];
+  if (!member) return '';
 
-  // --- Home Group Text ---
-  if (!member.isAvailable) {
-    parts.push("On Assignment");
-  } else if (member.homeGroup && member.homeGroup !== "main") {
-    const sg = sisterGroups?.find(g => g.id === member.homeGroup);
-    parts.push(`Group: ${sg ? sg.name : member.homeGroup}`);
-  } else {
-    parts.push(`Group: ${groupName}`);
+  // Determine the primary group display name
+  let groupPart = member.isSisterMember ? member.displayGroupName : groupName;
+  
+  // Check for and append any Kennin (concurrent) positions
+  if (member.kenninGroups && member.kenninGroups.length > 0) {
+      const kenninNames = member.kenninGroups.map(id => {
+          if (id === 'main') return groupName;
+          const sg = sisterGroups.find(g => String(g.id) === String(id));
+          return sg ? sg.name : id;
+      }).join(', ');
+      
+      // Add the Kennin info in parentheses
+      groupPart += ` (Kennin: ${kenninNames})`;
   }
 
-  // --- Find Member's Teams ---
-  const memberId = String(member.id); // Ensure member ID is a string for comparison
-  const memberTeams = (teams || [])
-    .filter(team => (team.members || []).map(String).includes(memberId))
-    .map(team => team.name);
+  // Get the team and generation parts
+  const teamPart = member.teamName ? `Team ${member.teamName}` : '';
+  const genPart = member.generation || '';
 
-  if (memberTeams.length > 0) {
-      parts.push(`Team: ${memberTeams.join(', ')}`);
-  }
-
-  // --- Kennin Groups Text ---
-  if (member.kenninGroups?.length > 0) {
-    const kenninNames = member.kenninGroups.map(id => {
-      if (id === "main") return groupName;
-      const sg = sisterGroups?.find(g => g.id === id);
-      return sg ? sg.name : id;
-    });
-
-    parts.push(`Kennin: ${kenninNames.join(", ")}`);
-  }
-
-  return parts.join(" | ");
+  // Join all the parts together with " | "
+  return [groupPart, teamPart, genPart].filter(Boolean).join(' | ');
 };
 
     const getMemberRank = (member) => [...(members || [])].sort((a, b) => getTotalFansForMember(b) - getTotalFansForMember(a)).findIndex(m => m.id === member.id) + 1;
@@ -1431,7 +1489,54 @@ const deleteTeam = (teamId) => {
           setSelectedMember(null);
       }
     };
-    
+
+        const askAboutGraduation = (memberId) => {
+            const member = getMemberById(memberId);
+            if (!member) return;
+
+            const urgency = member.graduationUrgency || 0;
+            const yearsActive = member.yearsActive || 0;
+            const gradWindow = member.graduationWindow || { min: 4, max: 8 };
+
+            let response = "";
+
+            if (urgency < 35) {
+                const responses = [
+                    `Me? Graduate? I haven't even thought about it! I want to do my best for the group right now.`,
+                    `I'm not planning on leaving anytime soon! There's still so much I want to achieve with everyone.`,
+                    `Not for a long, long time! My journey as an idol has just begun.`
+                ];
+                response = responses[Math.floor(Math.random() * responses.length)];
+            } else if (urgency < 60) {
+                const remainingYears = Math.max(1, gradWindow.min - yearsActive);
+                const responses = [
+                    `Hmm, I don't know... Maybe in about ${remainingYears} year(s)? For now, I'm focused on our next single.`,
+                    `I've been thinking about what comes next, but I'm not ready to leave just yet.`,
+                    `It's on my mind, but not for a while. I still feel like I have more to give.`
+                ];
+                response = responses[Math.floor(Math.random() * responses.length)];
+            } else if (urgency < 85) {
+                const responses = [
+                    `To be honest, I've been thinking about it a lot lately. Maybe within the next year or so...`,
+                    `I think my time as an idol might be coming to a close soon. I'm thinking about graduating sometime in the next 6 to 12 months.`,
+                    `It feels like it's getting to be that time. I'll probably make a decision within the year.`
+                ];
+                response = responses[Math.floor(Math.random() * responses.length)];
+            } else { // 85+
+                const responses = [
+                    `Producer-san... I think we need to talk soon. I've made a decision.`,
+                    `I can't say for sure, but... maybe in a few months. I'll come to you when I'm ready to talk properly.`,
+                    `It's very soon. Please wait for my official announcement.`
+                ];
+                response = responses[Math.floor(Math.random() * responses.length)];
+            }
+
+            setModalData({ member, speech: response });
+            setShowModal('graduationTalk');
+        };
+ 
+
+
     const holdTheaterShow = ({ teamId, venueOwnerId, concertTheme, travelCost }) => {
         setShowModal(null);
 
@@ -1582,32 +1687,326 @@ const deleteTeam = (teamId) => {
       setMessage(`${sg.name} held a show. Profit: ¥${profit.toLocaleString()}. +${fanGain} fans to ${sg.name}.`);
       addNotification({ type: 'Sister Group', message: `${sg.name} held a show earning ¥${profit.toLocaleString()} and gaining ${fanGain} fans.`});
     }
-    
 
-    const holdElection = () => {
-      if (money < 5000) return setMessage('Elections cost ¥5,000!');
-      
-      const sorted = getMainGroupRoster().filter(m => !m.isSister).sort((a, b) => (b.fans || 0) - (a.fans || 0));
-      
-      setMembers(prev => prev.map(m => {
-          const rankIndex = sorted.findIndex(s => String(s.id) === String(m.id));
-          let newPosition;
-          if (rankIndex === 0) newPosition = 'center';
-          else if (rankIndex < 3) newPosition = 'front';
-          else if (rankIndex < 7) newPosition = 'middle';
-          else if (rankIndex < 16) newPosition = 'back';
-          else newPosition = 'under';
-          return { ...m, position: newPosition };
-      }));
-      
-      setMoney(prev => prev - 5000);
+    const startElectionCampaign = () => {
+        const cost = 100000;
+        if (money < cost) {
+            return setMessage("Not enough funds to start an election campaign.");
+        }
+        if (isCampaignActive) {
+            return setMessage("An election campaign is already active.");
+        }
 
-      const electionMessage = `Election held! New center: ${sorted[0]?.name || 'Unknown'}.`;
-      setMessage(electionMessage);
-      addNotification({ type: 'Election', message: electionMessage });
+        // --- NEW: Calculate and add fan club votes ---
+        let totalHardcoreFans = 0;
+        members.forEach(m => {
+            totalHardcoreFans += m.fans?.hardcore || 0;
+        });
+        sisterGroups.forEach(sg => {
+            (sg.members || []).forEach(m => {
+                totalHardcoreFans += m.fans?.hardcore || 0;
+            });
+        });
+
+        // Each hardcore fan contributes 1 vote
+        const fanVotes = totalHardcoreFans;
+
+        setElectionVotePool(prev => prev + fanVotes);
+        // --- END NEW ---
+
+        setMoney(prev => prev - cost);
+        setIsCampaignActive(true);
+        setCampaignEndWeek(week + 4);
+
+        const successMessage = `4-week election campaign started! ${fanVotes.toLocaleString()} votes from loyal fans added to the pool.`;
+        setIsElectionSingleFinished(false); // Reset the flag
+        setMessage(successMessage);
+        addNotification({ type: 'Election', message: successMessage });
     };
 
-        const createSong = () => {
+    const createElectionPoster = (memberId) => {
+    if (!isCampaignActive) {
+        return setMessage("There is no active election campaign.");
+    }
+    const cost = 5000;
+    if (money < cost) {
+        return setMessage(`Need ¥${cost.toLocaleString()} to create a poster.`);
+    }
+    const member = getMemberById(memberId);
+    if (!member) return;
+
+    setMoney(prev => prev - cost);
+
+    const hypeGain = 10 + Math.floor((member.visual || 0) / 10); // Hype gain based on visual
+    updateMemberState(memberId, m => ({
+        ...m,
+        electionHype: (m.electionHype || 0) + hypeGain
+    }));
+
+    const posterMessage = `An election poster was created for ${member.name}, generating +${hypeGain} hype!`;
+    setMessage(posterMessage);
+    addNotification({ type: 'Election', message: posterMessage });
+};
+
+    const createElectionPosterForAll = () => {
+        if (!isCampaignActive) {
+            return setMessage("There is no active election campaign.");
+        }
+        
+        const posterCostPerMember = 5000;
+        const availableMembers = getAllAvailableMembers(true);
+        const totalCost = availableMembers.length * posterCostPerMember;
+
+        if (availableMembers.length === 0) {
+            return setMessage("No members are available to create posters for.");
+        }
+        if (money < totalCost) {
+            return setMessage(`Need ¥${totalCost.toLocaleString()} to create posters for all ${availableMembers.length} available members.`);
+        }
+
+        setMoney(prev => prev - totalCost);
+
+        let totalHypeGained = 0;
+        availableMembers.forEach(member => {
+            const hypeGain = 10 + Math.floor((member.visual || 0) / 10);
+            totalHypeGained += hypeGain;
+            updateMemberState(member.rosterId || member.id, m => ({
+                ...m,
+                electionHype: (m.electionHype || 0) + hypeGain
+            }));
+        });
+
+        const successMessage = `Posters created for all ${availableMembers.length} members for ¥${totalCost.toLocaleString()}. Total Hype Gained: ${totalHypeGained}.`;
+        setMessage(successMessage);
+        addNotification({ type: 'Election', message: successMessage });
+    };
+
+            const createAppealVideoForAll = () => {
+            if (!isCampaignActive) {
+                return setMessage("There is no active election campaign.");
+            }
+            
+            const videoCostPerMember = 20000;
+            const availableMembers = getAllAvailableMembers(true);
+            const totalCost = availableMembers.length * videoCostPerMember;
+
+            if (availableMembers.length === 0) {
+                return setMessage("No members are available to create videos for.");
+            }
+            if (money < totalCost) {
+                return setMessage(`Need ¥${totalCost.toLocaleString()} to create appeal videos for all ${availableMembers.length} available members.`);
+            }
+
+            setMoney(prev => prev - totalCost);
+
+            let totalHypeGained = 0;
+            availableMembers.forEach(member => {
+                const hypeGain = 25 + Math.floor((member.charisma || 0) / 4);
+                totalHypeGained += hypeGain;
+                updateMemberState(member.rosterId || member.id, m => ({
+                    ...m,
+                    electionHype: (m.electionHype || 0) + hypeGain
+                }));
+            });
+
+            const successMessage = `Appeal videos produced for all ${availableMembers.length} members for ¥${totalCost.toLocaleString()}. Total Hype Gained: ${totalHypeGained}.`;
+            setMessage(successMessage);
+            addNotification({ type: 'Election', message: successMessage });
+        };
+
+
+const holdElection = () => {
+  if (money < 5000) return setMessage('Elections cost ¥5,000!');
+
+  const allMembers = getMainGroupRoster();
+  const participatingMembers = [];
+  const nonParticipatingMembers = [];
+  const sixMonthsInWeeks = 24; // 6 months * 4 weeks
+
+  allMembers.forEach(member => {
+    // Members who have a set graduation date within the next 6 months
+    if (member.isGraduating && (member.graduationWeek - week) <= sixMonthsInWeeks) {
+        nonParticipatingMembers.push({ member, reason: `Graduating in ${member.graduationWeek - week} weeks` });
+    } 
+    // NEW: Exclude members with high graduation urgency
+    else if ((member.graduationUrgency || 0) > 85) {
+        nonParticipatingMembers.push({ member, reason: 'At Risk of Graduation' });
+    }
+    // Members on other assignments (e.g., training camp)
+    else if (!member.isAvailable) {
+        nonParticipatingMembers.push({ member, reason: 'On Assignment' });
+    } 
+    // Members who are mentally unfit for the competition
+    else if (member.stress > 80) {
+        nonParticipatingMembers.push({ member, reason: 'High Stress' });
+    } 
+    else if (member.morale < 20) {
+        nonParticipatingMembers.push({ member, reason: 'Low Morale' });
+    } 
+    // Everyone else participates
+    else {
+        participatingMembers.push(member);
+    }
+  });
+  
+  setModalData({
+    participating: participatingMembers,
+    nonParticipating: nonParticipatingMembers,
+    onConfirm: () => runElectionLogic(participatingMembers) // This function will be called by the modal
+  });
+  setShowModal('electionSummary');
+};
+
+const runElectionLogic = (participants) => {
+    if (money < 5000) return;
+    setMoney(prev => prev - 5000);
+
+    const previousRankMap = new Map(participants.map(m => [m.rosterId || m.id, m.rank || 999]));
+    const totalFanWeight = participants.reduce((sum, member) => {
+        return sum + ((member.fans?.hardcore || 0) * 3) + (member.fans?.casual || 0);
+    }, 1);
+
+    const universallySortedMembers = [...participants].map((member, index) => {
+        const memberFanWeight = ((member.fans?.hardcore || 0) * 3) + (member.fans?.casual || 0);
+        const voteShare = memberFanWeight / totalFanWeight;
+        const baseVotes = Math.floor(voteShare * electionVotePool);
+        const hypeMultiplier = 1 + ((member.electionHype || 0) / 100.0);
+        const randomFactor = 0.8 + (Math.random() * 0.4);
+        const finalVotes = Math.floor(baseVotes * hypeMultiplier * randomFactor);
+        return { ...member, votes: finalVotes };
+    }).sort((a, b) => b.votes - a.votes)
+    .map((member, index) => {
+        const newRank = index + 1;
+        const oldRank = previousRankMap.get(member.rosterId || member.id);
+        let speechType;
+
+        if (newRank === 1) speechType = 'center';
+        else if (oldRank === undefined || oldRank === 999) speechType = 'newRank';
+        else if (newRank < oldRank) speechType = 'rankUp';
+        else if (newRank > oldRank) speechType = 'rankDown';
+        else speechType = 'holdRank';
+
+        const speeches = electionSpeechTemplates[speechType];
+        const speech = speeches[Math.floor(Math.random() * speeches.length)];
+
+        // This line has been made safer to prevent crashes
+        return { ...member, previousRank: oldRank, speech: speech, relationships: { friends: member.relationships?.friends || [], rivals: member.relationships?.rivals || [] } };
+    });
+
+    const getUnitNameFromRank = (rank) => {
+        if (rank === 1) return "Center";
+        if (rank <= 7) return "Kami 7";
+        if (rank <= 16) return "Senbatsu";
+        if (rank <= 32) return "Undergirls";
+        if (rank <= 48) return "Next Girls";
+        if (rank <= 64) return "Future Girls";
+        if (rank <= 80) return "Upcoming Girls";
+        return "Unranked";
+    };
+
+    const memberMapForRelationships = new Map(universallySortedMembers.map(m => [String(m.rosterId || m.id), m]));
+    const relationshipNotifications = [];
+
+    universallySortedMembers.forEach((memberA_info, i) => {
+        const memberA_id = String(memberA_info.rosterId || memberA_info.id);
+        const memberA = memberMapForRelationships.get(memberA_id);
+
+        if (i + 1 < universallySortedMembers.length) {
+            const memberB_info = universallySortedMembers[i + 1];
+            const memberB_id = String(memberB_info.rosterId || memberB_info.id);
+            const memberB = memberMapForRelationships.get(memberB_id);
+
+            if (Math.random() < 0.15 && !memberA.relationships.rivals.includes(memberB_id) && !memberA.relationships.friends.includes(memberB_id)) {
+                memberA.relationships.rivals.push(memberB_id);
+                memberB.relationships.rivals.push(memberA_id);
+                relationshipNotifications.push(`A new rivalry has formed between ${memberA.name} and ${memberB.name} over the election results!`);
+            }
+        }
+
+        for (let j = i + 1; j < universallySortedMembers.length; j++) {
+            const memberC_info = universallySortedMembers[j];
+            const unitA = getUnitNameFromRank(i + 1);
+            const unitC = getUnitNameFromRank(j + 1);
+
+            if (unitA !== 'Unranked' && unitA === unitC) {
+                const memberC_id = String(memberC_info.rosterId || memberC_info.id);
+                const memberC = memberMapForRelationships.get(memberC_id);
+
+                if (Math.random() < 0.10 && !memberA.relationships.friends.includes(memberC_id) && !memberA.relationships.rivals.includes(memberC_id)) {
+                    memberA.relationships.friends.push(memberC_id);
+                    memberC.relationships.friends.push(memberA_id);
+                    relationshipNotifications.push(`${memberA.name} and ${memberC.name} have formed a new friendship after sharing success in the election.`);
+                }
+            }
+        }
+    });
+
+    const resultMap = new Map(universallySortedMembers.map((member, index) => {
+        const id = String(member.rosterId || member.id);
+        const newRank = index + 1;
+        const oldRank = member.previousRank;
+
+        let moraleChange = 0;
+        let stressChange = 0;
+
+        if (oldRank === undefined || oldRank === 999) { moraleChange = 25; stressChange = -10; }
+        else if (newRank < oldRank) { moraleChange = 15; stressChange = -5; }
+        else if (newRank > oldRank) { moraleChange = -20; stressChange = 15; }
+        else { moraleChange = 5; }
+
+        if (newRank === 1) { stressChange += 25; moraleChange += 15; }
+
+        const updatedMember = memberMapForRelationships.get(id);
+        return [id, { newRank, moraleChange, stressChange, newRelationships: updatedMember.relationships }];
+    }));
+
+    const updateMemberWithResults = (member, isSister = false, sgId = null) => {
+        const memberId = isSister ? `sg-${sgId}-${member.id}` : String(member.id);
+        const result = resultMap.get(memberId);
+
+        if (result) {
+            const { newRank, moraleChange, stressChange, newRelationships } = result;
+            const unitName = getUnitNameFromRank(newRank);
+            const newHistoryEntry = { week: week, rank: newRank, unit: unitName, year: Math.floor(week / 52) + 1 };
+            
+            let newPosition;
+            if (newRank === 1) newPosition = 'center'; else if (newRank <= 7) newPosition = 'front'; else if (newRank <= 16) newPosition = 'back'; else newPosition = 'under';
+
+            return {
+                ...member,
+                rank: newRank,
+                position: isSister ? member.position : newPosition,
+                electionHistory: [...(member.electionHistory || []), newHistoryEntry],
+                morale: Math.max(0, Math.min(100, (member.morale || 80) + moraleChange)),
+                stress: Math.max(0, Math.min(100, (member.stress || 0) + stressChange)),
+                isCurrentCenter: newRank === 1,
+                relationships: newRelationships,
+            };
+        } else {
+            return { ...member, isCurrentCenter: false, morale: Math.max(0, (member.morale || 80) - 5) };
+        }
+    };
+
+    setMembers(prev => prev.map(m => updateMemberWithResults(m, false)));
+    setSisterGroups(prev => prev.map(sg => ({
+        ...sg,
+        members: (sg.members || []).map(m => updateMemberWithResults(m, true, sg.id))
+    })));
+
+    setModalData({
+        rankedMembers: universallySortedMembers,
+        electionYear: Math.floor(week / 52) + 1,
+    });
+    setShowModal('electionResult');
+
+    const successMessage = `General Election held! New center: ${universallySortedMembers[0]?.name || 'Unknown'}.`;
+    setMessage(successMessage);
+    addNotification({ type: 'Election', message: successMessage });
+    relationshipNotifications.forEach(notif => addNotification({ type: 'Group', message: notif }));
+    setElectionVotePool(0);
+};
+
+const createSong = () => {
         setModalData({ 
             targetGroupId: 'main', 
             songs: songs, 
@@ -1842,6 +2241,7 @@ const deleteTeam = (teamId) => {
             name: songData.name,
             type: 'single',
             isGraduationSingle: songData.isGraduationSingle,
+            isElectionSingle: songData.isElectionSingle,
             releaseFormat: songData.releaseFormat,
             tracks: songData.tracks,
             baseSalesPotential: baseSalesPotential,
@@ -2324,11 +2724,18 @@ const deleteTeam = (teamId) => {
         });
       });
       
-      const successMessage = `Handshake event success! Converted ${totalConvertedFans.toLocaleString()} fans to hardcore and gained ${totalNewFans.toLocaleString()} new casual fans.`;
+            const successMessage = `Handshake event success! Converted ${totalConvertedFans.toLocaleString()} fans to hardcore and gained ${totalNewFans.toLocaleString()} new casual fans.`;
       addNotification({ type: 'Fans', message: successMessage });
-      setMessage(successMessage);
-      setShowModal(null);
+      
+      // NEW: Set modal data and show the new modal
+      setModalData({
+          convertedFans: totalConvertedFans,
+          newFans: totalNewFans,
+          members: participatingMembers
+      });
+      setShowModal('handshakeResult');
     };
+
     
     const startTrainingCamp = (memberId, skill) => {
       const cost = 75000;
@@ -2664,6 +3071,13 @@ const deleteTeam = (teamId) => {
 
     const nextWeek = () => {
 
+    if (isCampaignActive && (week + 1) >= campaignEndWeek) {
+        setIsCampaignActive(false);
+        setMessage("The election campaign period has ended.");
+        addNotification({ type: 'Election', message: "The election campaign period has ended." });
+    }
+
+
       const graduatingIdsThisWeek = [];
 
       setMediaJobDoneThisWeek(false);
@@ -2672,201 +3086,56 @@ const deleteTeam = (teamId) => {
       if (activeTour) return progressTour();
       
       const scandalRoll = Math.random();
-      // The 'scandalTypes' array is defined here in your original code. It is omitted for brevity.
       const scandalTypes = [
         {
-          type: 'ปาปารัสซี่แฉ! เดตลับกลางวันแสก ๆ',
-          description: 'ชาวเน็ตตาไวจับภาพสมาชิกคนหนึ่งขณะนั่งใกล้ชิดกับบุคคลปริศนานอกคาเฟ่ชื่อดัง แม้จะพยายามปิดบังตัวตน แต่บรรยากาศที่ดูสนิทสนมเกินเพื่อนทำให้เกิดกระแสตั้งคำถามถึงความสัมพันธ์ที่แท้จริง จนแฟน ๆ แห่ถกเถียงสนั่นโซเชียล'
+          type: 'Paparazzi Dating Photo',
+          description: 'A blurry photo surfaces showing a member getting too close to an unidentified person in a private setting. The media is speculating about a secret relationship, and fans are in an uproar.',
+          baseFanLoss: 0.15, // 15% fan loss
+          baseMoraleHit: 30,
+          baseUrgency: 40,
         },
         {
-          type: 'ไฟลุกโซเชียล! โพสต์เดียวสะเทือนทั้งด้อม',
-          description: 'สมาชิกคนหนึ่งเผลอโพสต์ข้อความที่ถูกมองว่าไม่เหมาะสมและอ่อนไหวบนบัญชีโซเชียลมีเดียสาธารณะ ส่งผลให้เกิดเสียงวิพากษ์วิจารณ์อย่างรุนแรง บางส่วนออกมาปกป้อง ขณะที่อีกฝ่ายเรียกร้องคำขอโทษ ทำให้ประเด็นลุกลามจนติดเทรนด์ในเวลาอันรวดเร็ว'
+          type: 'Leaked Private Messages',
+          description: 'Screenshots of a private conversation have been leaked online. In them, the member complains about work, the fans, or another member in a negative light. The sense of betrayal is palpable.',
+          baseFanLoss: 0.10,
+          baseMoraleHit: 25,
+          baseUrgency: 30,
         },
         {
-          type: 'คลิปหลุดหลังเวที! พฤติกรรมจริงที่แฟน ๆ ไม่เคยเห็น',
-          description: 'คลิปจากกล้องลับถูกเผยแพร่ออกมา เผยให้เห็นสมาชิกคนหนึ่งแสดงท่าทีไม่เหมาะสมและใช้คำพูดแข็งกร้าวใส่ทีมงานหลังเวที ภาพลักษณ์ที่เคยดูเป็นมิตรพังทลายลงทันที คลิปดังกล่าวถูกแชร์ต่ออย่างรวดเร็ว จนกลายเป็นประเด็นร้อนที่สั่นสะเทือนวงการ'
+          type: 'Underage Drinking/Smoking Allegation',
+          description: 'A photo from a party, possibly old, shows the member near alcoholic beverages or cigarettes. Even if untrue, the allegation is damaging public perception and tainting their pure image.',
+          baseFanLoss: 0.20,
+          baseMoraleHit: 40,
+          baseUrgency: 50,
         },
         {
-          type: 'ช็อกแฟนคลับ! ข่าวลือแตกคอกลางวง',
-          description: 'แหล่งข่าววงในเผยว่าสมาชิกภายในวงมีปัญหาความขัดแย้งสะสมมานาน ก่อนจะปะทุขึ้นระหว่างการซ้อมอย่างดุเดือด แม้ต้นสังกัดจะพยายามปิดข่าว แต่แฟน ๆ เริ่มสังเกตความผิดปกติจากท่าทีที่ห่างเหินบนเวที'
+          type: 'Reported Rudeness to Staff',
+          description: 'An anonymous staff member has posted online about being treated poorly by the member. Fans are questioning their beloved idol\'s true personality behind the scenes.',
+          baseFanLoss: 0.05,
+          baseMoraleHit: 15,
+          baseUrgency: 20,
         },
         {
-          type: 'แฉยับ! เบื้องหลังการคัมแบ็กที่ไม่ราบรื่น',
-          description: 'การคัมแบ็กครั้งล่าสุดถูกตั้งคำถาม หลังมีรายงานว่าสมาชิกบางคนไม่พอใจกับการแบ่งไลน์และเวลาออกสื่อ จนบรรยากาศภายในวงตึงเครียด แฟน ๆ เริ่มแบ่งฝ่ายถกเถียงกันอย่างหนัก'
+          type: 'Past Bullying Rumors',
+          description: 'An old classmate has come forward with allegations of bullying from the member\'s school days. The story is spreading fast, with netizens digging for "proof".',
+          baseFanLoss: 0.12,
+          baseMoraleHit: 35,
+          baseUrgency: 35,
         },
         {
-          type: 'หลุดแชตลับ! คำพูดแรงสะเทือนภาพลักษณ์',
-          description: 'ภาพแชตส่วนตัวที่อ้างว่าเป็นของสมาชิกคนหนึ่งถูกปล่อยออกมา เผยคำพูดที่ถูกมองว่าไม่ให้เกียรติผู้อื่น แม้ยังไม่ยืนยันความจริง แต่กระแสวิจารณ์ก็ถาโถมไม่หยุด'
+          type: 'Family Member Causing Trouble',
+          description: 'A parent or sibling of the member has made controversial statements online or is using their connection for personal gain, causing a backlash by association.',
+          baseFanLoss: 0.03,
+          baseMoraleHit: 20,
+          baseUrgency: 15,
         },
         {
-          type: 'ดราม่าสปอนเซอร์! แบรนด์ดังขอถอนตัว',
-          description: 'แบรนด์ระดับท็อปประกาศยุติสัญญาอย่างกะทันหัน หลังสมาชิกคนหนึ่งตกเป็นประเด็นฉาว ชาวเน็ตจับตาว่าเหตุการณ์นี้อาจส่งผลต่อรายได้และภาพลักษณ์ของวงในระยะยาว'
-        },
-        {
-          type: 'พฤติกรรมบนเวทีถูกจับผิด! คลิปเดียวไฟลุก',
-          description: 'คลิปแฟนแคมเผยท่าทีที่ถูกมองว่าไม่เป็นมืออาชีพระหว่างการแสดง ทำให้เกิดเสียงวิจารณ์ถึงความตั้งใจและความพร้อมของสมาชิกคนหนึ่ง จนแฮชแท็กติดเทรนด์'
-        },
-        {
-          type: 'อดีตถูกขุด! ประวัติที่ไม่เคยเปิดเผย',
-          description: 'ชาวเน็ตเริ่มขุดคุ้ยอดีตของสมาชิกคนหนึ่ง พบพฤติกรรมและโพสต์เก่าที่ถูกมองว่าไม่เหมาะสม แม้เรื่องจะผ่านมานาน แต่กระแสดราม่าก็กลับมาร้อนแรงอีกครั้ง'
-        },
-        {
-          type: 'แฟนคลับแตกเป็นสองฝ่าย! ดราม่าปกป้อง vs แบน',
-          description: 'ประเด็นร้อนล่าสุดทำให้แฟนคลับแบ่งออกเป็นสองฝั่งอย่างชัดเจน ระหว่างผู้ที่ยังคงสนับสนุนและผู้ที่เรียกร้องให้รับผิดชอบ ส่งผลให้บรรยากาศในด้อมตึงเครียดอย่างไม่เคยเป็นมาก่อน'
-        },
-        {
-          type: 'ต้นสังกัดออกแถลงด่วน! แต่ยิ่งพูดยิ่งพัง',
-          description: 'แถลงการณ์อย่างเป็นทางการถูกปล่อยออกมาเพื่อชี้แจงดราม่า แต่ถ้อยคำที่คลุมเครือกลับยิ่งกระตุ้นความไม่พอใจ แฟน ๆ เรียกร้องความชัดเจนมากกว่านี้'
-        },
-        {
-          type: 'ตารางงานสะดุด! กิจกรรมถูกยกเลิกกะทันหัน',
-          description: 'หลายงานถูกยกเลิกหรือเลื่อนออกไปโดยไม่แจ้งเหตุผลชัดเจน ทำให้แฟน ๆ สงสัยว่าเกี่ยวข้องกับประเด็นฉาวที่กำลังร้อนแรงหรือไม่'
-        },
-        {
-          type: 'อนาคตวงสั่นคลอน! กระแสยุบวงเริ่มมา',
-          description: 'ท่ามกลางดราม่าที่ถาโถมไม่หยุด ชาวเน็ตเริ่มตั้งคำถามถึงอนาคตของวง บางส่วนถึงขั้นคาดเดาเรื่องการพักกิจกรรมหรือยุบวง ท่ามกลางความกังวลของแฟนคลับ'
-        },
-        {
-          type: 'ชาวเน็ตตาแตก! ภาพเดียวเปลี่ยนทุกอย่าง',
-          description: 'ภาพปริศนาที่ถูกปล่อยออกมาเพียงภาพเดียว กลับทำให้ชื่อของสมาชิกคนหนึ่งถูกพูดถึงทั่วโซเชียล รายละเอียดในภาพถูกขยาย วิเคราะห์ ซูมทุกพิกเซล จนเกิดคำถามใหญ่ที่ไม่มีใครกล้าตอบตรง ๆ'
-        },
-        {
-          type: 'พูดไม่คิดชีวิตเปลี่ยน! ประโยคเดียวไฟลามทั้งวง',
-          description: 'คำพูดสั้น ๆ จากปากสมาชิกคนหนึ่งระหว่างไลฟ์สด ถูกตัดคลิปออกมาเผยแพร่จนกลายเป็นประเด็นร้อน หลายคนมองว่าเจตนาไม่บริสุทธิ์ ขณะที่บางส่วนเชื่อว่าเป็นแค่ความผิดพลาด แต่ผลลัพธ์กลับรุนแรงเกินคาด'
-        },
-        {
-          type: 'วงในหลุด! สิ่งที่แฟน ๆ ไม่ควรรู้',
-          description: 'บัญชีปริศนาอ้างตัวเป็นทีมงานวง ได้ออกมาเปิดเผยข้อมูลเบื้องหลังที่ไม่เคยถูกพูดถึงมาก่อน เนื้อหาที่หลุดออกมาทำให้แฟน ๆ เริ่มตั้งคำถามว่า ภาพที่เห็นตลอดมานั้นคือเรื่องจริงหรือภาพที่ถูกสร้างขึ้น'
-        },
-        {
-          type: 'ยิ้มบนเวที แต่ความจริงไม่สวยงาม',
-          description: 'แม้การแสดงจะออกมาสมบูรณ์แบบ แต่ชาวเน็ตกลับสังเกตความผิดปกติจากสายตาและท่าทางของสมาชิกบางคน คลิปเบื้องหลังถูกนำมาเปรียบเทียบจนเกิดข้อสงสัยถึงสภาพจิตใจที่แท้จริง'
-        },
-        {
-          type: 'เงียบผิดปกติ! การหายตัวที่ไม่มีคำอธิบาย',
-          description: 'สมาชิกคนหนึ่งหายไปจากกิจกรรมและโซเชียลโดยไร้คำชี้แจง แฟน ๆ เริ่มคาดเดาสาเหตุต่าง ๆ ตั้งแต่ปัญหาส่วนตัวไปจนถึงความขัดแย้งภายใน ทำให้กระแสข่าวลือยิ่งทวีความรุนแรง'
-        },
-        {
-          type: 'คำชมที่ฟังแล้วแปลก? แฟน ๆ เริ่มเอะใจ',
-          description: 'บทสัมภาษณ์ที่ดูเหมือนจะเป็นคำชมธรรมดา กลับถูกตีความใหม่ว่าแฝงนัยบางอย่าง ชาวเน็ตนำคำพูดแต่ละประโยคมาวิเคราะห์จนเกิดทฤษฎีที่ทำให้หลายคนขนลุก'
-        },
-        {
-          type: 'ท่าทีเปลี่ยนกลางงาน! คลิปนี้ดูให้จบ',
-          description: 'ระหว่างงานอีเวนต์ สมาชิกคนหนึ่งแสดงท่าทีที่ต่างจากปกติอย่างเห็นได้ชัด คลิปสั้น ๆ ถูกแชร์ต่ออย่างรวดเร็ว พร้อมคำถามว่าเกิดอะไรขึ้นหลังเวทีที่ไม่มีใครรู้'
-        },
-        {
-          type: 'โพสต์ลบไม่ทัน! ร่องรอยยังอยู่',
-          description: 'แม้โพสต์ต้นเรื่องจะถูกลบไปอย่างรวดเร็ว แต่ชาวเน็ตกลับแคปทันทุกวินาที เนื้อหาที่ถูกลบยิ่งกระตุ้นความสงสัยและทำให้กระแสดราม่าปะทุหนักกว่าเดิม'
-        },
-        {
-          type: 'ใครกันแน่ที่โกหก? เรื่องนี้มีมากกว่าหนึ่งมุม',
-          description: 'ข้อมูลจากหลายฝั่งเริ่มขัดแย้งกันเอง แฟน ๆ ถูกบังคับให้เลือกว่าจะเชื่อใคร ขณะที่หลักฐานใหม่ ๆ ทยอยโผล่มา ทำให้เรื่องราวซับซ้อนขึ้นทุกชั่วโมง'
-        },
-        {
-          type: 'จุดเริ่มต้นของจุดจบ? สัญญาณที่ไม่มีใครอยากเห็น',
-          description: 'เหตุการณ์เล็ก ๆ ที่หลายคนมองข้าม กลับถูกนำมาเชื่อมโยงจนกลายเป็นภาพใหญ่ ชาวเน็ตตั้งคำถามว่านี่อาจเป็นสัญญาณของการเปลี่ยนแปลงครั้งใหญ่ที่กำลังจะเกิดขึ้นหรือไม่'
-        },
-        {
-          type: 'ต้นเรื่องเริ่มจากคลิปนี้… ก่อนทุกอย่างจะพัง',
-          description: 'ดราม่าเริ่มต้นจากคลิปสั้นเพียงไม่กี่วินาทีที่แฟนคลับอัปโหลดขึ้นโซเชียล โดยในคลิปเผยให้เห็นสมาชิกเดี่ยวคนหนึ่งอยู่ในสถานการณ์ที่ดูไม่เหมาะสม แม้ตอนแรกจะมีคนมองว่าเป็นเรื่องเล็ก แต่เมื่อคลิปถูกแชร์ซ้ำพร้อมคำบรรยายชวนสงสัย กระแสก็เริ่มควบคุมไม่ได้'
-        },
-        {
-          type: 'จากคลิปแฟน → กลายเป็นหลักฐานมัดตัว',
-          description: 'หลังคลิปแรกถูกพูดถึง ภาพถ่ายและข้อมูลเพิ่มเติมเริ่มทยอยหลุดออกมา ชาวเน็ตนำมาปะติดปะต่อจนเกิดไทม์ไลน์ที่ชี้ไปที่สมาชิกเดี่ยวคนเดิม ทำให้เรื่องที่เคยถูกมองว่า “คิดไปเอง” เริ่มดูมีน้ำหนักมากขึ้น'
-        },
-        {
-          type: 'ความลับที่ปิดไม่อยู่ เมื่ออดีตถูกขุดขึ้นมา',
-          description: 'ชาวเน็ตเริ่มขุดพฤติกรรมและร่องรอยในอดีตของสมาชิกคนดังกล่าว ทั้งโพสต์เก่า ไลฟ์เก่า และคำพูดที่เคยถูกมองข้าม ก่อนจะถูกตีความใหม่ในบริบทของดราม่าปัจจุบัน จนภาพลักษณ์เริ่มสั่นคลอน'
-        },
-        {
-          type: 'เงียบตั้งแต่ต้นเรื่อง ยิ่งทำให้ข้อสงสัยแรงขึ้น',
-          description: 'แม้กระแสจะร้อนแรงขึ้นเรื่อย ๆ แต่สมาชิกเดี่ยวคนนี้กลับไม่มีการออกมาชี้แจงใด ๆ ตั้งแต่คลิปแรกถูกเผยแพร่ ความเงียบดังกล่าวยิ่งทำให้ชาวเน็ตเชื่อว่าอาจมีบางอย่างที่ไม่สามารถอธิบายได้'
-        },
-        {
-          type: 'จากประเด็นเล็ก กลายเป็นดราม่าเดี่ยวระดับประเทศ',
-          description: 'สิ่งที่เริ่มจากคลิปและภาพไม่กี่ชิ้น กลับลุกลามกลายเป็นดราม่าที่โฟกัสไปยังสมาชิกเพียงคนเดียว แฟน ๆ เริ่มตั้งคำถามถึงความรับผิดชอบ ขณะที่ทุกการเคลื่อนไหวของเขากลายเป็นที่จับตามอง'
-        },
-        {
-          type: 'จุดแตกหัก เมื่อข้อมูลใหม่โผล่ไม่หยุด',
-          description: 'ขณะที่กระแสยังไม่ซา แหล่งข่าวนิรนามเริ่มปล่อยข้อมูลเพิ่มเติมที่สอดคล้องกับหลักฐานก่อนหน้า ทำให้ดราม่าจาก “ข่าวลือ” เริ่มขยับเข้าใกล้คำว่า “เรื่องจริง” มากขึ้นทุกที'
-        },
-        {
-          type: 'ชีวิตส่วนตัวที่ถูกเปิดโปงตั้งแต่วันนั้น',
-          description: 'หลังเหตุการณ์แรกถูกเปิดเผย ชีวิตส่วนตัวของสมาชิกเดี่ยวคนนี้ถูกจับตามองอย่างละเอียด ตั้งแต่ตารางเวลาไปจนถึงคนรอบข้าง ทำให้เส้นแบ่งระหว่างงานกับเรื่องส่วนตัวแทบไม่เหลือ'
-        },
-        {
-          type: 'แฟนเริ่มตั้งคำถาม เพราะเรื่องนี้ไม่ใช่ครั้งแรก',
-          description: 'บางส่วนของแฟนคลับเริ่มสังเกตว่าประเด็นล่าสุดอาจไม่ใช่เหตุการณ์เดี่ยว แต่เป็นฟางเส้นสุดท้ายที่ต่อจากพฤติกรรมก่อนหน้า ซึ่งไม่เคยถูกอธิบายอย่างชัดเจน'
-        },
-        {
-          type: 'เมื่อทุกอย่างชี้ไปที่เขาคนเดียว',
-          description: 'แม้จะไม่มีการยืนยันอย่างเป็นทางการ แต่ข้อมูลและไทม์ไลน์ทั้งหมดกลับพุ่งเป้าไปยังสมาชิกเพียงคนเดียว จนยากจะปฏิเสธว่าเขาไม่เกี่ยวข้องกับดราม่าที่เกิดขึ้น'
-        },
-        {
-          type: 'เรื่องนี้เริ่มต้นแล้ว และยังไม่จบง่าย ๆ',
-          description: 'จากหลักฐานแรกจนถึงกระแสล่าสุด ดราม่าสมาชิกเดี่ยวครั้งนี้ยังไม่มีทีท่าว่าจะจบลงง่าย ๆ หลายฝ่ายเชื่อว่าสิ่งที่ถูกเปิดเผยไปแล้วอาจเป็นเพียงจุดเริ่มต้นเท่านั้น'
-        },
-        {
-          type: 'แอคหลุมปริศนา จุดชนวนดราม่าคนเดียวทั้งประเทศ',
-          description: 'เรื่องทั้งหมดเริ่มจากแอคเคานต์นิรนามบนโซเชียลที่คอยโพสต์ข้อความเหน็บแนมและวิจารณ์สมาชิกคนอื่นในวงอย่างต่อเนื่อง ก่อนที่ชาวเน็ตจะเริ่มจับสังเกตพฤติกรรมการโพสต์ เวลาออนไลน์ และสำนวนภาษา ที่คล้ายกับสมาชิกเดี่ยวคนหนึ่งอย่างน่าตกใจ จนเกิดข้อสงสัยว่าแอคหลุมดังกล่าวอาจไม่ใช่คนนอกอย่างที่คิด'
-        },
-        {
-          type: 'แชตหลุดนินทาเพื่อน ภาพลักษณ์พังในคืนเดียว',
-          description: 'ดราม่าปะทุหนักเมื่อมีภาพแชตกลุ่มส่วนตัวหลุดออกมา เผยให้เห็นข้อความที่สมาชิกเดี่ยวคนหนึ่งพูดถึงเพื่อนร่วมวงในเชิงดูถูกและประชดประชัน แม้จะยังไม่ยืนยันความจริง แต่ถ้อยคำในแชตกลับรุนแรงพอที่จะทำให้แฟน ๆ เริ่มตั้งคำถามถึงนิสัยที่แท้จริง'
-        },
-        {
-          type: 'บูลลี่เงียบ ๆ ที่ไม่มีใครรู้ จนวันนี้ถูกเปิดโปง',
-          description: 'อดีตทีมงานและบุคคลใกล้ชิดออกมาเล่าว่า สมาชิกเดี่ยวคนนี้มีพฤติกรรมกดดันและพูดจาดูถูกเพื่อนร่วมงานเป็นระยะ แม้จะไม่เคยเกิดเรื่องใหญ่ แต่เมื่อข้อมูลเหล่านี้ถูกเปิดเผยพร้อมกัน ภาพลักษณ์ที่เคยดูอบอุ่นก็เริ่มพังทลาย'
-        },
-        {
-          type: 'คำพูดเล่น ๆ ที่ไม่ขำ เมื่อคนฟังเจ็บจริง',
-          description: 'คลิปเบื้องหลังการซ้อมถูกนำมาเผยแพร่ เผยให้เห็นสมาชิกเดี่ยวคนหนึ่งพูดจาในลักษณะล้อเลียนรูปร่างและความสามารถของเพื่อนร่วมวง แม้เจ้าตัวจะหัวเราะเหมือนเป็นเรื่องตลก แต่สีหน้าของอีกฝ่ายกลับบ่งบอกถึงความอึดอัดอย่างชัดเจน'
-        },
-        {
-          type: 'จากแอคแฟนคลับ สู่แอคแฉที่โยงถึงตัวจริง',
-          description: 'แอคหลุมที่เคยอ้างตัวว่าเป็นแฟนคลับ เริ่มหลุดโพสต์ข้อมูลวงในที่คนทั่วไปไม่ควรรู้ ชาวเน็ตจึงเริ่มเชื่อมโยงว่าเจ้าของแอคอาจเป็นคนในวงการ และเมื่อข้อมูลหลายอย่างตรงกับตารางชีวิตของสมาชิกเดี่ยวคนหนึ่ง ความสงสัยก็พุ่งเป้าไปที่เขาทันที'
-        },
-        {
-          type: 'เพื่อนเงียบ แต่ร่องรอยการกดทับชัดขึ้นเรื่อย ๆ',
-          description: 'แม้เพื่อนร่วมวงจะไม่ออกมาให้สัมภาษณ์หรือแสดงท่าทีใด ๆ แต่คลิปเก่า ๆ ถูกนำกลับมาดูใหม่ จนแฟน ๆ สังเกตได้ถึงรูปแบบการพูด การแซว และการวางตัวที่ทำให้บางคนดูด้อยค่ากว่า'
-        },
-        {
-          type: 'แอคหลุมโดนจับได้ เพราะลืมสลับบัญชี',
-          description: 'จุดพีคของดราม่าเกิดขึ้นเมื่อแอคหลุมโพสต์ข้อความแรง ก่อนจะถูกลบอย่างรวดเร็ว แต่ชาวเน็ตสังเกตว่าโพสต์ดังกล่าวดันไปปรากฏในบัญชีหลักของสมาชิกเดี่ยวคนหนึ่งเพียงไม่กี่วินาที ทำให้ข้อสงสัยกลายเป็นไฟลุกทันที'
-        },
-        {
-          type: 'นินทาลับหลัง แต่ยิ้มใส่หน้ากล้อง',
-          description: 'ข้อมูลจากแชตและคำให้การของคนใกล้ตัวเผยให้เห็นความแตกต่างระหว่างภาพลักษณ์หน้ากล้องกับพฤติกรรมหลังบ้าน สมาชิกเดี่ยวคนนี้ถูกกล่าวหาว่าพูดจาดูถูกเพื่อนลับหลัง ขณะที่ต่อหน้าสื่อกลับทำตัวสนิทสนม'
-        },
-        {
-          type: 'เรื่องเล็กที่สะสม จนวันนี้ไม่มีใครทน',
-          description: 'หลายเหตุการณ์ที่เคยถูกมองข้าม เช่น คำพูดแรง ๆ การแซวซ้ำ ๆ และท่าทีเย็นชา ถูกนำมาร้อยเรียงเข้าด้วยกัน จนแฟน ๆ เริ่มเชื่อว่านี่ไม่ใช่อุบัติเหตุ แต่เป็นพฤติกรรมที่เกิดขึ้นซ้ำ ๆ'
-        },
-        {
-          type: 'จากดราม่าแอคหลุม สู่คำถามเรื่องตัวตนที่แท้จริง',
-          description: 'เมื่อหลักฐานทั้งแอคหลุม แชตหลุด และพฤติกรรมในอดีตถูกเปิดเผยพร้อมกัน ชาวเน็ตเริ่มตั้งคำถามว่าสิ่งที่เห็นบนเวทีคือภาพลักษณ์ที่ถูกสร้างขึ้น หรือแค่หน้ากากที่กำลังหลุดออกทีละชิ้น'
-        },
-      {
-        type: 'โน้ตส่วนตัวหลุด! ความคิดจริงที่ไม่เคยพูดออกมา',
-        description: 'ดราม่าเริ่มจากภาพหน้าจอ “บันทึกส่วนตัว” ที่หลุดออกมาโดยไม่คาดคิด อ้างว่าเป็นของสมาชิกเดี่ยวคนหนึ่ง ภายในมีการเขียนประเมินเพื่อนร่วมวงแบบเจ็บ ๆ ทั้งเรื่องความสามารถ ความนิยม และตำแหน่งในทีม ที่พีคคือมีการระบุวันเวลาและสถานการณ์ที่ตรงกับเหตุการณ์จริงในช่วงซ้อมและคัมแบ็ก ทำให้ชาวเน็ตเชื่อว่าไม่ใช่การตัดต่อเล่น ๆ เมื่อข้อความบางประโยคถูกตีความว่าเป็นการดูถูกซ้ำ ๆ กระแสก็เดือดทันที เพราะมันไม่ใช่คำพูดเผลอ แต่เหมือน “ทัศนคติที่สะสม” จนภาพลักษณ์อบอุ่นที่เห็นหน้ากล้องถูกตั้งคำถามหนัก'
-      },
-      {
-        type: 'มือไม่เปื้อน แต่เปื้อนคนอื่น? แฉใช้คนกลางปล่อยข่าว',
-        description: 'เรื่องเริ่มจากชาวเน็ตสังเกตว่า “ข่าวลบ” ที่พุ่งใส่สมาชิกบางคน มักหลุดจากแหล่งเดิม ๆ ที่เป็นคนใกล้ตัววง และทุกครั้งกลับจบด้วยการที่สมาชิกเดี่ยวคนหนึ่งดูได้ประโยชน์เต็ม ๆ จนเกิดการขุดเส้นทางการติดต่อ พบความเชื่อมโยงระหว่างคนปล่อยข่าวกับสมาชิกคนดังกล่าวทั้งก่อนและหลังประเด็นหลุดหลายครั้ง ทำให้ข้อสงสัยหนักขึ้นว่าเขาอาจไม่พูดเอง แต่ใช้คนอื่นเป็นปากเป็นเสียง สร้างภาพเป็นคนนิ่ง ๆ ขณะเดียวกันปล่อยให้คนอื่น “พูดแทน” จนวงปั่นป่วน'
-      },
-      {
-        type: 'เลือกปฏิบัติเนียน ๆ จนหลักฐานล้น! คลิปรวมทำชาวเน็ตตาแตก',
-        description: 'ดราม่าปะทุเมื่อแฟน ๆ ทำคลิปรวมพฤติกรรมที่เกิดซ้ำ ๆ ของสมาชิกเดี่ยวคนหนึ่ง ไม่ว่าจะเป็นการเลี่ยงสบตา ไม่ตอบประเด็นที่เกี่ยวกับเพื่อนบางคน เดินหนีตอนเข้ากล้อง หรือเว้นระยะห่างผิดปกติในไลฟ์และแฟนไซน์ ที่น่ากังวลคือพฤติกรรมเหล่านี้ดันเกิดกับ “คนเดิม” ตลอด จนคำว่า “คิดไปเอง” เริ่มใช้ไม่ได้อีกต่อไป เมื่อคลิปสะสมมากขึ้นเรื่อย ๆ แฟนคลับเริ่มตั้งคำถามว่านี่คือการกีดกันแบบเงียบ ๆ หรือไม่'
-      },
-      {
-        type: 'มุกแรงไม่ใช่มุก! หลุดคำพูด “ล้อเล่น” ที่คนโดนไม่ขำเลย',
-        description: 'ชนวนเกิดจากคลิปเบื้องหลังการซ้อมและพักกองที่ถูกตัดรวม เผยให้เห็นสมาชิกเดี่ยวคนหนึ่งชอบใช้คำพูดจิกกัดเพื่อนร่วมวง เช่น ล้อความสามารถ ล้อความนิยม หรือพูดทำนอง “ถ้าไม่มีฉันวงคงไม่รอด” แล้วปิดท้ายด้วยคำว่า “ล้อเล่นนะ” แต่สิ่งที่ทำให้คนเดือดคือคนพูดหัวเราะคนเดียว ขณะที่คนโดนกลับหน้าเสียและเงียบลงหลายครั้ง พอมีคนไล่ดูหลายคลิปก็ยิ่งชัดว่ามุกพุ่งไปหาเป้าหมายเดิมซ้ำ ๆ จนประเด็นถูกยกระดับเป็นคำถามใหญ่เรื่องเส้นแบ่งระหว่างอารมณ์ขันกับการบูลลี่'
-      },
-      {
-        type: 'กดดันด้วยความเงียบ! อาวุธที่พิสูจน์ยาก แต่ทุกคนรู้สึกได้',
-        description: 'เรื่องเริ่มจากบรรยากาศในวงที่แฟน ๆ สังเกตว่าตึงผิดปกติ ทั้งในคลิปเบื้องหลังและไลฟ์สด สมาชิกเดี่ยวคนหนึ่งเริ่มแสดงพฤติกรรม “เงียบกดดัน” เช่น ไม่ร่วมบทสนทนา ตอบสั้น ๆ ตัดจบประโยค หรือทำให้บรรยากาศตกทันทีที่เข้าฉาก บางช่วงถึงขั้นเหมือนหลีกเลี่ยงการทำงานเป็นทีม ทำให้คนดูเริ่มตั้งคำถามว่ามีการใช้อำนาจทางอารมณ์เพื่อควบคุมคนอื่นหรือไม่ แม้ไม่มีหลักฐานคำด่าตรง ๆ แต่ความต่อเนื่องของท่าทีและพลังงานที่เปลี่ยนไปทำให้เรื่องนี้ยิ่งน่ากลัว เพราะมันทำร้ายคนอื่นได้โดยไม่ต้องพูดคำเดียว'
-      },
-              
+          type: 'Association with a Disreputable Person',
+          description: 'The member was spotted with an individual known for shady business or a bad reputation. The media is questioning their judgment and character by association.',
+          baseFanLoss: 0.08,
+          baseMoraleHit: 25,
+          baseUrgency: 25,
+        }
       ];
       
       if (scandalRoll < 0.05 && members.length > 0) { 
@@ -2904,20 +3173,30 @@ const deleteTeam = (teamId) => {
             const newCasualFans = Math.floor(getTotalFansForMember(member) * (0.05 + charismaModifier)) + 500;
 
             updateMemberState(member.rosterId || member.id, m => {
-            const casual = m.fans?.casual || 0;
-            const hardcore = m.fans?.hardcore || 0;
-            return {
-                ...m,
-                fans: {
-                hardcore: hardcore + fansToConvert,
-                casual: Math.max(0, casual - fansToConvert) + newCasualFans,
-                },
-                morale: Math.min(100, (m.morale || 0) + 20) // Morale boost from fan love
-            };
+                const casual = m.fans?.casual || 0;
+                const hardcore = m.fans?.hardcore || 0;
+                return {
+                    ...m,
+                    fans: {
+                    hardcore: hardcore + fansToConvert,
+                    casual: Math.max(0, casual - fansToConvert) + newCasualFans,
+                    },
+                    morale: Math.min(100, (m.morale || 0) + 20) // Morale boost from fan love
+                };
             });
             
-            priorityMessage = `${member.name}'s final handshake event was a huge success, converting ${fansToConvert.toLocaleString()} fans and gaining ${newCasualFans.toLocaleString()} new ones.`;
-            addNotification({ type: 'Event', message: priorityMessage });
+            // Keep the notification for the log
+            const finalHandshakeMessage = `${member.name}'s final handshake event was a huge success, converting ${fansToConvert.toLocaleString()} fans and gaining ${newCasualFans.toLocaleString()} new ones.`;
+            addNotification({ type: 'Event', message: finalHandshakeMessage });
+
+            // NEW: Show the result modal
+            setModalData({
+                convertedFans: fansToConvert,
+                newFans: newCasualFans,
+                members: [member], // The final handshake is for one member
+                isFinal: true      // The flag to change the modal's appearance
+            });
+            setShowModal('handshakeResult');
         }
         
 } else if (event.type === 'FINAL_THEATER_SHOW') {
@@ -2992,6 +3271,32 @@ const deleteTeam = (teamId) => {
       let weeklyChartReport = [];
       const incomeBreakdown = [];
       let totalWeeklyIncome = 0;
+
+      // --- NEW: Theater Show Income & Election Votes ---
+      const mainGroupTheater = theaters.find(t => t.owner === 'main');
+      if (mainGroupTheater && mainGroupTheater.level > 0) {
+          const capacity = getTheaterCapacity(mainGroupTheater.level);
+          const ticketPrice = getTicketPrice(mainGroupTheater.level);
+          const avgFame = (members.reduce((acc, m) => acc + (m.fame || 0), 0) / (members.length || 1)) / 100;
+          const attendance = Math.min(capacity, Math.floor(capacity * (avgFame * 0.7 + Math.random() * 0.3)));
+          const theaterRevenue = attendance * ticketPrice;
+
+          if (theaterRevenue > 0) {
+              incomeBreakdown.push(`Theater: ¥${theaterRevenue.toLocaleString()}`);
+              totalWeeklyIncome += theaterRevenue;
+          }
+
+          // Add votes if campaign is active
+          if (isCampaignActive) {
+              const theaterVotes = Math.floor(attendance / 10);
+              if (theaterVotes > 0) {
+                  setElectionVotePool(prev => prev + theaterVotes);
+                  addNotification({ type: 'Election', message: `+${theaterVotes.toLocaleString()} votes added from this week's theater show!` });
+              }
+          }
+      }
+      // --- END NEW ---
+
       const baseIncome = Math.floor((totalFans || 0) * 2);
       if (baseIncome > 0) {
           incomeBreakdown.push(`Base: ¥${baseIncome.toLocaleString()}`);
@@ -3017,23 +3322,34 @@ const deleteTeam = (teamId) => {
                   const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production.song] || 1);
                   const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
                   const revenueThisWeek = salesThisWeek * 15;
-                  let fanMultiplier = 1;
-                  if (song.type === 'single') {
-                      fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
-                  } else if (song.type === 'album' && song.production.promo_album) {
-                      fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
-                  }
-                  const fansThisWeek = Math.floor(5 + ((salesThisWeek / 15) * fanMultiplier));
-                  weeklyChartRevenue += revenueThisWeek;
-                  const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
-                  const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
-                  distributeFans(fansThisWeek, uniqueMemberIds);
-                  weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
+                    let fanMultiplier = 1;
+                    if (song.type === 'single') {
+                        fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
+                    } else if (song.type === 'album' && song.production.promo_album) {
+                        fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
+                    }
+                    const fansThisWeek = Math.floor(5 + ((salesThisWeek / 15) * fanMultiplier));
+                    weeklyChartRevenue += revenueThisWeek;
+                    const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
+                    const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
+
+                    // NEW LOGIC STARTS HERE
+                    const newChartWeeksLeft = song.chartWeeksLeft - 1;
+                if (newChartWeeksLeft === 0 && song.isElectionSingle) {
+                    const finalSales = (song.totalSales || 0) + salesThisWeek;
+                    setElectionVotePool(prevPool => prevPool + finalSales);
+                    addNotification({ type: 'Election', message: `Votes from "${song.name}" are tallied! Added: ${finalSales.toLocaleString()} votes.` });
+                    setIsElectionSingleFinished(true); // Enable the campaign button
+                }
+                    // NEW LOGIC ENDS HERE
+
+                    distributeFans(fansThisWeek, uniqueMemberIds);
+                    weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
                   
                   return {
                       ...song,
                       totalSales: (song.totalSales || 0) + salesThisWeek,
-                      chartWeeksLeft: song.chartWeeksLeft - 1,
+                      chartWeeksLeft: newChartWeeksLeft,
                       salesHistory: [...(song.salesHistory || []), { week: newWeek, sales: salesThisWeek }],
                       weeklySales: [...(song.weeklySales || []), salesThisWeek],
                   };
@@ -3159,6 +3475,11 @@ const deleteTeam = (teamId) => {
       const updateMemberWeekly = (m, isSister = false) => {
         let memberToUpdate = { ...m };
 
+        // --- NEW: Relationship Effects ---
+        const numFriends = memberToUpdate.relationships?.friends?.length || 0;
+        const numRivals = memberToUpdate.relationships?.rivals?.length || 0;
+        // --- END NEW ---
+
         if (!memberToUpdate.isAvailable && memberToUpdate.returningWeek && newWeek >= memberToUpdate.returningWeek) {
             memberToUpdate.isAvailable = true;
             memberToUpdate.returningWeek = undefined;
@@ -3186,7 +3507,11 @@ const deleteTeam = (teamId) => {
         let newMorale = memberToUpdate.morale || 80;
 
         newStamina = Math.min(100, newStamina + 20);
-        newStress = Math.max(0, newStress - 15);
+        
+        // --- MODIFIED: Stress and Morale with Relationship Effects ---
+        newStress = Math.max(0, newStress - (15 + (numFriends * 2)) + numRivals); // Friends reduce stress, rivals add it
+        newMorale = Math.min(100, newMorale + numFriends); // Friends give a small morale boost
+        // --- END MODIFIED ---
 
         if (newStress >= 100) {
             addNotification({ type: 'alert', message: `${memberToUpdate.name} is Burned Out! Their morale has plummeted.` });
@@ -3206,11 +3531,15 @@ const deleteTeam = (teamId) => {
         const roomType = getRoomType(memberToUpdate.trainingFocus);
         const roomLevel = roomType ? (buildings.practiceRooms[roomType] || 0) : 0;
         const roomBonus = roomLevel * 0.1;
-        const focusedGain = (0.2 + Math.random() * 0.3) + roomBonus;
+
+        // --- MODIFIED: Training Gains with Rivalry Effects ---
+        const rivalryBonus = numRivals * 0.05;
+        const focusedGain = (0.2 + Math.random() * 0.3) + roomBonus + rivalryBonus;
+        const passiveGain = 0.05 + Math.random() * 0.05 + (rivalryBonus / 5); // Smaller bonus for passive
+        // --- END MODIFIED ---
 
         if (memberToUpdate.trainingFocus && memberToUpdate.trainingFocus !== 'none') {
             const skill = memberToUpdate.trainingFocus;
-            let skillGained = 0;
             if (skill === 'singing') { newSinging += focusedGain; } 
             else if (skill === 'dancing') { newDancing += focusedGain; } 
             else if (skill === 'variety') { newVariety += focusedGain; } 
@@ -3218,7 +3547,6 @@ const deleteTeam = (teamId) => {
             else if (skill === 'charisma') { memberToUpdate.charisma = (memberToUpdate.charisma || 0) + focusedGain; } 
             else if (skill === 'intelligence') { memberToUpdate.intelligence = (memberToUpdate.intelligence || 0) + focusedGain; }
         } else {
-            const passiveGain = 0.05 + Math.random() * 0.05;            
             newSinging += passiveGain;
             newDancing += passiveGain;
             newVariety += passiveGain;
@@ -3314,7 +3642,6 @@ const deleteTeam = (teamId) => {
             'Cheerful', 'Shy', 'Confident', 'Ambitious', 'Easygoing', 'Energetic', 'Quiet',
             
             // --- The "Cool" Archetypes ---
-            'Stoic',          // Shows little emotion, very calm
             'Ice Queen',      // Cold on the outside, but high-class
             'Lone Wolf',      // Prefers to work alone, mysterious
             'Rebellious',     // The "bad boy/girl" or delinquent vibe
@@ -3322,25 +3649,15 @@ const deleteTeam = (teamId) => {
             // --- J-Pop & Idol Roles ---
             'Natural Leader', // The "Center" energy
             'Little Sister',  // Cute, needs protection, endearing
-            'Perfect Ace',    // Good at everything (singing, dancing, academics)
-            'Mood Maker',     // The funny one who keeps the group happy
-            'Class President',// Serious, follows the rules, responsible
             'Stage Genius',   // Shy in person, but a beast on stage
             
             // --- Anime Tropes in English ---
             'Hot-headed',     // Picks fights easily, very passionate
-            'Spacey',         // Always daydreaming, a bit ditsy
             'Mischievous',    // The "Little Devil" type, likes pranks
             'Clumsy',         // Trips over nothing, but in a cute way
             'Elegance',       // Refined, polite, and sophisticated
-            'Healer',         // Someone with a very soothing, motherly vibe
-            'Bookworm',       // Intelligent, quiet, usually has glasses
-            
-            // --- Personality Dynamics ---
-            'Sarcastic',      // The "Straight Man" who comments on others' silliness
-            'Pure-hearted',   // Innocent, naive, and very kind
-            'Cynical',        // Doesn't trust easily, realistic
-            'Flamboyant'      // Loves being the center of attention
+            'Motherly',         // Someone with a very soothing, motherly vibe
+            'Bookworm'       // Intelligent, quiet, usually has glasses
           ];
         const candidates = Array.from({ length: selectedTier.poolSize }, (_, i) => ({
             id: `candidate-${i}`,
@@ -3416,6 +3733,7 @@ const deleteTeam = (teamId) => {
                 isGraduating: false,
                 generation: generationName,
                 isAvailable: true,
+                rank: 999, // Represents "unranked"
                 trainingFocus: 'none',
                 singlesParticipation: [],
                 songsParticipation: [],
@@ -3423,6 +3741,10 @@ const deleteTeam = (teamId) => {
                 teamHistory: [joinEvent], // <-- THE FIX
                 homeGroup: isMainGroup ? 'main' : (sisterGroups.find(g => g.id === targetGroupId)?.name || 'Unknown Group'),
                 kenninGroups: [],
+                electionHype: 0,
+                isCurrentCenter: false,
+                relationships: { friends: [], rivals: [] },
+
             };
             
             const ambitions = [
@@ -3541,6 +3863,11 @@ const deleteTeam = (teamId) => {
         setMoney(prev => prev + 1000000);
         setMessage("Cheat activated! You gained ¥1,000,000.");
         setShowModal(null);
+      } else if (code === 'fans') {
+        const allMemberIds = getMainGroupRoster().map(m => m.rosterId || m.id);
+        distributeFans(1000000, allMemberIds);
+        setMessage("Cheat activated! Distributed 1,000,000 fans randomly.");
+        setShowModal(null);
       } else {
         setMessage("Invalid cheat code.");
       }
@@ -3549,26 +3876,26 @@ const deleteTeam = (teamId) => {
 
     return {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
 startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 };
 };
 const App = () => {
     // Destructure everything from the custom hook
     const {
 // State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
 // Firebase/Persistence
 db, auth, userId, isAuthReady, saveGame, loadGame,
 // Utilities
 startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
 // Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -4074,6 +4401,234 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
       );
     };
 
+    const ElectionSummaryModal = () => {
+        const { participating, nonParticipating, onConfirm } = modalData;
+        if (!participating) return null;
+
+        // This is a sub-component for displaying the lists within the new theme.
+        const GroupDisplay = ({ title, members, colorClass, icon: Icon }) => {
+            if (!members || members.length === 0) return null;
+
+            const grouped = {};
+            const mainGroupName = groupName;
+            
+            // This logic correctly groups members by their main group/sister group and then by their team/generation.
+            members.forEach(item => {
+                const member = item.member || item;
+                const groupKey = member.isSisterMember ? member.displayGroupName : mainGroupName;
+                const subGroupKey = member.teamName ? `Team ${member.teamName}` : `${member.generation || 'Gen ?'}`;
+                
+                if (!grouped[groupKey]) grouped[groupKey] = {};
+                if (!grouped[groupKey][subGroupKey]) grouped[groupKey][subGroupKey] = [];
+                
+                const memberInfo = { name: member.name, reason: item.reason || null };
+                grouped[groupKey][subGroupKey].push(memberInfo);
+            });
+
+            const groupEntries = Object.entries(grouped).filter(([_, subGroups]) => Object.keys(subGroups).length > 0);
+
+            return (
+                <div className={`p-4 rounded-xl bg-white/5 border ${colorClass}`}>
+                    <h3 className={`text-xl font-bold mb-3 flex items-center text-gray-100`}>
+                        <Icon size={22} className="mr-2" />
+                        {title} ({members.length})
+                    </h3>
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {groupEntries.map(([groupName, subGroups]) => (
+                            <div key={groupName}>
+                                <h4 className="font-semibold text-md border-b border-white/10 pb-1 mb-2 text-gray-300">{groupName}</h4>
+                                {Object.entries(subGroups).map(([subGroupKey, members]) => (
+                                    <div key={subGroupKey} className="text-sm pl-2">
+                                        <p className="font-bold text-gray-400">{subGroupKey} ({members.length})</p>
+                                        <ul className="list-disc list-inside pl-2 text-gray-200">
+                                            {members.map((m, i) => (
+                                                <li key={i}>{m.name} {m.reason && <span className="text-xs text-red-400">({m.reason})</span>}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+                <div className="w-full max-w-5xl rounded-2xl bg-gray-800 bg-opacity-70 border border-gray-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+                    {/* Header */}
+                    <div className="p-4 flex justify-between items-center bg-white bg-opacity-10">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold uppercase tracking-wider bg-white bg-opacity-20 text-white py-1 px-3 rounded-full">ELECTION</span>
+                            <h3 className="font-bold text-lg text-white">General Election Summary</h3>
+                        </div>
+                        <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-5 grid gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <GroupDisplay title="Participating" members={participating} colorClass="border-green-500/50" icon={Check} />
+                            <GroupDisplay title="Not Participating" members={nonParticipating} colorClass="border-red-500/50" icon={X} />
+                        </div>
+
+                        {/* Footer / Actions */}
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
+                            <p className="font-bold text-lg text-gray-300">Total Cost: <span className="text-green-400">¥5,000</span></p>
+                            <div className="flex gap-4">
+                                <button onClick={() => setShowModal(null)} className="px-6 py-2 bg-gray-500/20 text-gray-200 rounded-lg font-semibold hover:bg-gray-500/40 transition-colors">Cancel</button>
+                                <button onClick={onConfirm} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
+                                    Confirm & Begin Election
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
+const ElectionResultModal = () => {
+    const { rankedMembers, electionYear } = modalData;
+
+    const [revealIndex, setRevealIndex] = useState(0);
+    const [revealedRanks, setRevealedRanks] = useState([]);
+    const [currentMember, setCurrentMember] = useState(null);
+    const [infoPanelVisible, setInfoPanelVisible] = useState(false);
+    const [displayVotes, setDisplayVotes] = useState(0);
+
+    useEffect(() => {
+        if (!currentMember) return;
+        const targetVotes = currentMember.votes;
+        let currentDisplay = 0;
+        const interval = setInterval(() => {
+            if (currentDisplay < targetVotes) {
+                currentDisplay += Math.ceil((targetVotes - currentDisplay) / 10);
+                if (currentDisplay > targetVotes) currentDisplay = targetVotes;
+                setDisplayVotes(currentDisplay);
+            } else {
+                clearInterval(interval);
+            }
+        }, 30);
+        return () => clearInterval(interval);
+    }, [currentMember]);
+
+    const revealNextRank = () => {
+        if (revealIndex >= rankedMembers.length) return;
+
+        const memberToReveal = rankedMembers[rankedMembers.length - 1 - revealIndex];
+        const rank = rankedMembers.length - revealIndex;
+
+        setCurrentMember({ ...memberToReveal, rank });
+        setInfoPanelVisible(false);
+        setTimeout(() => {
+            setRevealedRanks(prev => [{ ...memberToReveal, rank }, ...prev]);
+            setInfoPanelVisible(true);
+        }, 300);
+
+        setRevealIndex(prev => prev + 1);
+    };
+
+    const getButtonText = () => {
+        if (revealIndex >= rankedMembers.length) return "ELECTION COMPLETE";
+        const nextRank = rankedMembers.length - revealIndex;
+        if (nextRank === 1) return "REVEAL CENTER (#1)";
+        if (nextRank <= 7) return `REVEAL KAMI 7 (#${nextRank})`;
+        return `REVEAL RANK #${nextRank}`;
+    };
+
+    const RankChangeArrow = ({ oldRank, newRank }) => {
+        if (oldRank === 999 || !oldRank) return <span className="text-blue-400 font-bold">-</span>;
+        if (newRank < oldRank) return <span className="text-green-400 font-bold">▲{oldRank - newRank}</span>;
+        if (newRank > oldRank) return <span className="text-red-400 font-bold">▼{newRank - oldRank}</span>;
+        return <span className="text-gray-400 font-bold">-</span>;
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in" style={{ background: 'radial-gradient(circle at 50% 30%, #ffffff 0%, #dfe6e9 60%, #b2bec3 100%)' }}>
+            <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-full max-w-[800px] h-screen bg-gradient-to-b from-white/80 to-transparent filter blur-xl pointer-events-none"></div>
+            
+            {/* --- THE FIX IS HERE --- */}
+            {/* This div now has a fixed pixel width on desktop (md:w-[896px]) to prevent squishing. */}
+            <div className="w-full md:w-[896px] max-w-4xl h-full sm:h-[85vh]auto sm:max-h-[90vh] bg-white/95 border border-white rounded-lg shadow-2xl flex flex-col relative z-10">
+                <div className="p-3 sm:p-4 flex justify-between items-center font-extrabold text-xs tracking-widest text-yellow-500 border-b-4 border-yellow-500 bg-white">
+                    <span>{electionYear} GENERAL ELECTION</span>
+                    <span className="text-gray-400">OFFICIAL RESULTS</span>
+                </div>
+
+                <div className="flex flex-col md:grid md:grid-cols-[256px,1fr] flex-1 overflow-hidden">
+                    <div className="w-full flex-shrink-0 h-40 md:h-auto border-b md:border-b-0 md:border-r border-gray-200 bg-gray-100/80 overflow-y-auto">
+                        <div className="grid grid-cols-2 md:grid-cols-1 gap-2 p-2">
+                            {revealedRanks.slice().map(member => (
+                                <div key={member.id} className={`p-2 bg-white shadow-sm flex justify-between items-center border-l-4 ${member.rank === 1 ? 'border-red-600' : member.rank <= 7 ? 'border-blue-500' : 'border-yellow-500'}`}>
+                                    <div>
+                                        <p className="font-black text-yellow-600 text-sm">#{member.rank} <span className="text-xs font-normal">({(getMemberGroupStatus(member) || '').split(' | ')[0]})</span></p>
+                                        <p className="font-semibold text-xs truncate">{member.name}</p>
+                                    </div>
+                                    <RankChangeArrow oldRank={member.previousRank} newRank={member.rank} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="relative flex-1 flex flex-col items-center justify-end p-4">
+                    {revealIndex >= rankedMembers.length ? (
+                        <button 
+                            onClick={() => setShowModal(null)} 
+                            className="absolute top-4 right-4 px-4 py-2 sm:px-6 sm:py-3 bg-gray-500 text-white rounded-full font-bold shadow-lg transition-all hover:bg-gray-600"
+                        >
+                            Close
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={revealNextRank} 
+                            disabled={revealIndex >= rankedMembers.length} 
+                            className="absolute top-4 right-4 px-4 py-2 sm:px-6 sm:py-3 bg-yellow-500 border-2 border-yellow-600 text-white rounded-full font-bold shadow-lg transition-all hover:bg-yellow-600 disabled:bg-gray-300 disabled:border-gray-400 disabled:text-gray-500 disabled:shadow-none"
+                        >
+                            {getButtonText()}
+                        </button>
+                    )}
+
+                        <div className={`absolute bottom-4 left-4 right-4 sm:bottom-8 sm:left-8 sm:right-8 bg-white/95 border-t-4 border-yellow-500 p-3 sm:p-5 rounded-md shadow-xl transition-transform duration-500 ${infoPanelVisible ? 'translate-y-0' : 'translate-y-48'}`}>
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center">
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-xl sm:text-3xl font-bold uppercase tracking-tighter">{currentMember?.name || '...'}</h2>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-lg sm:text-xl text-yellow-600">#{currentMember?.rank}</span>
+                                            <RankChangeArrow oldRank={currentMember?.previousRank} newRank={currentMember?.rank} />
+                                        </div>
+                                    </div>
+                                    <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-widest">{getMemberGroupStatus(currentMember) || '...'}</span>
+                                </div>
+                                <div className="text-left sm:text-right mt-2 sm:mt-0">
+                                    <div className="text-2xl sm:text-3xl font-black text-yellow-600 font-mono">{displayVotes.toLocaleString()}</div>
+                                    <div className="text-xs text-gray-400 font-bold tracking-wider">TOTAL VOTES</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- Centered Speech Display --- */}
+                        <div className={`absolute inset-0 flex items-center justify-center p-4 pointer-events-none`}>
+                            <div className={`transition-all duration-500 ${infoPanelVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+                                 <p className="p-6 bg-white/80 backdrop-blur-sm rounded-xl shadow-lg max-w-md text-center text-xl italic text-gray-800 pointer-events-auto">
+                                     "{currentMember?.speech}"
+                                 </p>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
     const CreateSongModal = () => {
     
     // This is the new component for our drag overlay
@@ -4124,6 +4679,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
     const [releaseFormat, setReleaseFormat] = useState('digital');
     const [draggingMember, setDraggingMember] = useState(null);
     const [physicalVersions, setPhysicalVersions] = useState(1);
+    const [isElectionSingle, setIsElectionSingle] = useState(false);
 
     const generateUniqueRandomName = () => {
         const allSongNames = [
@@ -4146,6 +4702,7 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
 
         const baseCostPerVersion = 100000;
         const baseCostAlbum = 800000; // Base cost for producing a full album
+        const electionBallotCost = 200000;
         const albumPhysicalSurcharge = 200000; // Fixed additional cost for physical albums
 
         const productionChoicesCost = Object.keys(productionChoices).reduce((total, key) => total + productionTiers[key][productionChoices[key]].cost, 10000);
@@ -4156,7 +4713,8 @@ const MemberSelectionList = ({ members, selectedIds, toggleMember, disabled = fa
                 releaseType === 'album' 
                     ? baseCostAlbum + (releaseFormat === 'physical' ? albumPhysicalSurcharge : 0)
                     : (releaseFormat === 'physical' ? baseCostPerVersion * physicalVersions : 0)
-            );
+            ) + 
+            (isElectionSingle ? electionBallotCost : 0);
 
             const handleRandomizeRows = () => {
                 const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
@@ -4765,8 +5323,10 @@ const handleSchedule = () => {
                 cdType: t.cdType
             };
         }),
-        isGraduationSingle: releaseType === 'graduationSingle' // This is the new line
-    };
+        isGraduationSingle: releaseType === 'graduationSingle', // This is the new line
+        isElectionSingle: isElectionSingle  
+
+};
             
     scheduleNewSingle({ 
         songData, 
@@ -5393,6 +5953,24 @@ const renderSelectGraduatingMemberStep = () => {
                             ))}
                         </select>
                         <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-1">Release will happen at the start of this week.</p>
+                   
+                        {releaseType === 'single' && (
+                        <div className="mt-4 p-4 max-w-3xl mx-auto bg-yellow-50 dark:bg-gray-900/50 rounded-lg text-center border-2 border-dashed border-yellow-300 dark:border-yellow-700">
+                            <label className="font-semibold flex items-center justify-center dark:text-gray-200 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isElectionSingle}
+                                onChange={(e) => setIsElectionSingle(e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-yellow-600 mr-3 focus:ring-yellow-500"
+                            />
+                            Include General Election Ballots
+                            </label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            This will turn this single into an Election Single. Final sales will determine the vote pool for the next election. Production costs will increase.
+                            </p>
+                        </div>
+                        )}
+                   
                     </div>
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 rounded-lg bg-gray-100 dark:bg-gray-900">
                         <button onClick={() => setStep('selection')} className="w-full md:w-auto p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded px-4 font-bold order-3 md:order-1">Back</button>
@@ -6661,6 +7239,171 @@ const PerformanceResultModal = () => {
     );
 };
 
+    const HandshakeEventResultModal = () => {
+        if (!modalData) return null;
+        const { convertedFans, newFans, members } = modalData;
+        const containerRef = useRef(null);
+    
+        // NEW: Ultra-simplified, single-color Chibi silhouette
+        const Chibi = ({ index }) => {
+            const idolPink = '#ffc1d5'; // A single, soft pink color for the shape
+
+            return (
+                <div className="relative flex flex-col items-center chibi-bounce" style={{ animationDelay: `${index * 0.2}s` }}>
+                    <div className="relative w-16 h-24">
+                        {/* Twintail 1 */}
+                        <div 
+                            className="absolute top-5 -left-5 w-6 h-12 rounded-lg" 
+                            style={{ backgroundColor: idolPink, transform: 'rotate(-20deg)' }}
+                        ></div>
+                        {/* Twintail 2 */}
+                        <div 
+                            className="absolute top-5 -right-5 w-6 h-12 rounded-lg" 
+                            style={{ backgroundColor: idolPink, transform: 'rotate(20deg)' }}
+                        ></div>
+                        {/* Main Head/Body Shape */}
+                        <div 
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-20 rounded-t-full"
+                            style={{ backgroundColor: idolPink }}
+                        ></div>
+                    </div>
+                </div>
+            );
+        };
+    
+        useEffect(() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const heartInterval = setInterval(() => {
+                const heart = document.createElement('div');
+                heart.innerHTML = '❤️';
+                heart.className = 'heart-float text-xl';
+                heart.style.left = `${Math.random() * 95 + 5}%`;
+                heart.style.animationDuration = `${Math.random() * 2 + 3}s`;
+                container.appendChild(heart);
+                setTimeout(() => heart.remove(), 5000);
+            }, 400);
+    
+            return () => clearInterval(heartInterval);
+        }, []);
+    
+        return (
+            <ModalWrapper title="" maxWidth="max-w-2xl">
+                <div ref={containerRef} className="relative bg-pink-50 rounded-2xl overflow-hidden p-6 text-center border-4 border-pink-200">
+                    <h2 className="text-3xl font-bold font-['Fredoka_One'] text-pink-500 mb-2">HANDSHAKE SUCCESS!</h2>
+                    <p className="text-gray-500 mb-6">The fans loved the event!</p>
+                    
+                    <div className="flex justify-center items-end gap-6 my-8 h-40">
+                        {(members || []).slice(0, 5).map((member, index) => (
+                            <Chibi key={member.id} index={index} />
+                        ))}
+                    </div>
+    
+                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl space-y-3">
+                        <div className="flex justify-center items-center gap-3">
+                            <span className="text-2xl">❤️</span>
+                            <p className="text-lg">
+                                Converted <span className="font-bold text-red-500 text-xl">{convertedFans.toLocaleString()}</span> fans to Hardcore!
+                            </p>
+                        </div>
+                        <div className="flex justify-center items-center gap-3">
+                            <span className="text-2xl">✨</span>
+                            <p className="text-lg">
+                                Gained <span className="font-bold text-blue-500 text-xl">{newFans.toLocaleString()}</span> new Casual fans!
+                            </p>
+                        </div>
+                    </div>
+    
+                    <div className="flex justify-center mt-8">
+                        <button onClick={() => setShowModal(null)} className="bg-pink-500 hover:bg-pink-600 active:scale-95 text-white px-10 py-3 rounded-full font-bold shadow-lg transition-transform text-lg">
+                            Awesome!
+                        </button>
+                    </div>
+                </div>
+                <style jsx>{`
+                    .chibi-bounce { animation: bounce 2.5s infinite ease-in-out; }
+                    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+                    .heart-float { position: absolute; bottom: 0; pointer-events: none; animation: floatUp 5s linear forwards; }
+                    @keyframes floatUp { to { transform: translateY(-400px); opacity: 0; } }
+                `}</style>
+            </ModalWrapper>
+        );
+    };
+
+    const GraduationTalkModal = () => {
+        if (!modalData || !modalData.member) return null;
+        const { member, speech } = modalData;
+
+        // A simple chibi character component
+        const Chibi = () => {
+            const idolPink = '#ffc1d5';
+            return (
+                <div className="relative flex flex-col items-center chibi-bounce">
+                    <div className="relative w-20 h-28">
+                        {/* Hair */}
+                        <div 
+                            className="absolute top-5 -left-5 w-8 h-14 rounded-lg" 
+                            style={{ backgroundColor: idolPink, transform: 'rotate(-20deg)' }}
+                        ></div>
+                        <div 
+                            className="absolute top-5 -right-5 w-8 h-14 rounded-lg" 
+                            style={{ backgroundColor: idolPink, transform: 'rotate(20deg)' }}
+                        ></div>
+                        {/* Head/Body */}
+                        <div 
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-24 rounded-t-full"
+                            style={{ backgroundColor: idolPink }}
+                        ></div>
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-end justify-center z-50 p-4 animate-in fade-in">
+                <div 
+                    className="relative w-full max-w-xl mb-10"
+                    // Add this onClick to allow closing by clicking outside the speech bubble
+                    onClick={() => setShowModal(null)} 
+                >
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+                        <Chibi />
+                    </div>
+                    <div 
+                        className="speech-bubble bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl border dark:border-gray-700 relative"
+                        // Stop propagation so clicking the bubble doesn't close the modal
+                        onClick={(e) => e.stopPropagation()} 
+                    >
+                        <p className="text-lg italic text-gray-800 dark:text-gray-200">"{speech}"</p>
+                        <p className="text-right font-bold text-gray-600 dark:text-gray-400 mt-2">- {member.name}</p>
+                    </div>
+                </div>
+                <style jsx>{`
+                    .chibi-bounce {
+                        animation: bounce 3s infinite ease-in-out;
+                    }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0) scale(1); }
+                        50% { transform: translateY(-20px) scale(1.05); }
+                    }
+                    .speech-bubble {
+                        animation: slide-up 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+                        transform: translateY(100%);
+                        opacity: 0;
+                        margin-bottom: 120px; /* Make space for the chibi */
+                    }
+                    @keyframes slide-up {
+                        to {
+                            transform: translateY(0);
+                            opacity: 1;
+                        }
+                    }
+                `}</style>
+            </div>
+        );
+    };
+
+
     const SaveGameModal = () => {
         const [saveUsername, setSaveUsername] = useState(username);
 
@@ -6771,6 +7514,7 @@ const PerformanceResultModal = () => {
         );
     };
 
+
     const GraduationPathModal = () => {
         const member = modalData;
         if (!member) return null;
@@ -6838,6 +7582,84 @@ beginGraduationProcess(member.id, finalGraduationWeek);
             // I have also removed the "setWeek(prev => prev + 1)" line that was here, as it can cause bugs.
         };
 
+        const selectRenegotiate = () => {
+            const negotiationCost = 100000 + Math.floor(getTotalFansForMember(member) * 5);
+
+            if (money < negotiationCost) {
+                setMessage("Not enough money for this negotiation!");
+                return;
+            }
+
+            // Confirm before spending a large amount of money
+            if (!window.confirm(`This will cost ¥${negotiationCost.toLocaleString()}. Are you sure you want to renegotiate with ${member.name}?`)) {
+                return;
+            }
+
+            setMoney(prev => prev - negotiationCost);
+
+            // Reset the graduating member's urgency and boost their morale
+            updateMemberState(member.id, m => ({ 
+                ...m, 
+                isGraduating: false,
+                graduationUrgency: 20, // Reset to a low, safe value
+                graduationWeek: undefined,
+                morale: Math.min(100, (m.morale || 0) + 25) 
+            }));
+
+            // Small morale penalty for other members due to special treatment
+            const otherMembersMoralePenalty = 5;
+            setMembers(prev => prev.map(m => {
+                if (String(m.id) !== String(member.id)) {
+                    return { ...m, morale: Math.max(0, (m.morale || 0) - otherMembersMoralePenalty) };
+                }
+                return m;
+            }));
+            setSisterGroups(prev => prev.map(sg => ({
+                ...sg,
+                members: (sg.members || []).map(m => ({ ...m, morale: Math.max(0, (m.morale || 0) - otherMembersMoralePenalty) }))
+            })));
+
+
+            const successMessage = `${member.name} has agreed to stay with the group for now. (Cost: ¥${negotiationCost.toLocaleString()})`;
+            addNotification({ type: 'Management', message: successMessage });
+            setMessage(successMessage);
+            setShowModal(null);
+        };
+
+
+        const selectDismissal = () => {
+            if (!window.confirm(`Are you SURE you want to dismiss ${member.name}? This action is irreversible and will harm the group.`)) {
+                return;
+            }
+
+            // Apply a severe morale penalty to all other members
+            const moralePenalty = 40;
+            setMembers(prev => prev.map(m => {
+                if (String(m.id) !== String(member.id)) {
+                    return { ...m, morale: Math.max(0, (m.morale || 0) - moralePenalty) };
+                }
+                return m;
+            }));
+            setSisterGroups(prev => prev.map(sg => ({
+                ...sg,
+                members: (sg.members || []).map(m => ({ ...m, morale: Math.max(0, (m.morale || 0) - moralePenalty) }))
+            })));
+
+            // Remove the member from the group without adding to Hall of Fame
+            setMembers(prev => prev.filter(m => String(m.id) !== String(member.id)));
+            setSisterGroups(prev => prev.map(sg => ({
+                ...sg,
+                members: (sg.members || []).filter(m => String(m.id) !== String(member.id))
+            })));
+
+            const dismissalMessage = `${member.name} has been dismissed. The sudden departure has shocked fans and remaining members.`;
+            addNotification({ type: 'alert', message: dismissalMessage });
+            setMessage(dismissalMessage);
+            setShowModal(null);
+            setSelectedMember(null);
+        };
+
+
         return (
             <ModalWrapper title={`Graduation Path for ${member.name}`} maxWidth="max-w-2xl">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -6879,6 +7701,41 @@ beginGraduationProcess(member.id, finalGraduationWeek);
                         </button>
                     </div>
                 </div>
+
+
+                    <div className="p-4 border rounded-lg border-blue-400">
+                        <h4 className="text-lg font-bold text-blue-500">Renegotiate Contract</h4>
+                        <ul className="list-disc list-inside text-sm my-2 space-y-1">
+                            <li>Attempt to convince the member to stay.</li>
+                            <li>Resets their "Graduation Urgency" but does not make them immune to it in the future.</li>
+                            <li>Boosts this member's morale, but slightly lowers it for everyone else.</li>
+                        </ul>
+                        <p className="text-sm font-bold mt-2">Cost: ¥{(100000 + Math.floor(getTotalFansForMember(member) * 5)).toLocaleString()}</p>
+                         <button 
+                            onClick={selectRenegotiate}
+                            className="w-full mt-3 p-2 bg-blue-500 text-white rounded font-bold disabled:bg-gray-400"
+                            disabled={money < (100000 + Math.floor(getTotalFansForMember(member) * 5))}
+                        >
+                            Attempt to Renegotiate
+                        </button>
+                    </div>
+
+                                    <div className="p-4 border-2 rounded-lg border-red-500 bg-red-50 dark:bg-gray-800 mt-4">
+                        <h4 className="text-lg font-bold text-red-600 dark:text-red-400">Immediate Dismissal</h4>
+                        <ul className="list-disc list-inside text-sm my-2 space-y-1 text-red-800 dark:text-red-300">
+                            <li>Instantly fire the member from the group.</li>
+                            <li>No farewell events. The member will not be added to the Hall of Fame.</li>
+                            <li>Causes a **severe** drop in group morale.</li>
+                        </ul>
+                        <p className="text-sm font-bold mt-2">Cost: Reputational Damage</p>
+                        <button 
+                            onClick={selectDismissal}
+                            className="w-full mt-3 p-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 active:bg-red-800"
+                        >
+                            Dismiss Member
+                        </button>
+                    </div>
+
             </ModalWrapper>
         );
     };
@@ -7792,11 +8649,11 @@ const EditGroupNameModal = () => {
          const songHistory = (member.songsParticipation || []);
          const centerHistory = (member.centerHistory || []);
          const teamHistory = (member.teamHistory || []);
+         const electionHistory = (member.electionHistory || []);
          const albumTrackHistory = songHistory.filter(s => s.type === 'album');
          const bSideTrackHistory = songHistory.filter(s => s.type === 'b-side'); // This is the new line
          const memberPerformances = performanceHistory.filter(p => p.members.map(String).includes(String(member.id)));
          const titleTrackHistory = songHistory.filter(s => s.type === 'title');
-   
          const majorConcertHistory = memberPerformances.filter(p => p.category === "Major Concert");
          const otherPerformanceHistory = memberPerformances.filter(p => p.category !== "Major Concert");
    
@@ -7814,6 +8671,22 @@ const EditGroupNameModal = () => {
                          </div>
                      ))}
                  </div>
+
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Trophy size={14} className='mr-1 text-yellow-500'/> General Election History ({electionHistory.length}):</p>
+                    <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-yellow-50 dark:bg-gray-800">
+                        {electionHistory.length === 0 && <p className="text-gray-500 italic p-1">No election history recorded.</p>}
+                        {electionHistory.slice().reverse().map((entry, index) => (
+                            <div key={index} className="p-1.5 rounded bg-yellow-100 dark:bg-gray-700 border border-yellow-200 dark:border-yellow-600">
+                                <p className="font-bold text-yellow-800 dark:text-yellow-200">
+                                    Rank #{entry.rank} ({entry.unit})
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    Year {entry.year} Election {getFormattedDateForWeek(entry.week)}
+                                </p> 
+                            </div>
+                        ))}
+                    </div>
+
 
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50 dark:bg-gray-800">
@@ -7889,13 +8762,8 @@ const EditGroupNameModal = () => {
          );
        };
     
-       const PyramidRanking = () => {
-         const sortedMembers = getMainGroupRoster();
-         
-         // Add rank to each member
-         sortedMembers.forEach((member, index) => {
-            member.rank = index + 1;
-         });
+const PyramidRanking = () => {
+  const sortedMembers = getMainGroupRoster().sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
          const tiers = {
              'Center (#1)': sortedMembers.slice(0, 1),
@@ -8069,6 +8937,11 @@ if (!gameStarted) {
           {message && <div className="p-1 bg-blue-100 text-blue-800 text-center text-sm">{message}</div>}
           {activeTour && <div className="p-2 bg-red-100 text-red-800 text-center text-sm font-bold flex items-center justify-center"><Plane size={16} className='mr-2'/> Active Tour: {activeTour.name} ({activeTour.weeksLeft} weeks left)</div>}
 
+            {isCampaignActive && <div className="p-2 bg-yellow-100 text-yellow-800 text-center text-sm font-bold flex items-center justify-center">
+                <Zap size={16} className='mr-2'/> ELECTION CAMPAIGN ACTIVE! Ends in {campaignEndWeek - week} week(s).
+            </div>}
+
+
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6">
             {/* ----- MEMBERS TAB ----- */}
@@ -8124,11 +8997,6 @@ if (!gameStarted) {
                                 {/* Prepare and map through correctly grouped members */}
                                 {(() => {
                                     let allMembers = getMainGroupRoster();
-
-                                    // 1. Add rank for sorting
-                                    allMembers.forEach((member, index) => {
-                                        member.rank = index + 1;
-                                    });
 
                                     // 2. Filter Members
                                     let filteredMembers = allMembers;
@@ -8205,6 +9073,7 @@ if (!gameStarted) {
                                                                 ${(m.kenninGroups || []).length > 0 ? 'border-2 border-yellow-400 dark:border-yellow-500' : ''}
                                                                 ${selectedMember && (selectedMember.rosterId || selectedMember.id) === (m.rosterId || m.id) ? 'border-2 border-blue-500 ring-2 ring-blue-200' : 'hover:shadow-lg'}`}
                                                             onClick={() => setSelectedMember(m)}>
+                                                                
                                                             <div className="p-2">
                                                             {m.isGraduating && m.graduationWeek && (
                                                                     <p className="text-sm font-bold text-yellow-500 mb-1 flex items-center">
@@ -8212,8 +9081,21 @@ if (!gameStarted) {
                                                                     Graduating in {m.graduationWeek - week} weeks
                                                                 </p>
                                                             )}
+
+                                                                    {
+                                                                        !m.isGraduating && getGraduationRisk(m).text && (
+                                                                            <p className={`text-xs font-bold ${getGraduationRisk(m).color} mb-1 flex items-center`}>
+                                                                                <AlertCircle size={12} className="inline mr-1" />
+                                                                                {getGraduationRisk(m).text}
+                                                                            </p>
+                                                                        )
+                                                                    }
+
                                                                 <div className="flex justify-between items-start mb-1">
-                                                                    <h3 className="text-base font-bold">{m.name}</h3>
+                                                                <h3 className="text-base font-bold flex items-center">
+                                                                    {m.name}
+                                                                    {m.isCurrentCenter && <Trophy size={16} className="ml-2 text-yellow-500" title="Current Center" />}
+                                                                </h3>
                                                                     <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${m.position === 'center' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
                                                                         #{allMembers.findIndex(r => (r.rosterId || r.id) === (m.rosterId || m.id)) + 1}
                                                                     </span>
@@ -8254,7 +9136,10 @@ if (!gameStarted) {
                                     onClick={() => setSelectedMember({ ...m, isAvailable: false })}>
                                     <div className="p-2">
                                         <div className="flex justify-between items-start mb-1">
-                                            <h3 className="text-base font-bold">{m.name}</h3>
+                                                                <h3 className="text-base font-bold flex items-center">
+                                                                    {m.name}
+                                                                    {m.isCurrentCenter && <Trophy size={16} className="ml-2 text-yellow-500" title="Current Center" />}
+                                                                </h3>
                                             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full bg-gray-500 text-white`}>
                                                 Graduated
                                             </span>
@@ -8382,9 +9267,32 @@ if (!gameStarted) {
                 </button>
 
                 <h4 className='font-semibold text-sm mt-2 mb-0.5'>Strategic Actions:</h4>
-                <button onClick={holdElection} className="w-full p-1.5 text-sm bg-purple-500 text-white rounded font-semibold">Hold Election (¥5k)</button>
+
+                <button onClick={startElectionCampaign} disabled={isCampaignActive} className="w-full p-1.5 text-sm bg-yellow-500 text-black rounded font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Start Election Campaign (¥100k)
+                </button>
+
+                <button onClick={createElectionPosterForAll} disabled={!isCampaignActive} className="w-full p-1.5 text-sm bg-yellow-200 text-yellow-800 rounded font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Create All Posters (¥5k/member)
+                </button>
+
+                        <button onClick={createAppealVideoForAll} disabled={!isCampaignActive} className="w-full p-1.5 text-sm bg-blue-200 text-blue-800 rounded font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            Create All Appeal Videos (¥20k/member)
+                        </button>
+
+
+                <div className="flex flex-col gap-1.5">
+                    <button onClick={holdElection} disabled={isCampaignActive || electionVotePool <= 0} className="w-full p-1.5 text-sm bg-purple-500 text-white rounded font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Hold Election (¥5k)
+                    </button>
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                        Vote Pool: {electionVotePool.toLocaleString()}
+                    </p>
+
+                </div>
                 <button onClick={startTour} className="w-full p-1.5 text-sm bg-red-800 text-white rounded font-semibold" disabled={!!activeTour}>Start Tour (¥30k)</button>
               </div>
+
             </div>
 
             {/* Facilities */}
@@ -8795,12 +9703,19 @@ if (!gameStarted) {
     </button>
 
     {/* Display Name */}
-    <h2 className="text-2xl font-bold mb-2">{selectedMember.name}</h2>
-        {selectedMember.isGraduating && selectedMember.graduationWeek && (
+        {/* --- GRADUATION STATUS --- */}
+        {selectedMember.isGraduating && selectedMember.graduationWeek ? (
             <p className="font-bold text-yellow-500 mb-2 flex items-center gap-2">
                 <AlertCircle size={18} />
                 Graduating in {selectedMember.graduationWeek - week} weeks
             </p>
+        ) : (
+            getGraduationRisk(selectedMember).text && (
+                <p className={`font-bold ${getGraduationRisk(selectedMember).color} mb-2 flex items-center gap-2`}>
+                    <AlertCircle size={18} />
+                    {getGraduationRisk(selectedMember).text}
+                </p>
+            )
         )}
 
     {/* UPDATED: Member Status */}
@@ -8877,8 +9792,25 @@ if (!gameStarted) {
     </button>
 </div>
 
+    {isCampaignActive && (
+        <>
+            <h4 className="font-semibold mb-2 text-yellow-600 dark:text-yellow-400">Campaign Actions</h4>
+            <div className="grid grid-cols-1 gap-2 mb-4">
+                <button 
+                    onClick={() => createElectionPoster(selectedMember.id)} 
+                    className="p-2 bg-yellow-200 text-yellow-800 rounded text-sm font-semibold disabled:opacity-50"
+                    disabled={!selectedMember.isAvailable}
+                >
+                    Create Election Poster (¥5k)
+                </button>
+            </div>
+        </>
+    )}
+
+
     {/* Manage */}
     <h4 className="font-semibold mb-2">Manage</h4>
+
     <div className="grid grid-cols-2 gap-2 mb-4">
       <button 
         onClick={() => { setModalData(selectedMember); setShowModal("rename"); }} 
@@ -8891,18 +9823,68 @@ if (!gameStarted) {
         onClick={() => { setModalData(selectedMember); setShowModal("moveMember"); }} 
         className="p-2 bg-gray-200 text-gray-700 rounded text-sm"
       >
-        {selectedMember.homeGroup === "main" ? "Move/Kennin" : "Transfer/Kennin"}
+        Move/Kennin
+      </button>
+
+      <button 
+        onClick={() => askAboutGraduation(selectedMember.id)}
+        className="p-2 bg-yellow-200 text-yellow-800 rounded text-sm"
+        disabled={selectedMember.isGraduating}
+      >
+        Ask Graduation
       </button>
 
       <button 
         onClick={() => { setModalData(selectedMember); setShowModal('graduationAnnouncement'); }}
- 
         className="p-2 bg-red-200 text-red-700 rounded text-sm"
-        disabled={!selectedMember.isAvailable}
+        disabled={!selectedMember.isAvailable || selectedMember.isGraduating}
       >
         Graduate
       </button>
     </div>
+
+    {/* Relationships */}
+    <div className="mt-3 text-sm border-t pt-3">
+        <h4 className="font-semibold mb-2 flex items-center"><Users size={16} className="mr-2"/>Relationships</h4>
+        <div className="space-y-1">
+            <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                <span className="font-bold text-green-600 dark:text-green-400">Friends</span>
+                <span className="text-sm text-right text-green-800 dark:text-green-300">
+                    {(selectedMember.relationships?.friends?.map(id => getMemberById(id)?.name).filter(Boolean).join(', ')) || 'None'}
+                </span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
+                <span className="font-bold text-orange-600 dark:text-orange-400">Rivals</span>
+                <span className="text-sm text-right text-orange-800 dark:text-orange-300">
+                    {(selectedMember.relationships?.rivals?.map(id => getMemberById(id)?.name).filter(Boolean).join(', ')) || 'None'}
+                </span>
+            </div>
+        </div>
+    </div>
+
+{/* Goals & Ambition */}
+<div className="mt-3 text-sm border-t pt-3">
+    <h4 className="font-semibold mb-2 flex items-center"><Goal size={16} className="mr-2"/>Goals & Ambition</h4>
+    <div className="space-y-1">
+        <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+            <span className="font-bold text-gray-600 dark:text-gray-400">Ambition</span>
+            <span className="text-sm text-right text-gray-800 dark:text-gray-300">
+                {selectedMember.ambition}
+            </span>
+        </div>
+        <div className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+            <span className="font-bold text-gray-600 dark:text-gray-400">Graduation Window</span>
+            <span className="text-sm text-right text-gray-800 dark:text-gray-300">
+                {selectedMember.graduationWindow.min}-{selectedMember.graduationWindow.max} years
+            </span>
+        </div>
+        <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
+            <span className="font-bold text-red-600 dark:text-red-400">Graduation Urgency</span>
+            <span className="font-mono text-base font-bold text-red-700 dark:text-red-300">{Math.round(selectedMember.graduationUrgency || 0)}/100</span>
+        </div>
+    </div>
+</div>
+
 
 <MemberParticipationHistory member={selectedMember} getFormattedDateForWeek={getFormattedDateForWeek} />
   </div>
@@ -8977,7 +9959,6 @@ if (!gameStarted) {
         {showModal === 'createSong' && <CreateSongModal />}
         {showModal === 'releaseDetails' && <ReleaseDetailsModal />}
         {showModal === 'theaterSelection' && <TheaterSelectionModal />}
-        {/* Removed: LargeConcertModal (Deprecated) */}
         {showModal === 'rename' && modalData && <RenameMemberModal />}
         {showModal === 'moveMember' && <MoveMemberModal member={modalData} setShowModal={setShowModal} />}
         {showModal === 'createTeam' && <TeamManagementModal isEditing={false} />}
@@ -8998,10 +9979,14 @@ if (!gameStarted) {
         {showModal === 'majorConcert' && <MajorConcertModal />}
         {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
         {showModal === 'performanceResult' && <PerformanceResultModal />}
+        {showModal === 'handshakeResult' && <HandshakeEventResultModal />}
         {showModal === 'renameTheater' && <RenameTheaterModal />}
         {showModal === 'cheatCode' && <CheatCodeModal />}
         {showModal === 'graduationAnnouncement' && <GraduationAnnouncementModal />}
         {showModal === 'graduationPath' && <GraduationPathModal />}
+        {showModal === 'graduationTalk' && <GraduationTalkModal />}
+        {showModal === 'electionSummary' && <ElectionSummaryModal />}
+        {showModal === 'electionResult' && <ElectionResultModal />}
 
       </div>
     );
