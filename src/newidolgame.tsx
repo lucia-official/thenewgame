@@ -3836,7 +3836,6 @@ const createSong = () => {
                 potential: c.potential,
                 personality: c.personality,
                 position: 'under',
-                relationships: {},
                 birthday: { month: 1, day: 1 },
                 equippedOutfit: null,
                 scandals: 0,
