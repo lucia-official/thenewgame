@@ -412,6 +412,7 @@ const promoMultipliers = { none: 1, tier1: 1.05, tier2: 1.1, tier3: 1.15, tier4:
     const [isCampaignActive, setIsCampaignActive] = useState(false);
     const [campaignEndWeek, setCampaignEndWeek] = useState(0);
     const [isElectionSingleFinished, setIsElectionSingleFinished] = useState(false);
+    const [lastElectionResult, setLastElectionResult] = useState(null);
 
     // Performance Types Data
     const performanceTypes = [
@@ -498,6 +499,7 @@ const saveGame = async (gameUsername, uidParam) => {
     electionVotePool,
     isCampaignActive,
     campaignEndWeek,
+    lastElectionResult: JSON.stringify(lastElectionResult),
 
     members: JSON.stringify(members),
     totalFans,
@@ -612,6 +614,7 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       setElectionVotePool(data.electionVotePool || 0);
         setIsCampaignActive(data.isCampaignActive || false);
         setCampaignEndWeek(data.campaignEndWeek || 0);
+        setLastElectionResult(JSON.parse(data.lastElectionResult || "null"));
 
         const loadedSongs = JSON.parse(data.songs || "[]").map(song => ({
             ...song,
@@ -1978,7 +1981,7 @@ const runElectionLogic = (participants) => {
         const speech = speeches[Math.floor(Math.random() * speeches.length)];
 
         // This line has been made safer to prevent crashes
-        return { ...member, previousRank: oldRank, speech: speech, relationships: { friends: member.relationships?.friends || [], rivals: member.relationships?.rivals || [] } };
+        return { ...member, rank: newRank, previousRank: oldRank, speech: speech, relationships: { friends: member.relationships?.friends || [], rivals: member.relationships?.rivals || [] } };
     });
 
     const getUnitNameFromRank = (rank) => {
@@ -2092,6 +2095,8 @@ const runElectionLogic = (participants) => {
     addNotification({ type: 'Election', message: successMessage });
     relationshipNotifications.forEach(notif => addNotification({ type: 'Group', message: notif }));
     setElectionVotePool(0);
+    setLastElectionResult(universallySortedMembers);
+
 };
 
 const createSong = () => {
@@ -3239,7 +3244,7 @@ const createSong = () => {
         ],
       };
 
-  if (scandalRoll < 1.0 && members.length > 0) { 
+  if (scandalRoll < 0.05 && members.length > 0) { 
       const target = members[Math.floor(Math.random() * members.length)];
       
       // --- NEW: Weighted Scandal Selection ---
@@ -3983,27 +3988,27 @@ const createSong = () => {
 
 
     return {
-// State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
-// Firebase/Persistence
-db, auth, userId, isAuthReady, saveGame, loadGame,
-// Utilities
-startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
-// Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
-};
-};
+    // State
+    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+    // Firebase/Persistence
+    db, auth, userId, isAuthReady, saveGame, loadGame,
+    // Utilities
+    startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+    // Logic
+    trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    };
+    };
 const App = () => {
     // Destructure everything from the custom hook
     const {
-// State
-gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
-// Firebase/Persistence
-db, auth, userId, isAuthReady, saveGame, loadGame,
-// Utilities
-startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
-// Logic
-trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    // State
+    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+    // Firebase/Persistence
+    db, auth, userId, isAuthReady, saveGame, loadGame,
+    // Utilities
+    startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
+    // Logic
+    trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -4868,39 +4873,100 @@ const ElectionResultModal = () => {
 
 
 
-    const historicalTracks = [
-        ...(songs || []).flatMap(release =>
-            (release.tracks || []).map(track => ({
-                id: `${release.id}-${track.name}-${release.targetGroup}`,
-                name: `${track.name} (from ${release.name})`,
-                data: {
-                    members: (track.members || []).map(m => String(m.id)),
-                    center: track.center || [],
-                    lineup: track.lineup || {}
-                }
-            }))
-        ),
-        ...(sisterGroups || []).flatMap(sg =>
-            (sg.songs || []).flatMap(release =>
+        const historicalTracks = [
+            ...(songs || []).flatMap(release =>
                 (release.tracks || []).map(track => ({
-                    id: `${release.id}-${track.name}-${sg.id}`,
-                    name: `${track.name} (from ${sg.name}'s ${release.name})`,
+                    id: `${release.id}-${track.name}-${release.targetGroup}`,
+                    name: `${track.name} (from ${release.name})`,
                     data: {
                         members: (track.members || []).map(m => String(m.id)),
-                        center: track.center ? String(track.center) : null,
+                        center: track.center || [],
                         lineup: track.lineup || {}
                     }
                 }))
+            ),
+            ...(sisterGroups || []).flatMap(sg =>
+                (sg.songs || []).flatMap(release =>
+                    (release.tracks || []).map(track => ({
+                        id: `${release.id}-${track.name}-${sg.id}`,
+                        name: `${track.name} (from ${sg.name}'s ${release.name})`,
+                        data: {
+                            members: (track.members || []).map(m => String(m.id)),
+                            center: track.center ? String(track.center) : null,
+                            lineup: track.lineup || {}
+                        }
+                    }))
+                )
             )
-        )
-    ].sort((a, b) => {
-        const idA = parseInt(a.id.split('-')[0], 10);
-        const idB = parseInt(b.id.split('-')[0], 10);
-        if (idB !== idA) return idB - idA;
-        return a.name.localeCompare(b.name);
-    });
+        ].sort((a, b) => {
+            const idA = parseInt(a.id.split('-')[0], 10);
+            const idB = parseInt(b.id.split('-')[0], 10);
+            if (idB !== idA) return idB - idA;
+            return a.name.localeCompare(b.name);
+        }).slice(0, 10);
 
     const applyPreviousLineup = (trackId) => {
+
+    if (String(trackId).startsWith('election-')) {
+        const unit = String(trackId).replace('election-', '');
+        if (!lastElectionResult) return;
+
+        const rankRanges = {
+            senbatsu: { min: 1, max: 16 },
+            undergirls: { min: 17, max: 32 },
+            nextgirls: { min: 33, max: 48 },
+            futuregirls: { min: 49, max: 64 },
+            upcominggirls: { min: 65, max: 80 },
+        };
+
+        const range = rankRanges[unit];
+        if (!range) return;
+
+        const unitMembers = lastElectionResult.filter(m => m.rank >= range.min && m.rank <= range.max);
+
+        const newMemberIds = unitMembers.map(m => m.rosterId || m.id);
+        let newCenterIds = [];
+        const newHotlineup = {};
+
+        unitMembers.forEach(member => {
+            const relativeRank = member.rank - range.min + 1;
+            const memberId = String(member.rosterId || member.id);
+
+            if (relativeRank === 1) {
+                newCenterIds = [memberId];
+                newHotlineup[memberId] = '1st Row';
+            } else if (relativeRank <= 3) { // Ranks 2-3
+                newHotlineup[memberId] = '2nd Row';
+            } else if (relativeRank <= 7) { // Ranks 4-7
+                newHotlineup[memberId] = '3rd Row';
+            } else if (relativeRank <= 11) { // Ranks 8-11
+                newHotlineup[memberId] = '4th Row';
+            } else { // Ranks 12-16
+                newHotlineup[memberId] = '5th Row';
+            }
+        });
+
+        const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+            const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+            if (index !== currentIndex) return track;
+            return { ...track, members: newMemberIds, center: newCenterIds, lineup: newHotlineup };
+        });
+
+        if (releaseType === 'album') {
+            setAlbumTracks(updateFn);
+        } else {
+            setTracks(updateFn);
+        }
+
+        const singleDropdown = document.getElementById('import-lineup');
+        const albumDropdown = document.getElementById('import-lineup-album');
+        if(singleDropdown) singleDropdown.value = "";
+        if(albumDropdown) albumDropdown.value = "";
+        
+        return; // Exit the function after processing
+    }
+
+
         if (!trackId) return;
 
         // Find the historical data
@@ -5570,6 +5636,15 @@ const renderSelectGraduatingMemberStep = () => {
                                                 {track.name}
                                             </option>
                                         ))}
+                                        {lastElectionResult && (
+                                            <optgroup label="Last General Election">
+                                                <option value="election-senbatsu">Senbatsu (Ranks 1-16)</option>
+                                                <option value="election-undergirls">Undergirls (Ranks 17-32)</option>
+                                                <option value="election-nextgirls">Next Girls (Ranks 33-48)</option>
+                                                <option value="election-futuregirls">Future Girls (Ranks 49-64)</option>
+                                                <option value="election-upcominggirls">Upcoming Girls (Ranks 65-80)</option>
+                                            </optgroup>
+                                        )}
                                 </select>
                             </div>
 
@@ -5630,7 +5705,21 @@ const renderSelectGraduatingMemberStep = () => {
                                     return (
                                         <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
                                             <div className="flex flex-col">
-                                                <span className="font-medium dark:text-gray-200">{member.name}</span>
+                                                <span className="font-medium dark:text-gray-200">
+                                                    {member.name}
+                                                    <span className="ml-2 text-xs text-pink-300 font-normal">
+                                                        {(() => {
+                                                            const otherTracks = tracks.filter(t => 
+                                                                t.name !== (currentTrack?.name || '') && 
+                                                                (t.members || []).map(String).includes(String(member.id))
+                                                            );
+                                                            if (otherTracks.length > 0) {
+                                                                return `(in ${otherTracks.map(t => t.name).join(', ')})`;
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </span>
+                                                </span>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
                                                     Vocal:{Math.round(member.singing)} Dance:{Math.round(member.dancing)} Visual:{Math.round(member.visual)} Fans:{getTotalFansForMember(member).toLocaleString()}
                                                     {getMemberWarning(member) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarning(member)}</span>}
@@ -5762,6 +5851,15 @@ const renderSelectGraduatingMemberStep = () => {
                                                     {track.name}
                                                 </option>
                                             ))}
+                                            {lastElectionResult && (
+                                                <optgroup label="Last General Election">
+                                                    <option value="election-senbatsu">Senbatsu (Ranks 1-16)</option>
+                                                    <option value="election-undergirls">Undergirls (Ranks 17-32)</option>
+                                                    <option value="election-nextgirls">Next Girls (Ranks 33-48)</option>
+                                                    <option value="election-futuregirls">Future Girls (Ranks 49-64)</option>
+                                                    <option value="election-upcominggirls">Upcoming Girls (Ranks 65-80)</option>
+                                                </optgroup>
+                                            )}
                                     </select>
                                 </div>
                                 <div className="flex items-center gap-2 mb-2">
@@ -7729,6 +7827,7 @@ beginGraduationProcess(member.id, finalGraduationWeek);
                         <p className="text-sm font-bold mt-2">Cost: ¥{grandSendOffCost.toLocaleString()}</p>
                         <button 
                             onClick={selectGrandSendOff}
+                            disabled={!isPopular || money < grandSendOffCost}
                             className="w-full mt-3 p-2 bg-yellow-500 text-white rounded font-bold disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             Select Grand Send-Off
