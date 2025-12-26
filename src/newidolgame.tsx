@@ -7,11 +7,11 @@ import { DndContext, useDraggable, useDroppable, closestCenter, PointerSensor, T
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { useIdolManager, getTotalFansForMember, getFormattedDateForWeek, productionTiers, getGraduationRisk, songTitles, generateSongTitle, electionSpeechTemplates, performanceTypes, scandalResponseOptions, tiers, getTheaterCapacity, getTicketPrice, hometowns, generateRandomHometown } from "./hooks/useIdolManager";
+import { useIdolManager, getTotalFansForMember, getFormattedDateForWeek, productionTiers, getGraduationRisk, songTitles, generateSongTitle, electionSpeechTemplates, performanceTypes, scandalResponseOptions, tiers, getTheaterCapacity, getTicketPrice, hometowns, generateRandomHometown,  warehouseTiers, staffTiers } from "./hooks/useIdolManager";
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { 
-  Star, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
+  Star, Briefcase, Paintbrush, Music, Heart, Library, TrendingUp, Users, Award, Calendar, DollarSign, Save, 
   Upload, Building, Tv, GripVertical, Gift, Goal, Trophy, Sparkles, AlertCircle, Zap, Globe, 
   Film, Plane, GraduationCap, Shirt, Camera, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
@@ -19,9 +19,13 @@ import {
   ClipboardCheck, Clock, Moon, BarChart2, Wrench, Layers, Clipboard
 } from 'lucide-react';
 
+
 import { getApps, initializeApp } from "firebase/app";;
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, setLogLevel } from 'firebase/firestore';
+
+import { MerchTab } from './MerchTab';
+
 
 const App = () => {
 
@@ -29,13 +33,13 @@ const App = () => {
     // Destructure everything from the custom hook
     const {
     // State
-    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory,  merchDesignBonus, beginActivity, merchTiers, idolMerchTiers, eventMerchTiers, produceEventMerch, eventMerchInventory, idolMerchInventory, produceIdolMerch, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
     // Firebase/Persistence
     db, auth, userId, isAuthReady, saveGame, loadGame,
     // Utilities
     startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
     // Logic
-    trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference,  completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    pendingMerch, warehouse, upgradeWarehouse, trainMember, onlineStore, upgradeOnlineStore, staff, hireStaff, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference,  completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -3138,6 +3142,41 @@ if (release.isGraduationSingle) {
                                  {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
                             </div>
                             
+                            {/* --- EVENT-SPECIFIC MERCHANDISE --- */}
+                            {selectedVenue && (
+                                <div className="mt-4 pt-4 border-t">
+                                    <h3 className="text-xl font-bold mb-4 text-purple-600 dark:text-purple-400">Exclusive Concert Merchandise</h3>
+                                    <p className="text-sm text-gray-500 mb-4">Produce limited-edition items for the concert. This stock will be sold automatically during the show.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {Object.entries(eventMerchTiers).map(([itemType, tierInfo]) => {
+                                            const currentStock = eventMerchInventory[itemType] || 0;
+                                            const cost = tierInfo.cost * 100;
+
+                                            return (
+                                                <div key={itemType} className="p-3 bg-purple-50 dark:bg-gray-700 rounded-lg shadow">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-semibold">{tierInfo.name}</span>
+                                                        <span className="text-sm font-mono bg-purple-200 dark:bg-purple-800 px-2 py-1 rounded">
+                                                            In Stock: {currentStock.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 dark:text-gray-400 my-1">
+                                                        A high-demand item that will sell well to concert attendees.
+                                                    </p>
+                                                    <button
+                                                        onClick={() => produceEventMerch(itemType, 100)}
+                                                        className="w-full mt-2 p-2 text-sm bg-purple-500 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                                        disabled={money < cost}
+                                                    >
+                                                        Produce 100 (Cost: ¥{cost.toLocaleString()})
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
                             {/* --- Ticket Pricing UI --- */}
                             {selectedVenue && (
                                 <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
@@ -3491,6 +3530,24 @@ const PerformanceResultModal = () => {
                             </div>
                         </div>
                     )}
+
+                    {modalData.totalMerchRevenue > 0 && (
+                        <div className="p-3 mt-2 rounded-lg bg-white bg-opacity-10 text-xs">
+                            <h4 className="font-bold text-center text-gray-300 mb-2">Merchandise Report</h4>
+                            <div className="grid grid-cols-2 gap-2 text-center">
+                                <div>
+                                    <p className="font-bold text-green-300 text-lg">¥{modalData.totalMerchRevenue.toLocaleString()}</p>
+                                    <p className="text-gray-400">Merch Revenue</p>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-yellow-300 text-lg truncate" title={modalData.bestSellerName}>{modalData.bestSellerName}</p>
+                                    <p className="text-gray-400">Best Seller</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+
                     {/* --- END OF NEW SECTION --- */}
                     <div ref={crowdRef} className="crowd h-52 rounded-lg relative overflow-hidden bg-gray-900 bg-opacity-50 border border-gray-700 shadow-inner">
                         {/* Penlights are generated by useEffect */}
@@ -4658,17 +4715,19 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
           const memberObject = getMemberById(selectedMemberId);
           if (!memberObject) return; 
 
+          // This part remains the same
+          setMoney(prev => prev - 1000);
           setMediaJobDoneThisWeek(true);
 
-          let successChance = 0.75;
-          if (strategy === 'safe') successChance = 0.9;
-          if (strategy === 'risky') successChance = 0.5;
+          let successChance = 0.65 + (memberObject.variety / 400) + (memberObject.charisma / 600); // Max ~0.65 + 0.25 + 0.16 = 1.06
+          if (strategy === 'safe') successChance = Math.min(1, successChance * 1.2);
+          if (strategy === 'risky') successChance *= 0.7;
           
           const roll = Math.random();
           let notificationMsg = '';
           
           if (roll < successChance) {
-              let fanGain = 500 + Math.floor((memberObject.variety || 0) * 10);
+              let fanGain = 500 + Math.floor((memberObject.variety || 0) * 10) + Math.floor((memberObject.charisma || 0) * 5);
               if (strategy === 'risky') fanGain *= 2.5;
               if (strategy === 'safe') fanGain *= 0.6;
               fanGain = Math.floor(fanGain);
@@ -4703,32 +4762,60 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
       };
       
       return (
-          <ModalWrapper title="Solo Media Appearance" maxWidth="max-w-md">
-              <div className="p-1">
-                  <p className="mb-4">Send a member on a solo media job. This can only be done once per week.</p>
-                  
-                  <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Member:</label>
-                      <select value={selectedMemberId} onChange={e => setSelectedMemberId(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
-                          <option value="" disabled>-- Select a Member --</option>
-                          {availableMembers.map(member => (
-                              <option key={member.id} value={member.id}>{member.name} ({member.groupName || groupName})</option>
-                          ))}
-                      </select>
+          <ModalWrapper title="Solo Media Appearance" maxWidth="max-w-2xl">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a member on a solo media job. This can only be done once per week.</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Member Selection List */}
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto border rounded p-1 bg-gray-50 dark:bg-gray-900">
+                      {availableMembers.map(member => (
+                          <div
+                              key={member.id}
+                              className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberId === member.id ? 'bg-blue-200 dark:bg-blue-800 shadow' : 'bg-white dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              onClick={() => setSelectedMemberId(member.id)}
+                          >
+                              <div>
+                                  <p className="font-semibold text-sm">{member.name}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Va: {Math.round(member.variety)} | Ch: {Math.round(member.charisma)} | Fans: {getTotalFansForMember(member).toLocaleString()}
+                                  </p>
+                              </div>
+                              <input
+                                  type="radio"
+                                  name="selected_member"
+                                  checked={selectedMemberId === member.id}
+                                  readOnly
+                                  className="form-radio h-4 w-4 text-blue-600"
+                              />
+                          </div>
+                      ))}
+                      {availableMembers.length === 0 && <p className="text-center text-gray-500 p-4">No members are available for this job.</p>}
                   </div>
 
-                  <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Strategy:</label>
-                      <select value={strategy} onChange={e => setStrategy(e.target.value)} className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
-                          <option value="safe">Safe (Low risk, low reward)</option>
-                          <option value="normal">Normal (Standard risk & reward)</option>
-                          <option value="risky">Risky (High risk, high reward)</option>
-                      </select>
-                  </div>
+                  {/* Strategy and Confirmation */}
+                  <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex flex-col justify-between">
+                      <div>
+                          <h4 className="font-bold mb-2">Strategy</h4>
+                          <select
+                              value={strategy}
+                              onChange={e => setStrategy(e.target.value)}
+                              className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600"
+                          >
+                              <option value="safe">Safe (High success, low reward)</option>
+                              <option value="normal">Normal (Standard risk & reward)</option>
+                              <option value="risky">Risky (Low success, high reward)</option>
+                          </select>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              The member's <strong>Variety</strong> and <strong>Charisma</strong> stats influence the outcome.
+                          </p>
+                      </div>
 
-                  <div className="flex justify-end space-x-2 mt-6">
-                      <button onClick={() => setShowModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancel</button>
-                      <button onClick={handleConfirm} disabled={!selectedMemberId} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800">Confirm Job</button>
+                      <div className="flex flex-col gap-2 mt-4">
+                           <button onClick={() => setShowModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancel</button>
+                           <button onClick={handleConfirm} disabled={!selectedMemberId || mediaJobDoneThisWeek || money < 1000} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-blue-800/50">
+                              Confirm Job (¥1,000)
+                           </button>
+                      </div>
                   </div>
               </div>
           </ModalWrapper>
@@ -4768,6 +4855,13 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
                   : [...prev, memberId]
           );
       };
+const selectAll = () => {
+    setSelectedMemberIds(availableMembers.map(m => m.id));
+};
+
+const deselectAll = () => {
+    setSelectedMemberIds([]);
+};
 
       const handleConfirm = () => {
           if (!selectedJob || selectedMemberIds.length < selectedJob.members) {
@@ -4809,7 +4903,12 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
           return (
               <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members for: <span className="font-bold">{selectedJob.name}</span>. Requires at least {selectedJob.members} members.</p>
-                  
+
+<div className="flex gap-2 mb-2">
+    <button onClick={selectAll} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
+    <button onClick={deselectAll} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All</button>
+</div>
+
                   <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
                       {availableMembers.map(member => (
                           <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
@@ -4854,6 +4953,15 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
             );
         };
 
+        const selectAll = () => {
+    setSelectedMemberIds(availableMembers.map(m => m.id));
+};
+
+const deselectAll = () => {
+    setSelectedMemberIds([]);
+};
+
+
         const handleConfirm = () => {
             if (selectedMemberIds.length === 0) {
                 return setMessage("You must select at least one member to participate.");
@@ -4864,7 +4972,13 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
         return (
             <ModalWrapper title="Plan Handshake Event" maxWidth="max-w-2xl">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members to participate. This event converts casual fans to hardcore fans and attracts new ones. It is very tiring for the idols.</p>
-                
+
+<div className="flex gap-2 mb-2">
+    <button onClick={selectAll} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
+    <button onClick={deselectAll} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All</button>
+</div>
+
+
                 <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1 mb-4">
                     {availableMembers.map(member => (
                         <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
@@ -6253,35 +6367,25 @@ if (!gameStarted) {
             
             {/* ----- MERCHANDISE TAB ----- */}
             {currentTab === 'merch' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><ShoppingBag size={20} className="mr-2"/> Current Inventory</h3>
-                  <ul className="divide-y">
-                      <li className="py-2 flex justify-between items-center">
-                          <span><Package size={16} className="inline mr-2" />Photo Sets</span>
-                          <span className="font-bold">{(merchInventory.photos || 0).toLocaleString()}</span>
-                      </li>
-                      <li className="py-2 flex justify-between items-center">
-                          <span><Package size={16} className="inline mr-2" />Towels</span>
-                          <span className="font-bold">{(merchInventory.towels || 0).toLocaleString()}</span>
-                      </li>
-                      <li className="py-2 flex justify-between items-center">
-                          <span><Package size={16} className="inline mr-2" />Light Sticks</span>
-                          <span className="font-bold">{(merchInventory.lightsticks || 0).toLocaleString()}</span>
-                      </li>
-                  </ul>
-                </div>
-                <div className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Plus size={20} className="mr-2"/> Produce Merchandise</h3>
-                  <div className="flex flex-col gap-2">
-                      <button onClick={() => produceMerch('photos', 100)} className="w-full p-2 bg-gray-200 rounded">Produce 100 Photo Sets (¥{(merchProdCost.photos * 100).toLocaleString()})</button>
-                      <button onClick={() => produceMerch('towels', 100)} className="w-full p-2 bg-gray-200 rounded">Produce 100 Towels (¥{(merchProdCost.towels * 100).toLocaleString()})</button>
-                      <button onClick={() => produceMerch('lightsticks', 100)} className="w-full p-2 bg-gray-200 rounded">Produce 100 Light Sticks (¥{(merchProdCost.lightsticks * 100).toLocaleString()})</button>
-                  </div>
-                </div>
-              </div>
+                <MerchTab 
+                    money={money}
+                    merchInventory={merchInventory}
+                    idolMerchInventory={idolMerchInventory}
+                    eventMerchInventory={eventMerchInventory}
+                    pendingMerch={pendingMerch}
+                    merchTiers={merchTiers}
+                    produceMerch={produceMerch}
+                    warehouse={warehouse}
+                    warehouseTiers={warehouseTiers}
+                    upgradeWarehouse={upgradeWarehouse}
+                    onlineStore={onlineStore}
+                    upgradeOnlineStore={upgradeOnlineStore}
+                    staff={staff}
+                    staffTiers={staffTiers}
+                    hireStaff={hireStaff}
+                />
             )}
-          </main>
+         </main>
 
           {/* Bottom Nav (Mobile) */}
           <nav className="lg:hidden flex bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-inner border-t border-gray-200 dark:border-gray-700">
@@ -6291,33 +6395,43 @@ if (!gameStarted) {
             <TabButton id="history" label="History" icon={Clipboard} />
             <TabButton id="activities" label="Activities" icon={Zap} />
             <TabButton id="training" label="Training" icon={Brain} />
+            <TabButton id="merch" label="Merch" icon={ShoppingBag} />
+
           </nav>
         </div>
 
         {/* --- Right Column (Contextual) --- */}
         <aside className="w-full lg:w-96 flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300">
           {/* Main Stats */}
-              <div className="p-1 lg:p-4 border-b">
-                <h3 className="font-semibold text-sm mb-1">Group Status</h3>
-                <div className="flex items-center mb-0.5">
-                  <DollarSign className="text-green-500 mr-1.5" size={14} />
-                  <span className="text-xs lg:text-lg font-bold">¥{money.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center mb-0.5">
-                  <Heart className="text-red-500 mr-1.5" size={14} />
-                  <span className="text-xs lg:text-lg">{(totalFans || 0).toLocaleString()} Fans</span>
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="text-blue-500 mr-1.5" size={14} />
-                  <span className="text-xs lg:text-lg">{formattedDate}</span>
-                </div>
-                <button
-                  onClick={activeTour ? progressTour : nextWeek}
-                  className="w-full p-1 bg-blue-600 text-white rounded font-bold mt-2 hover:bg-blue-700 disabled:bg-gray-400"
-                >
-              {activeTour ? `Advance Tour (${activeTour.weeksLeft} Wk Left)` : 'Next Week'}
-            </button>
-          </div>
+                  <div className="p-1 lg:p-4 border-b">
+                    <h3 className="font-semibold text-sm mb-1">Group Status</h3>
+                    <div className="flex items-center mb-0.5">
+                      <DollarSign className="text-green-500 mr-1.5" size={14} />
+                      <span className="text-xs lg:text-lg font-bold">¥{money.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center mb-0.5">
+                      <Heart className="text-red-500 mr-1.5" size={14} />
+                      <span className="text-xs lg:text-lg">{(totalFans || 0).toLocaleString()} Fans</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="text-blue-500 mr-1.5" size={14} />
+                      <span className="text-xs lg:text-lg">{formattedDate}</span>
+                    </div>
+
+                    {/* --- MERCH BONUS DISPLAY --- */}
+                    {merchDesignBonus && (
+                      <div className="mt-2 text-xs text-center bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 p-1 rounded-lg">
+                        <span>✨ Merch Cost: <strong>-{(merchDesignBonus.bonus * 100).toFixed(0)}%</strong> ({merchDesignBonus.memberName}, {merchDesignBonus.weeksLeft}w left)</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={activeTour ? progressTour : nextWeek}
+                      className="w-full p-1 bg-blue-600 text-white rounded font-bold mt-2 hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {activeTour ? `Advance Tour (${activeTour.weeksLeft} Wk Left)` : 'Next Week'}
+                    </button>
+                  </div>
     {/* Member Detail Panel */}
 {selectedMember ? (
   <div className="flex-1 overflow-y-auto p-4">
@@ -6456,6 +6570,56 @@ if (!gameStarted) {
     {/* Manage */}
     <h4 className="font-semibold mb-2">Manage</h4>
 
+    <button
+                            onClick={() => beginActivity(selectedMember.id, 'design_merch')}
+                            className="w-full mt-2 p-2 text-sm bg-teal-500 text-white rounded disabled:bg-gray-400"
+                            disabled={!selectedMember.isAvailable}
+                            title={!selectedMember.isAvailable ? `${selectedMember.name} is currently on another assignment.` : "Assign to help with merch design for one week."}
+                        >
+                            <Paintbrush size={16} className="inline mr-2" />
+                            Help Design Merch (1 Week)
+                        </button>
+
+    {/* Idol-Specific Merchandise Production */}
+    {(() => {
+        const totalMemberFans = getTotalFansForMember(selectedMember);
+        const isPopularEnough = totalMemberFans > 20000;
+
+        if (selectedMember.isAvailable && isPopularEnough) {
+            return (
+                <div className="mt-4 border-t pt-4">
+                    <h4 className="font-semibold mb-2 text-pink-600 dark:text-pink-400">Idol-Specific Merch</h4>
+                    <p className="text-xs text-gray-500 mb-2">Unlocked due to high popularity! ({totalMemberFans.toLocaleString()} fans)</p>
+                    <div className="grid grid-cols-1 gap-2">
+                        {Object.entries(idolMerchTiers).map(([itemType, tierInfo]) => {
+                            const inventoryKey = `${selectedMember.id}_${itemType}`;
+                            const currentStock = idolMerchInventory[inventoryKey] || 0;
+                            const cost = tierInfo.cost * 100;
+
+                            return (
+                                <div key={itemType} className="p-2 bg-pink-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-sm">{tierInfo.name}</span>
+                                        <span className="text-xs font-mono">Stock: {currentStock}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => produceIdolMerch(selectedMember.id, itemType, 100)}
+                                        className="w-full mt-1 p-1 text-sm bg-pink-500 text-white rounded disabled:bg-gray-400"
+                                        disabled={money < cost}
+                                    >
+                                        Produce 100 (¥{cost.toLocaleString()})
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    })()}
+
+
     <div className="grid grid-cols-2 gap-2 mb-4">
       <button 
         onClick={() => { setModalData(selectedMember); setShowModal("rename"); }} 
@@ -6544,6 +6708,7 @@ if (!gameStarted) {
       { id: 'activities', label: 'Activities' },
       { id: 'training', label: 'Training' },
       { id: 'discography', label: 'Songs' },
+      { id: 'merch', label: 'Merch' },
       { id: 'history', label: 'History' },
     ].map(tab => (
       <button
@@ -6621,7 +6786,17 @@ if (!gameStarted) {
         {showModal === 'sisterGroupDisband' && modalData && <SisterGroupDisbandModal />}
         {showModal === 'editGroupName' && modalData && <EditGroupNameModal />}
         {showModal === 'performancePrep' && <PerformanceModal />}
-        {showModal === 'majorConcert' && <MajorConcertModal />}
+        {showModal === 'majorConcert' && (
+    <MajorConcertModal
+        onConfirm={holdMajorConcert}
+        onCancel={() => setShowModal(null)}
+        venues={venues}
+        members={getAllAvailableMembers(true)}
+        produceEventMerch={produceEventMerch}
+        eventMerchInventory={eventMerchInventory}
+        eventMerchTiers={eventMerchTiers}
+    />
+)}
         {showModal === 'performanceDetails' && <PerformanceDetailsModal />}
         {showModal === 'performanceResult' && <PerformanceResultModal />}
         {showModal === 'handshakeResult' && <HandshakeEventResultModal />}

@@ -39,6 +39,22 @@ export const getTicketPrice = (level) => {
     return 0;
 };
 
+export const warehouseTiers = {
+    1: { capacity: 5000, cost: 0 },
+    2: { capacity: 15000, cost: 150000 },
+    3: { capacity: 50000, cost: 500000 },
+    4: { capacity: 100000, cost: 1200000 },
+    5: { capacity: 250000, cost: 3000000 },
+};
+
+
+export const staffTiers = {
+    merchManager: {
+        1: { name: 'Rookie Manager', cost: 250000, effect: '-5% Production Cost, +5% Sales Revenue' },
+        2: { name: 'Pro Manager', cost: 750000, effect: '-10% Production Cost, +10% Sales Revenue' },
+        3: { name: 'Veteran Manager', cost: 2000000, effect: '-15% Production Cost, +15% Sales Revenue' }
+    }
+};
 
 
 export const productionTiers = {
@@ -409,10 +425,51 @@ const promoMultipliers = { none: 1, tier1: 1.05, tier2: 1.1, tier3: 1.15, tier4:
     const [selectedSisterGroup, setSelectedSisterGroup] = useState(null);
     const [selectedTheaterTeam, setSelectedTheaterTeam] = useState(null);
     const [username, setUsername] = useState('Guest');
-    const [memberView, setMemberView] = useState('list'); 
-    const [merchInventory, setMerchInventory] = useState({ photos: 0, towels: 0, lightsticks: 0 });
-    const [merchPrices] = useState({ photos: 1500, towels: 2500, lightsticks: 3500 });
-    const [merchProdCost] = useState({ photos: 500, towels: 1000, lightsticks: 1500 });
+    const [memberView, setMemberView] = useState('list');
+    const [staff, setStaff] = useState({ merchManager: 0 }); // Level 0 = not hired
+
+    const [merchInventory, setMerchInventory] = useState({ 
+    photos_basic: 0, photos_standard: 0, photos_premium: 0,
+    towels_basic: 0, towels_standard: 0, towels_premium: 0,
+    lightsticks_basic: 0, lightsticks_standard: 0, lightsticks_premium: 0
+});
+
+const [merchTiers] = useState({
+
+    photos: {
+        basic: { name: 'Basic Photo Set', cost: 500, price: 1500 },
+        standard: { name: 'Standard Photo Set', cost: 800, price: 2500 },
+        premium: { name: 'Deluxe Fan Club Set', cost: 1500, price: 5000 }
+    },
+    towels: {
+        basic: { name: 'Basic Towel', cost: 1000, price: 2500 },
+        standard: { name: 'Standard Towel', cost: 1800, price: 4000 },
+        premium: { name: 'Embroidered Premium Towel', cost: 3000, price: 7500 }
+    },
+    lightsticks: {
+        basic: { name: 'Basic Light Stick', cost: 1500, price: 3500 },
+        standard: { name: 'Custom Color Light Stick', cost: 2500, price: 6000 },
+        premium: { name: 'Bluetooth Sync Light Stick', cost: 4000, price: 10000 }
+    }
+});
+
+const [idolMerchTiers] = useState({
+    photobook: { name: 'Solo Photo Book', cost: 2000, price: 5000 },
+    tshirt: { name: 'Signature T-Shirt', cost: 2500, price: 6000 }
+});
+
+const [eventMerchTiers] = useState({
+    tour_tshirt: { name: 'Concert Tour T-Shirt', cost: 2000, price: 5000 },
+    finale_penlight: { name: 'Finale Penlight', cost: 3000, price: 7500 }
+});
+
+const [idolMerchInventory, setIdolMerchInventory] = useState({});
+const [eventMerchInventory, setEventMerchInventory] = useState({});
+const [merchDesignBonus, setMerchDesignBonus] = useState(null); // Example: { memberName: 'Yuna', weeksLeft: 4, bonus: 0.1 }
+const [warehouse, setWarehouse] = useState({ level: 1 });
+const [onlineStore, setOnlineStore] = useState({ level: 0 }); // Level 0 means it's not built yet
+const [pendingMerch, setPendingMerch] = useState([]);
+
     const [activeTrainingCamp, setActiveTrainingCamp] = useState(null); 
     const [venues, setVenues] = useState([
         { id: 1, name: 'Local Theater (Own)', capacity: 250, cost: 0, maintenance: 5000 },
@@ -497,7 +554,11 @@ const saveGame = async (gameUsername, uidParam) => {
     events: JSON.stringify(events),
     sponsorships: JSON.stringify(sponsorships),
     difficulty,
+    onlineStore: JSON.stringify(onlineStore),
+    taff: JSON.stringify(staff),
     internationalMarkets: JSON.stringify(internationalMarkets),
+    warehouse: JSON.stringify(warehouse),
+    pendingMerch: JSON.stringify(pendingMerch),
     outfits: JSON.stringify(outfits),
     pushedMembers: JSON.stringify(pushedMembers),
     tours: JSON.stringify(tours),
@@ -576,6 +637,10 @@ const loadGame = async (gameUsername, uidParam, setStartUsername, setStartGroupN
       });
       setMembers(loadedMembers);
       setTotalFans(data.totalFans || 0);
+      setOnlineStore(JSON.parse(data.onlineStore || '{\"level\":0}'));
+      setStaff(JSON.parse(data.staff || '{\"merchManager\":0}'));
+      setWarehouse(JSON.parse(data.warehouse || '{\"level\":1}'));
+      setPendingMerch(JSON.parse(data.pendingMerch || '[]'));
       setElectionVotePool(data.electionVotePool || 0);
         setIsCampaignActive(data.isCampaignActive || false);
         setCampaignEndWeek(data.campaignEndWeek || 0);
@@ -1090,6 +1155,55 @@ const buildTheater = () => {
       }));
       setMessage(`Upgraded ${type} room to level ${currentLevel + 1}! Training in ${roomType} is now easier.`);
     };
+
+    const upgradeWarehouse = () => {
+        const currentLevel = warehouse.level;
+        if (currentLevel >= 5) return setMessage("Warehouse is already at maximum level (5).");
+
+        const nextLevel = currentLevel + 1;
+        const cost = warehouseTiers[nextLevel].cost;
+
+        if (money < cost) return setMessage(`Need ¥${cost.toLocaleString()} to upgrade the warehouse!`);
+
+        setMoney(prev => prev - cost);
+        setWarehouse({ level: nextLevel });
+        addNotification({ type: 'Facility', message: `Warehouse upgraded to Level ${nextLevel}! Inventory capacity is now ${warehouseTiers[nextLevel].capacity.toLocaleString()}.` });
+    };
+
+    const upgradeOnlineStore = () => {
+    const currentLevel = onlineStore.level;
+    if (currentLevel >= 5) return setMessage("Online Store is already at maximum level (5).");
+
+    const cost = currentLevel === 0 ? 200000 : 100000 * Math.pow(2, currentLevel); // Initial build: 200k, then doubles
+    const nextLevel = currentLevel + 1;
+
+    if (money < cost) return setMessage(`Need ¥${cost.toLocaleString()} to ${currentLevel === 0 ? 'build' : 'upgrade'} the Online Store!`);
+
+    setMoney(prev => prev - cost);
+    setOnlineStore({ level: nextLevel });
+    const message = `${currentLevel === 0 ? 'Built' : 'Upgraded'} Online Store to Level ${nextLevel}! It will now automatically sell merchandise each week.`;
+    addNotification({ type: 'Facility', message: message });
+    setMessage(message);
+};
+
+const hireStaff = (staffType) => {
+    if (!staffTiers[staffType]) return setMessage("Invalid staff type.");
+
+    const currentLevel = staff[staffType] || 0;
+    if (currentLevel >= 3) return setMessage("This staff member is already at the maximum level.");
+
+    const nextLevel = currentLevel + 1;
+    const tierInfo = staffTiers[staffType][nextLevel];
+    
+    if (money < tierInfo.cost) return setMessage(`Not enough money. Hiring a ${tierInfo.name} costs ¥${tierInfo.cost.toLocaleString()}.`);
+
+    setMoney(prev => prev - tierInfo.cost);
+    setStaff(prev => ({ ...prev, [staffType]: nextLevel }));
+
+    const message = `${currentLevel === 0 ? 'Hired' : 'Promoted'} a ${tierInfo.name}! Production costs are lower and sales revenue is higher.`;
+    addNotification({ type: 'Staff', message: message });
+    setMessage(message);
+};
 
     const startTour = () => {
       const cost = 30000;
@@ -1646,7 +1760,7 @@ const deleteTeam = (teamId) => {
         } else {
             performingMembers = members.filter(m => m.isAvailable);
         }
-
+        const performingMemberIds = performingMembers.map(m => m.id);
         if (performingMembers.length === 0) {
             return setMessage(team ? `${team.name} has no available members!` : 'No available members in the main group!');
         }
@@ -1661,7 +1775,6 @@ const deleteTeam = (teamId) => {
             themeBonus = 0.8; 
         }
 
-        // --- UPDATED: Calculate Average Stats for Modal ---
         const memberCount = performingMembers.length || 1;
         const avgSinging = performingMembers.reduce((s, m) => s + (m.singing || 0), 0) / memberCount;
         const avgDancing = performingMembers.reduce((s, m) => s + (m.dancing || 0), 0) / memberCount;
@@ -1676,32 +1789,88 @@ const deleteTeam = (teamId) => {
             const staminaModifier = (m.stamina || 100) / 100;
             return sum + (memberScore * staminaModifier);
         }, 0) * themeBonus;
-        // --- END UPDATED ---
 
-        const newFans = Math.floor(20 + (performance / 10));
-        const capacityMultiplier = venue.capacity / 250;
-        const ticketRevenue = Math.floor(performance * 50 * capacityMultiplier);
+        let salesData = {};
         let merchRevenue = 0;
-        let merchSold = { photos: 0, towels: 0, lightsticks: 0 };
         const fanDemand = Math.floor(totalFans / 200);
+        const newInventory = { ...merchInventory }; 
 
-        Object.keys(merchInventory).forEach(item => {
-            const toSell = Math.min(merchInventory[item], fanDemand + Math.floor(Math.random() * fanDemand));
-            merchRevenue += toSell * merchPrices[item];
-            merchSold[item] = toSell;
+        Object.keys(merchInventory).forEach(inventoryKey => {
+            const [item, tier] = inventoryKey.split('_');
+            const tierInfo = merchTiers[item]?.[tier];
+
+            if (tierInfo && newInventory[inventoryKey] > 0) {
+                let demandModifier = 1.0;
+                if (tier === 'standard') demandModifier = 0.8;
+                if (tier === 'premium') demandModifier = 0.5;
+
+                const toSell = Math.min(
+                    newInventory[inventoryKey], 
+                    Math.floor((fanDemand * demandModifier) + Math.random() * (fanDemand * 0.5))
+                );
+
+                if (toSell > 0) {
+                    merchRevenue += toSell * tierInfo.price;
+                    newInventory[inventoryKey] -= toSell;
+salesData[tierInfo.name] = (salesData[tierInfo.name] || 0) + toSell;
+                    if (newInventory[inventoryKey] === 0) {
+    addNotification({ type: 'Info', message: `${tierInfo.name} has sold out!` });
+    distributeFans(50, performingMemberIds, 0.05); // Small group fan boost
+}
+
+                }
+            }
         });
-        setMerchInventory(prev => ({
-            photos: (prev.photos || 0) - merchSold.photos,
-            towels: (prev.towels || 0) - merchSold.towels,
-            lightsticks: (prev.lightsticks || 0) - merchSold.lightsticks,
-        }));
+        setMerchInventory(newInventory);
+
+        const newIdolInventory = { ...idolMerchInventory };
+        Object.keys(idolMerchInventory).forEach(inventoryKey => {
+            const [memberId, itemType] = inventoryKey.split('_');
+            const tierInfo = idolMerchTiers[itemType];
+            const member = getMemberById(memberId);
+
+            if (tierInfo && member && newIdolInventory[inventoryKey] > 0) {
+                const idolFanDemand = Math.floor(getTotalFansForMember(member) / 100);
+                
+                const toSell = Math.min(
+                    newIdolInventory[inventoryKey],
+                    Math.floor(idolFanDemand + Math.random() * (idolFanDemand * 0.5))
+                );
+
+                if (toSell > 0) {
+                    merchRevenue += toSell * tierInfo.price;
+                    newIdolInventory[inventoryKey] -= toSell;
+    const itemName = `${member.name}'s ${tierInfo.name}`;
+    salesData[itemName] = (salesData[itemName] || 0) + toSell;
+                    if (newIdolInventory[inventoryKey] === 0) {
+    addNotification({ type: 'Info', message: `${member.name}'s ${tierInfo.name} has sold out!` });
+    updateMemberState(memberId, m => ({ ...m, fans: { ...m.fans, casual: (m.fans.casual || 0) + 200 }}));
+}
+
+                }
+            }
+        });
+        setIdolMerchInventory(newIdolInventory);
+
+        const merchHypeBonus = 1 + (merchRevenue / 500000); 
+        const newFans = Math.floor((20 + (performance / 10)) * merchHypeBonus);
+
+const bestSeller = Object.entries(salesData).reduce((best, current) => {
+    return current[1] > best.quantity ? { name: current[0], quantity: current[1] } : best;
+}, { name: 'None', quantity: 0 });
+
+        const ticketRevenue = Math.floor(performance * 50);
+
+        if (staff.merchManager > 0) {
+    const revenueBonus = staff.merchManager * 0.05; // 5% per level
+    merchRevenue = Math.floor(merchRevenue * (1 + revenueBonus));
+}
 
         const totalRevenue = ticketRevenue + merchRevenue;
         const totalCosts = travelCost || 0; 
         const netProfit = totalRevenue - totalCosts;
         const agencyProfit = Math.floor(netProfit * 0.6); 
         const idolShare = netProfit - agencyProfit;
-        const performingMemberIds = performingMembers.map(m => m.id);
         distributeFans(newFans, performingMemberIds);
 
         performingMembers.forEach(member => {
@@ -1723,20 +1892,21 @@ const deleteTeam = (teamId) => {
         setMessage(concertMessage);
         addNotification({ type: 'Performance', message: concertMessage });
 
-        // --- UPDATED: Pass Performance Stats to Modal ---
-        setModalData({
-            title: "Theater Show Result",
-            message: `The crowd loved the performance! Total Revenue: ¥${totalRevenue.toLocaleString()}. Travel Costs: ¥${totalCosts.toLocaleString()}. External Cost (Idol Share, Staffs, Rental, Etc): ¥${idolShare.toLocaleString()}`,
-            fansGained: newFans,
-            revenue: agencyProfit,
-            performanceStats: {
-                singing: avgSinging,
-                dancing: avgDancing,
-                visual: avgVisual,
-                charisma: avgCharisma
-            }
-        });
-        // --- END UPDATED ---
+    setModalData({
+        title: "Theater Show Result",
+        message: `The crowd loved the performance! Total Revenue: ¥${totalRevenue.toLocaleString()}. Travel Costs: ¥${totalCosts.toLocaleString()}. External Cost (Idol Share, Staffs, Rental, Etc): ¥${idolShare.toLocaleString()}`,
+        fansGained: newFans,
+        revenue: agencyProfit,
+        performanceStats: {
+            singing: avgSinging,
+            dancing: avgDancing,
+            visual: avgVisual,
+            charisma: avgCharisma
+        },
+        totalMerchRevenue: merchRevenue, // Correct variable name
+        bestSellerName: bestSeller.name   // Correct placement
+    });
+
         setShowModal('performanceResult');
     };
     
@@ -2517,12 +2687,48 @@ const createSong = () => {
 
         const totalTicketsSold = ticketsSold.s + ticketsSold.a + ticketsSold.b;
         const ticketRevenue = (ticketsSold.s * prices.s) + (ticketsSold.a * prices.a) + (ticketsSold.b * prices.b);
+        // --- Event Merch Sales Logic ---
+        let salesData = {};
+        let eventMerchRevenue = 0;
+        Object.keys(eventMerchInventory).forEach(itemType => {
+            const tierInfo = eventMerchTiers[itemType];
+            const stock = eventMerchInventory[itemType];
+            if (tierInfo && stock > 0) {
+                // High demand at concerts! Sell to a large portion of attendees.
+                const demand = Math.floor(totalTicketsSold * (0.4 + Math.random() * 0.3)); // 40-70% of attendees want to buy
+                const toSell = Math.min(stock, demand);
+                eventMerchRevenue += toSell * tierInfo.price;
+salesData[tierInfo.name] = (salesData[tierInfo.name] || 0) + toSell;
 
-        const fanGain = Math.floor(50 + (totalTicketsSold * 0.02 * hypeMultiplier));
+                if (stock > 0 && toSell >= stock) {
+    addNotification({ type: 'Info', message: `Limited Edition: ${tierInfo.name} has sold out!` });
+}
+
+            }
+        });
+        const bestSeller = Object.entries(salesData).reduce((best, current) => {
+    return current[1] > best.quantity ? { name: current[0], quantity: current[1] } : best;
+}, { name: 'None', quantity: 0 });
+
+        // Add a notification for the revenue
+        if (eventMerchRevenue > 0) {
+            addNotification({ type: 'Merch', message: `Sold ¥${eventMerchRevenue.toLocaleString()} in exclusive concert merchandise!` });
+        }
+        
+        // Reset the event inventory after the concert is over
+        setEventMerchInventory({});
+
+        const merchHypeBonus = 1 + (eventMerchRevenue / 1000000); // Every 1M in merch revenue adds 100% fan bonus
+        const fanGain = Math.floor((50 + (totalTicketsSold * 0.02 * hypeMultiplier)) * merchHypeBonus);
         const skillImprovement = 10 + Math.floor(avgSkill * 10);
         const staminaDrain = 60;
         
-        const netProfit = ticketRevenue - baseCost;
+        if (staff.merchManager > 0) {
+    const revenueBonus = staff.merchManager * 0.05; // 5% per level
+    eventMerchRevenue = Math.floor(eventMerchRevenue * (1 + revenueBonus));
+}
+
+        const netProfit = (ticketRevenue + eventMerchRevenue) - baseCost;
         const agencyProfit = Math.floor(netProfit * 0.6);
         const idolShare = netProfit - agencyProfit;
 
@@ -2580,9 +2786,12 @@ const createSong = () => {
                 dancing: avgDancing,
                 visual: avgVisual,
                 charisma: avgCharisma
-            }
+            },
+            totalMerchRevenue: eventMerchRevenue,
+            bestSellerName: bestSeller.name,
         });
         // --- END UPDATED ---
+
         setShowModal('performanceResult');
     };
 
@@ -2813,19 +3022,154 @@ const createSong = () => {
         setShowModal(null);
     };
 
-    const produceMerch = (item, amount) => {
-      const cost = merchProdCost[item] * amount;
-      if (money < cost) return setMessage(`Not enough money! Cost: ¥${cost.toLocaleString()}`);
-      
-      setMoney(prev => prev - cost);
-      setMerchInventory(prev => ({
-          ...prev,
-          [item]: (prev[item] || 0) + amount
-      }));
-      setMessage(`Produced ${amount} ${item}.`);
+const produceMerch = (item, tier, amount) => {
+    const tierInfo = merchTiers[item]?.[tier];
+    if (!tierInfo) return setMessage(`Invalid merchandise tier: ${item} - ${tier}`);
+
+    const currentSize = Object.values(merchInventory).reduce((a, b) => a + b, 0) + Object.values(idolMerchInventory).reduce((a, b) => a + b, 0) + Object.values(eventMerchInventory).reduce((a, b) => a + b, 0) + pendingMerch.reduce((sum, item) => sum + item.amount, 0);
+    const capacity = warehouseTiers[warehouse.level].capacity;
+
+    if (currentSize + amount > capacity) {
+        return setMessage(`Not enough warehouse space! Current: ${currentSize.toLocaleString()}/${capacity.toLocaleString()}.`);
+    }
+
+    let cost = tierInfo.cost * amount;
+
+if (staff.merchManager > 0) {
+    const costReduction = staff.merchManager * 0.05; // 5% per level
+    cost *= (1 - costReduction);
+}
+
+
+    if (merchDesignBonus) {
+        cost = Math.floor(cost * (1 - merchDesignBonus.bonus));
+    }
+
+    if (money < cost) return setMessage(`Not enough money! Cost: ¥${cost.toLocaleString()}`);
+    
+    setMoney(prev => prev - cost);
+
+    const newPendingItem = {
+        type: 'regular',
+        key: `${item}_${tier}`,
+        amount: amount,
+        deliveryWeek: week + 1,
+        name: tierInfo.name
+    };
+
+const updatedQueue = [...pendingMerch, newPendingItem];
+const productionSummary = updatedQueue.map(item => `${item.amount}x ${item.name}`).join(', ');
+setMessage(`In Production: ${productionSummary}`);
+
+    setPendingMerch(prev => [...prev, newPendingItem]);
+    addNotification({ type: 'Production', message: `Started production for ${amount} of ${tierInfo.name}. Delivery next week.` });
+};
+
+const produceIdolMerch = (memberId, itemType, amount) => {
+    const tierInfo = idolMerchTiers[itemType];
+    if (!tierInfo) return setMessage(`Invalid idol merchandise type: ${itemType}`);
+
+    const currentSize = Object.values(merchInventory).reduce((a, b) => a + b, 0) + Object.values(idolMerchInventory).reduce((a, b) => a + b, 0) + Object.values(eventMerchInventory).reduce((a, b) => a + b, 0) + pendingMerch.reduce((sum, item) => sum + item.amount, 0);
+    const capacity = warehouseTiers[warehouse.level].capacity;
+
+    if (currentSize + amount > capacity) {
+        return setMessage(`Not enough warehouse space! Current: ${currentSize.toLocaleString()}/${capacity.toLocaleString()}.`);
+    }
+
+    let cost = tierInfo.cost * amount;
+if (staff.merchManager > 0) {
+    const costReduction = staff.merchManager * 0.05; // 5% per level
+    cost *= (1 - costReduction);
+}
+
+    if (merchDesignBonus) {
+        cost = Math.floor(cost * (1 - merchDesignBonus.bonus));
+    }
+
+    if (money < cost) return setMessage(`Not enough money! Cost: ¥${cost.toLocaleString()}`);
+    
+    setMoney(prev => prev - cost);
+
+    const newPendingItem = {
+        type: 'idol',
+        key: `${memberId}_${itemType}`,
+        amount: amount,
+        deliveryWeek: week + 1,
+        name: getMemberById(memberId)?.name + "'s " + tierInfo.name,
     };
     
-    const startHandshakeEvent = (selectedMemberIds) => {
+    const updatedQueue = [...pendingMerch, newPendingItem];
+const productionSummary = updatedQueue.map(item => `${item.amount}x ${item.name}`).join(', ');
+setMessage(`In Production: ${productionSummary}`);
+
+    
+    setPendingMerch(prev => [...prev, newPendingItem]);
+
+    addNotification({ type: 'Production', message: `Started production for ${amount} of ${newPendingItem.name}. Delivery next week.` });
+};
+
+const produceEventMerch = (itemType, amount) => {
+    const tierInfo = eventMerchTiers[itemType];
+    if (!tierInfo) return; // Silent fail
+
+    const currentSize = Object.values(merchInventory).reduce((a, b) => a + b, 0) + Object.values(idolMerchInventory).reduce((a, b) => a + b, 0) + Object.values(eventMerchInventory).reduce((a, b) => a + b, 0) + pendingMerch.reduce((sum, item) => sum + item.amount, 0);
+    const capacity = warehouseTiers[warehouse.level].capacity;
+
+    if (currentSize + amount > capacity) {
+        addNotification({ type: 'Alert', message: `Not enough warehouse space for event merch!` });
+        return;
+    }
+
+    let cost = tierInfo.cost * amount;
+    if (merchDesignBonus) {
+        cost = Math.floor(cost * (1 - merchDesignBonus.bonus));
+    }
+
+    if (money < cost) {
+        addNotification({ type: 'Alert', message: `Not enough money for event merch!` });
+        return;
+    }
+    
+    setMoney(prev => prev - cost);
+    setEventMerchInventory(prev => ({
+        ...prev,
+        [itemType]: (prev[itemType] || 0) + amount
+    }));
+
+    if (merchDesignBonus) {
+        addNotification({ type: 'Production', message: `Produced ${amount} of ${tierInfo.name} with a ${(merchDesignBonus.bonus * 100).toFixed(0)}% bonus for the concert!` });
+    } else {
+        addNotification({ type: 'Production', message: `Produced ${amount} of ${tierInfo.name} for the upcoming concert.` });
+    }
+};
+
+const beginActivity = (memberId, activityType) => {
+    const member = getMemberById(memberId);
+    if (!member) return setMessage("Member not found.");
+    if (!member.isAvailable) return setMessage(`${member.name} is currently unavailable.`);
+
+    switch (activityType) {
+        case 'design_merch':
+            // Set the member's activity and make them unavailable for 1 week
+            updateMemberState(memberId, m => ({ 
+                ...m, 
+                currentActivity: 'design_merch', 
+                activityEnd: week + 1, // This activity takes exactly one week
+                isAvailable: false 
+            }));
+            setMessage(`${member.name} is spending the week helping design new merchandise.`);
+            break;
+        
+        // Future activities like 'community_service' will be added here
+
+        default:
+            setMessage(`Unknown activity: ${activityType}`);
+            break;
+    }
+};
+
+
+const startHandshakeEvent = (selectedMemberIds) => {
       const cost = 50000;
       if (money < cost) return setMessage(`Handshake events cost ¥${cost.toLocaleString()}!`);
       
@@ -3416,6 +3760,7 @@ const createSong = () => {
 
     const nextWeek = () => {
 
+
         // --- NEW: Set isCurrentCenter flag for all members ---
         const promotingSingles = songs.filter(s => s.chartWeeksLeft > 0);
         const centerIds = new Set();
@@ -3583,8 +3928,33 @@ const createSong = () => {
       }
       // --- END NEW ---
 
-  const newWeek = week + 1;
+
+      const newWeek = week + 1;
       let priorityMessage = '';
+
+    // --- MERCHANDISE DELIVERY ---
+    const deliveredItems = pendingMerch.filter(item => item.deliveryWeek === week + 1);
+    if (deliveredItems.length > 0) {
+        let newMerchInv = { ...merchInventory };
+        let newIdolMerchInv = { ...idolMerchInventory };
+        let deliverySummary = [];
+
+        deliveredItems.forEach(item => {
+            if (item.type === 'regular') {
+                newMerchInv[item.key] = (newMerchInv[item.key] || 0) + item.amount;
+            } else if (item.type === 'idol') {
+                newIdolMerchInv[item.key] = (newIdolMerchInv[item.key] || 0) + item.amount;
+            }
+            deliverySummary.push(`${item.amount}x ${item.name}`);
+        });
+
+        setMerchInventory(newMerchInv);
+        setIdolMerchInventory(newIdolMerchInv);
+        setPendingMerch(prev => prev.filter(item => item.deliveryWeek !== week + 1));
+        addNotification({ type: 'Delivery', message: `Merchandise delivered: ${deliverySummary.join(', ')}.` });
+    }
+    // --- END DELIVERY ---
+
 
       // --- START: UNIFIED EVENT AND RELEASE PROCESSING ---
 
@@ -3698,6 +4068,71 @@ const createSong = () => {
       setScheduledSingles(prev => prev.filter(r => r.releaseWeek !== newWeek));
       
       // --- END: UNIFIED EVENT AND RELEASE PROCESSING ---
+// --- Online Store Weekly Sales ---
+if (onlineStore.level > 0) {
+    let onlineStoreRevenue = 0;
+    let itemsSoldSummary = [];
+    const itemsToSellPerTier = onlineStore.level * 50; // Lvl 1 sells 50 of each, Lvl 2 sells 100, etc.
+
+    let tempMerchInv = { ...merchInventory };
+    let tempIdolMerchInv = { ...idolMerchInventory };
+
+    // Sell regular merch
+    Object.keys(tempMerchInv).forEach(key => {
+        if (tempMerchInv[key] > 0) {
+            const toSell = Math.min(tempMerchInv[key], itemsToSellPerTier);
+            const [item, tier] = key.split('_');
+            const tierInfo = merchTiers[item]?.[tier];
+            if (tierInfo) {
+                onlineStoreRevenue += toSell * tierInfo.price;
+                tempMerchInv[key] -= toSell;
+if (tempMerchInv[key] === 0) {
+    addNotification({ type: 'Sales', message: `Online Store: ${tierInfo.name} has sold out due to high demand!` });
+}
+
+
+                itemsSoldSummary.push(`${toSell}x ${tierInfo.name}`);
+            }
+        }
+    });
+
+    // Sell idol-specific merch
+    Object.keys(tempIdolMerchInv).forEach(key => {
+        if (tempIdolMerchInv[key] > 0) {
+            const toSell = Math.min(tempIdolMerchInv[key], itemsToSellPerTier);
+            const [memberId, itemType] = key.split('_');
+            const tierInfo = idolMerchTiers[itemType];
+            if (tierInfo) {
+                onlineStoreRevenue += toSell * tierInfo.price;
+                tempIdolMerchInv[key] -= toSell;
+
+                if (tempIdolMerchInv[key] === 0) {
+    addNotification({ type: 'Sales', message: `Online Store: ${memberName}'s ${tierInfo.name} has sold out!` });
+    updateMemberState(memberId, m => ({ ...m, fans: { ...m.fans, casual: (m.fans.casual || 0) + 100 }}));
+}
+
+                const memberName = getMemberById(memberId)?.name || 'Idol';
+                itemsSoldSummary.push(`${toSell}x ${memberName}'s ${tierInfo.name}`);
+            }
+        }
+    });
+
+    if (onlineStoreRevenue > 0) {
+
+if (staff.merchManager > 0) {
+    const revenueBonus = staff.merchManager * 0.05;
+    onlineStoreRevenue = Math.floor(onlineStoreRevenue * (1 + revenueBonus));
+}
+
+        setMoney(prev => prev + onlineStoreRevenue);
+        setMerchInventory(tempMerchInv);
+        setIdolMerchInventory(tempIdolMerchInv);
+        incomeBreakdown.push(`Online Store: ¥${onlineStoreRevenue.toLocaleString()}`);
+        totalWeeklyIncome += onlineStoreRevenue;
+        addNotification({ type: 'Sales', message: `Online store sold ${itemsSoldSummary.length} types of items for ¥${onlineStoreRevenue.toLocaleString()}.` });
+    }
+}
+
 
       let weeklyChartRevenue = 0;
       let weeklyChartReport = [];
@@ -3927,6 +4362,26 @@ const createSong = () => {
             addNotification({ type: 'info', message: `${memberToUpdate.name} has returned from their assignment and is available again.` });
         }
 
+    if (!memberToUpdate.isAvailable && memberToUpdate.activityEnd && newWeek >= memberToUpdate.activityEnd) {
+        const completedActivity = memberToUpdate.currentActivity;
+
+        if (completedActivity === 'design_merch') {
+            const bonusValue = 0.1 + ((memberToUpdate.charisma || 0) / 2000); 
+            setMerchDesignBonus({ 
+                memberName: memberToUpdate.name, 
+                weeksLeft: 4, 
+                bonus: bonusValue 
+            });
+            addNotification({ type: 'Good', message: `${memberToUpdate.name} finished designing! Production costs are reduced by ${(bonusValue * 100).toFixed(1)}% for 4 weeks.` });
+        }
+
+        memberToUpdate.isAvailable = true;
+        memberToUpdate.currentActivity = null;
+        memberToUpdate.activityEnd = null;
+        addNotification({ type: 'info', message: `${memberToUpdate.name} has finished their activity and is available again.` });
+    }
+
+
         if (newWeek > 52 && newWeek % 52 === 1) {
             if (memberToUpdate.yearsActive >= 4) {
                 const decay = Math.random() * 0.5 + 0.2;
@@ -4041,6 +4496,23 @@ const createSong = () => {
           setShowModal('graduationAnnouncement');
           return; 
       }
+
+// --- START: Weekly Bonus & Activity Management (CORRECTED) ---
+setMerchDesignBonus(prevBonus => {
+    if (!prevBonus) {
+        return null; // If there's no bonus, do nothing.
+    }
+    
+    const weeksLeft = prevBonus.weeksLeft - 1;
+    
+    if (weeksLeft <= 0) {
+        addNotification({ type: 'Info', message: "The merchandise production cost bonus has expired." });
+        return null; // Bonus expires
+    }
+    
+    return { ...prevBonus, weeksLeft: weeksLeft };
+});
+
 
       setWeek(newWeek);
     };
@@ -4318,12 +4790,12 @@ const createSong = () => {
 
     return {
     // State
-    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchPrices, merchProdCost, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory, merchDesignBonus, beginActivity, merchTiers, idolMerchTiers, eventMerchTiers, produceEventMerch, eventMerchInventory, idolMerchInventory, produceIdolMerch, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
     // Firebase/Persistence
     db, auth, userId, isAuthReady, saveGame, loadGame,
     // Utilities
     startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
     // Logic
-    trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference, completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    pendingMerch, warehouse, upgradeWarehouse, onlineStore, upgradeOnlineStore, staff, hireStaff, trainMember, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference, completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
     };
     };
