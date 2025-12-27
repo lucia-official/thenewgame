@@ -2449,9 +2449,8 @@ const createSong = () => {
             addNotification({ type: 'alert', message: 'A corrupted single release was detected and automatically cancelled.' });
             return { updatedMembers: initialMembers, updatedSisterGroups: initialSisterGroups, releaseMessage: null };
         }
-
-        let updatedMembers = JSON.parse(JSON.stringify(initialMembers));
-        let updatedSisterGroups = JSON.parse(JSON.stringify(initialSisterGroups));
+        let updatedMembers = initialMembers;
+        let updatedSisterGroups = initialSisterGroups;
 
         const localUpdateMemberState = (memberId, updateFn) => {
             if (!String(memberId).startsWith('sg-')) {
@@ -2608,19 +2607,15 @@ const createSong = () => {
             }));
         });
         
-        if (newSong.targetGroup === 'main' || newSong.targetGroup === groupName) {
-            setSongs(prev => [...(prev || []), newSong]);
-        } else {
-            const sgIndex = updatedSisterGroups.findIndex(sg => sg.name === newSong.targetGroup);
-            if (sgIndex > -1) {
-                updatedSisterGroups[sgIndex].songs = [...(updatedSisterGroups[sgIndex].songs || []), newSong];
-            }
+        const sgIndex = updatedSisterGroups.findIndex(sg => sg.name === newSong.targetGroup);
+        if (sgIndex > -1) {
+            updatedSisterGroups[sgIndex].songs = [...(updatedSisterGroups[sgIndex].songs || []), newSong];
         }
         
         const releaseMessage = `RELEASED: \"${songData.name}\"! It will begin charting next week. Initial Hype: +${newFansTotal.toLocaleString()} fans.`;
         addNotification({ type: 'success', message: releaseMessage });
         
-        return { updatedMembers, updatedSisterGroups, releaseMessage };
+        return { updatedMembers, updatedSisterGroups, releaseMessage, newSong };
     };
     
     // --- Performance Management Logic ---
@@ -3604,8 +3599,9 @@ const startHandshakeEvent = (selectedMemberIds) => {
     };
 
     const executeAlbumRelease = (albumToRelease, initialMembers, initialSisterGroups) => {
-        let updatedMembers = JSON.parse(JSON.stringify(initialMembers));
-        let updatedSisterGroups = JSON.parse(JSON.stringify(initialSisterGroups));
+
+let updatedMembers = initialMembers;
+let updatedSisterGroups = initialSisterGroups;
     
         const localUpdateMemberState = (memberId, updateFn) => {
              if (!String(memberId).startsWith('sg-')) {
@@ -3696,6 +3692,7 @@ const startHandshakeEvent = (selectedMemberIds) => {
         const newAlbum = {
             id: Date.now(),
             artist: albumToRelease.albumData.artist,
+            targetGroup: albumToRelease.albumData.artist,
             name: albumToRelease.albumData.name,
             type: 'album',
             baseSalesPotential: baseSalesPotential,
@@ -3758,763 +3755,706 @@ const startHandshakeEvent = (selectedMemberIds) => {
     };
 
 
-    const nextWeek = () => {
+        const nextWeek = () => {
+        // --- 1. SETUP & INITIALIZATION ---
+        // The newWeek number is calculated once.
+        const newWeek = week + 1;
 
+        // Create temporary, "draft" copies of all state variables that will be changed.
+        // We will do all our calculations on these drafts.
+        let membersForUpdate = JSON.parse(JSON.stringify(members));
+        let sisterGroupsForUpdate = JSON.parse(JSON.stringify(sisterGroups));
+        let songsForUpdate = JSON.parse(JSON.stringify(songs || []));
+        let moneyForUpdate = money;
+        let notificationsForUpdate = [...notifications];
+        let messageForUpdate = '';
+        let priorityMessage = '';
+        let graduatingIdsThisWeek = [];
 
-        // --- NEW: Set isCurrentCenter flag for all members ---
-        const promotingSingles = songs.filter(s => s.chartWeeksLeft > 0);
-        const centerIds = new Set();
+        // Reset simple weekly flags. This is safe to do directly.
+        setMediaJobDoneThisWeek(false);
+        setGroupMediaJobDoneThisWeek(false);
+        setHasPerformedThisWeek(false);
 
-        promotingSingles.forEach(single => {
-            const titleTrack = single.tracks.find(t => t.type === 'title');
-            if (titleTrack && titleTrack.center) {
-                titleTrack.center.forEach(id => centerIds.add(String(id)));
+        // --- LOCAL HELPER FUNCTIONS ---
+        // These are special functions that only work inside `nextWeek`.
+        // They modify our "draft" variables, preventing state update race conditions.
+        const addNotificationInLoop = (notification) => {
+            const title = notification.type.charAt(0).toUpperCase() + notification.type.slice(1);
+            const newNotification = {
+                id: `${Date.now()}-${Math.random()}`,
+                week: week, // Log against the week the action happened
+                title: title,
+                content: notification.message
+            };
+            notificationsForUpdate = [newNotification, ...notificationsForUpdate].slice(0, 50);
+        };
+
+        const localUpdateMemberState = (memberId, updateFn) => {
+            let found = false;
+            // Update main group members
+            let mainMemberIndex = membersForUpdate.findIndex(m => String(m.id) === String(memberId));
+            if (mainMemberIndex !== -1) {
+                membersForUpdate[mainMemberIndex] = updateFn(membersForUpdate[mainMemberIndex]);
+                found = true;
             }
-        });
 
-        // Update members based on whether they are a center or not
-        setMembers(prevMembers => prevMembers.map(member => {
-            const memberIdStr = String(member.rosterId || member.id);
-            if (centerIds.has(memberIdStr)) {
-                return { ...member, isCurrentCenter: true };
+            // Update sister group members
+            if (!found) {
+                for (let i = 0; i < sisterGroupsForUpdate.length; i++) {
+                    const sg = sisterGroupsForUpdate[i];
+                    // Correctly construct the sister group member's roster ID for comparison
+                    const memberIndex = (sg.members || []).findIndex(m => `sg-${sg.id}-${m.id}` === String(memberId));
+                    if (memberIndex !== -1) {
+                        sisterGroupsForUpdate[i].members[memberIndex] = updateFn(sg.members[memberIndex]);
+                        break; 
+                    }
+                }
             }
-            // Ensure the flag is removed if they are no longer a center
-            if (member.isCurrentCenter) {
-                return { ...member, isCurrentCenter: false };
-            }
-            return member;
-        }));
-        // --- END NEW ---
+        };
 
+        const localDistributeFans = (amount, memberIds) => {
+            if (!memberIds || memberIds.length === 0) return;
+            const pushedMemberIds = pushedMembers.map(String);
+            const memberFanWeights = memberIds.map(id => {
+                const member = getMemberById(id); // Assumes getMemberById can find members in the original state arrays
+                if (!member) return { id, weight: 0 };
+                
+                const isPushed = pushedMemberIds.includes(String(id));
+                const fanCount = getTotalFansForMember(member);
+                // Give pushed members and members with fewer fans a higher chance to gain more
+                const weight = (isPushed ? 2.0 : 1.0) / (fanCount + 1000); 
+                return { id, weight };
+            });
+
+            const totalWeight = memberFanWeights.reduce((sum, m) => sum + m.weight, 0);
+
+            if (totalWeight === 0) return; // Avoid division by zero
+
+            let distributedFans = 0;
+            memberFanWeights.forEach(({ id, weight }) => {
+                const fanGain = Math.floor((weight / totalWeight) * amount);
+                distributedFans += fanGain;
+                const hardcoreGain = Math.floor(fanGain * 0.15); // Standardized conversion rate
+                const casualGain = fanGain - hardcoreGain;
+                localUpdateMemberState(id, m => ({ ...m, fans: { hardcore: (m.fans?.hardcore || 0) + hardcoreGain, casual: (m.fans?.casual || 0) + casualGain } }));
+            });
+
+            // Distribute any remainder to the first member
+            const remainder = amount - distributedFans;
+            if (remainder > 0 && memberIds.length > 0) {
+                 const hardcoreGain = Math.floor(remainder * 0.15);
+                 const casualGain = remainder - hardcoreGain;
+                 localUpdateMemberState(memberIds[0], m => ({ ...m, fans: { hardcore: (m.fans.hardcore || 0) + hardcoreGain, casual: (m.fans.casual || 0) + casualGain } }));
+            }
+        };
+
+
+        // --- 2. HANDLE EARLY EXITS (Actions that pause the game) ---
+
+        // Handle tours, which is a separate game loop.
+        if (activeTour) return progressTour();
+
+        // Handle random scandal event, which opens a modal and pauses the week.
+        const scandalRoll = Math.random();
+        if (scandalRoll < 0.05 && members.length > 0) {
+            const target = members[Math.floor(Math.random() * members.length)];
+            const scandalsByImpact = {
+                low: [
+                    {
+                      type: 'Reported Rudeness to Staff',
+                      severity: 'Low',
+                      description: 'An anonymous staff member has posted online about being treated poorly by the member. Fans are questioning their beloved idol\'s true personality behind the scenes.',
+                      baseFanLoss: 0.05,
+                      baseMoraleHit: 15,
+                      baseUrgency: 20,
+                    },
+                    {
+                      type: 'Family Member Causing Trouble',
+                      severity: 'Low',
+                      description: 'A parent or sibling of the member has made controversial statements online or is using their connection for personal gain, causing a backlash by association.',
+                      baseFanLoss: 0.03,
+                      baseMoraleHit: 20,
+                      baseUrgency: 15,
+                    },
+                  ],
+                  mid: [
+                    {
+                      type: 'Leaked Private Messages',
+                      severity: 'Mid',
+                      description: 'Screenshots of a private conversation have been leaked online. In them, the member complains about work, the fans, or another member in a negative light. The sense of betrayal is palpable.',
+                      baseFanLoss: 0.10,
+                      baseMoraleHit: 25,
+                      baseUrgency: 30,
+                    },
+                    {
+                      type: 'Past Bullying Rumors',
+                      severity: 'Mid',
+                      description: 'An old classmate has come forward with allegations of bullying from the member\'s school days. The story is spreading fast, with netizens digging for "proof".',
+                      baseFanLoss: 0.12,
+                      baseMoraleHit: 35,
+                      baseUrgency: 35,
+                    },
+                    {
+                      type: 'Association with a Disreputable Person',
+                      severity: 'Mid',
+                      description: 'The member was spotted with an individual known for shady business or a bad reputation. The media is questioning their judgment and character by association.',
+                      baseFanLoss: 0.08,
+                      baseMoraleHit: 25,
+                      baseUrgency: 25,
+                    },
+                  ],
+                  high: [
+                    {
+                      type: 'Paparazzi Dating Photo',
+                      severity: 'High',
+                      description: 'A blurry photo surfaces showing a member getting too close to an unidentified person in a private setting. The media is speculating about a secret relationship, and fans are in an uproar.',
+                      baseFanLoss: 0.15,
+                      baseMoraleHit: 30,
+                      baseUrgency: 40,
+                    },
+                    {
+                      type: 'Underage Drinking/Smoking Allegation',
+                      severity: 'High',
+                      description: 'A photo from a party, possibly old, shows the member near alcoholic beverages or cigarettes. Even if untrue, the allegation is damaging public perception and tainting their pure image.',
+                      baseFanLoss: 0.20,
+                      baseMoraleHit: 40,
+                      baseUrgency: 50,
+                    },
+                  ],
+                };
+                      let scandal;
+            const impactRoll = Math.random();
+            if (impactRoll < 0.05) { scandal = scandalsByImpact.high[Math.floor(Math.random() * scandalsByImpact.high.length)]; }
+            else if (impactRoll < 0.30) { scandal = scandalsByImpact.mid[Math.floor(Math.random() * scandalsByImpact.mid.length)]; }
+            else { scandal = scandalsByImpact.low[Math.floor(Math.random() * scandalsByImpact.low.length)]; }
+
+            setActiveScandal({ member: target, scandal: scandal });
+            setShowModal('scandalDecision');
+            return; // Stop the rest of nextWeek to focus on the decision
+        }
+
+        // --- 3. PROCESS SCHEDULED WEEKLY EVENTS ---
+
+        // --- MERCHANDISE DELIVERY ---
+        const deliveredItems = pendingMerch.filter(item => item.deliveryWeek === newWeek);
+        if (deliveredItems.length > 0) {
+            let deliverySummary = [];
+            let tempMerchInv = JSON.parse(JSON.stringify(merchInventory)); // Use original state for reading
+            let tempIdolMerchInv = JSON.parse(JSON.stringify(idolMerchInventory));
+
+            deliveredItems.forEach(item => {
+                if (item.type === 'regular') {
+                    tempMerchInv[item.key] = (tempMerchInv[item.key] || 0) + item.amount;
+                } else if (item.type === 'idol') {
+                    tempIdolMerchInv[item.key] = (tempIdolMerchInv[item.key] || 0) + item.amount;
+                }
+                deliverySummary.push(`${item.amount}x ${item.name}`);
+            });
+
+            // We update the state directly here as it doesn't conflict with other logic
+            setMerchInventory(tempMerchInv);
+            setIdolMerchInventory(tempIdolMerchInv);
+            setPendingMerch(prev => prev.filter(item => item.deliveryWeek !== newWeek));
+            addNotificationInLoop({ type: 'Delivery', message: `Merchandise delivered: ${deliverySummary.join(', ')}.` });
+        }
+
+
+        // --- GRADUATION & FINAL EVENTS ---
+        const eventsForNextWeek = scheduledEvents.filter(e => e.week === newWeek);
+        let shouldReturnAfterEvent = false;
+
+        if (eventsForNextWeek.length > 0) {
+            eventsForNextWeek.forEach(event => {
+                if (shouldReturnAfterEvent) return; // Stop processing other events if one requires a pause
+
+                if (event.type === 'FINAL_GRADUATION') {
+                    graduatingIdsThisWeek.push(String(event.memberId));
+                    priorityMessage = `${event.memberName} has officially graduated.`;
+                } else if (event.type === 'FINAL_HANDSHAKE') {
+                    const member = getMemberById(event.memberId);
+                    if (member) {
+                        const charismaModifier = (member.charisma || 0) / 200;
+                        const fansToConvert = Math.floor((member.fans?.casual || 0) * (0.25 + charismaModifier));
+                        const newCasualFans = Math.floor(getTotalFansForMember(member) * (0.05 + charismaModifier)) + 500;
+
+                        localUpdateMemberState(member.rosterId || member.id, m => ({
+                             ...m,
+                             fans: { hardcore: (m.fans.hardcore || 0) + fansToConvert, casual: Math.max(0, (m.fans.casual || 0) - fansToConvert) + newCasualFans },
+                             morale: Math.min(100, (m.morale || 0) + 20)
+                        }));
+                        
+                        addNotificationInLoop({ type: 'Event', message: `${member.name}'s final handshake event was a huge success.` });
+                        setModalData({ convertedFans: fansToConvert, newFans: newCasualFans, members: [member], isFinal: true });
+                        setShowModal('handshakeResult');
+                        shouldReturnAfterEvent = true; // A modal will be shown, so we must pause.
+                    }
+                } else if (event.type === 'FINAL_THEATER_SHOW') {
+                    const gradMember = getMemberById(event.memberId);
+                    if (gradMember) {
+                        const homeGroupId = gradMember.isSisterMember ? String(gradMember.groupId) : 'main';
+                        const homeTheater = theaters.find(t => t.owner === homeGroupId);
+
+                        if (!homeTheater) {
+                            localUpdateMemberState(gradMember.rosterId || gradMember.id, m => ({ ...m, fans: { hardcore: (m.fans.hardcore || 0) + 250, casual: (m.fans.casual || 0) + 1000 } }));
+                            priorityMessage = `The group held a touching final performance for ${gradMember.name}.`;
+                            addNotificationInLoop({ type: 'Event', message: priorityMessage });
+                        } else {
+                            const team = teams.find(t => t.members.includes(String(gradMember.rosterId || gradMember.id)));
+                            // CORRECTED LOGIC: Call the function and set a flag to return.
+                            holdTheaterShow({
+                                teamId: team ? team.id : null,
+                                venueOwnerId: homeTheater.owner,
+                                concertTheme: 'classic',
+                                travelCost: 0,
+                                centerMemberId: gradMember.rosterId || gradMember.id,
+                            });
+                            shouldReturnAfterEvent = true; // holdTheaterShow will open a modal, so we must pause.
+                        }
+                    }
+                }
+            });
+            // Update scheduled events state
+            setScheduledEvents(prev => prev.filter(e => e.week !== newWeek));
+            // If any event opened a modal, stop the entire nextWeek function here.
+            if (shouldReturnAfterEvent) {
+                return;
+            }
+        }
+
+
+        // --- SINGLE & ALBUM RELEASES ---
+        const releasesForThisWeek = scheduledSingles.filter(r => r.releaseWeek === newWeek);
+        if (releasesForThisWeek.length > 0) {
+            releasesForThisWeek.forEach(release => {
+                // We pass our DRAFT arrays into the release functions.
+                const result = release.type === 'album'
+                    ? executeAlbumRelease(release, membersForUpdate, sisterGroupsForUpdate)
+                    : executeSongRelease(release, membersForUpdate, sisterGroupsForUpdate);
+                
+                if (result) {
+                    // The functions return updated member/group drafts, which we accept for this loop.
+                    membersForUpdate = result.updatedMembers;
+                    sisterGroupsForUpdate = result.updatedSisterGroups;
+
+                    // **THE KEY FIX**: If a new song object was returned, we add it to our DRAFT song array.
+                    if (result.newSong) {
+                         if (result.newSong.targetGroup === 'main' || result.newSong.targetGroup === groupName) {
+                            songsForUpdate.push(result.newSong);
+                        }
+                        // Note: Sister group songs are handled inside executeSongRelease and are already in the sisterGroupsForUpdate draft.
+                    }
+
+                    if (result.releaseMessage && !priorityMessage) {
+                        priorityMessage = result.releaseMessage;
+                    }
+                }
+            });
+             // We update the state directly here as it's safe.
+            setScheduledSingles(prev => prev.filter(r => r.releaseWeek !== newWeek));
+        }
+
+        // --- 4. CALCULATE ALL INCOME STREAMS ---
+
+        let incomeBreakdown = [];
+        let totalWeeklyIncome = 0;
+        
+        // Draft variables for this section. We will commit them to the final drafts later.
+        let tempMerchInv = JSON.parse(JSON.stringify(merchInventory));
+        let tempIdolMerchInv = JSON.parse(JSON.stringify(idolMerchInventory));
+        let tempElectionVotePool = electionVotePool;
+        
+        // --- ENDORSEMENT INCOME ---
+        // This must be calculated *before* chart sales decrement the weeks left on a single.
         let endorsementIncome = 0;
-        const membersCopy = [...members]; // Use a copy to safely iterate while potentially updating state
-        membersCopy.forEach(member => {
+        const tempMembersForEndorsements = JSON.parse(JSON.stringify(membersForUpdate));
+        
+        tempMembersForEndorsements.forEach(member => {
             if (member.endorsement) {
-                const single = songs.find(s => s.id === member.endorsement.singleId);
-                // End the endorsement if the single's promotion is over
-                if (!single || single.chartWeeksLeft <= 1) { // <=1 because chart weeks decrements later this turn
-                    updateMemberState(member.id, m => {
-                        const { endorsement, ...rest } = m;
-                        return rest; // This removes the endorsement from the member object
+                const single = songsForUpdate.find(s => s.id === member.endorsement.singleId);
+                // A single's promotion ends when it's about to have its last chart week (weeksLeft <= 1)
+                if (!single || single.chartWeeksLeft <= 1) {
+                    localUpdateMemberState(member.rosterId || member.id, m => {
+                        const { endorsement, ...rest } = m; // This removes the endorsement from the member object
+                        return rest;
                     });
-                    const endMessage = `${member.name}'s solo endorsement deal has successfully concluded.`;
-                    addNotification({ type: 'Info', message: endMessage, idolId: member.id });
+                    addNotificationInLoop({ type: 'Info', message: `${member.name}'s solo endorsement deal has successfully concluded.` });
                 } else {
                     endorsementIncome += member.endorsement.weeklyIncome;
                 }
             }
         });
-        // --- END NEW ---
+        if (endorsementIncome > 0) {
+            incomeBreakdown.push(`Endorsements: ¥${endorsementIncome.toLocaleString()}`);
+            totalWeeklyIncome += endorsementIncome;
+        }
 
-        if (isCampaignActive && (week + 1) >= campaignEndWeek) {
-        setIsCampaignActive(false);
-        setMessage("The election campaign period has ended.");
-        addNotification({ type: 'Election', message: "The election campaign period has ended." });
-    }
+        // --- ONLINE STORE WEEKLY SALES ---
+        if (onlineStore.level > 0) {
+            let onlineStoreRevenue = 0;
+            let itemsSoldSummary = [];
+            const itemsToSellPerTier = onlineStore.level * 50;
 
+            // Sell regular merch
+            Object.keys(tempMerchInv).forEach(key => {
+                if (tempMerchInv[key] > 0) {
+                    const toSell = Math.min(tempMerchInv[key], itemsToSellPerTier);
+                    const [item, tier] = key.split('_');
+                    const tierInfo = merchTiers[item]?.[tier];
+                    if (tierInfo) {
+                        onlineStoreRevenue += toSell * tierInfo.price;
+                        tempMerchInv[key] -= toSell;
+                        if (tempMerchInv[key] === 0) {
+                            addNotificationInLoop({ type: 'Sales', message: `Online Store: ${tierInfo.name} has sold out!` });
+                        }
+                        itemsSoldSummary.push(`${toSell}x ${tierInfo.name}`);
+                    }
+                }
+            });
 
-      const graduatingIdsThisWeek = [];
+            // Sell idol-specific merch
+            Object.keys(tempIdolMerchInv).forEach(key => {
+                if (tempIdolMerchInv[key] > 0) {
+                    const toSell = Math.min(tempIdolMerchInv[key], itemsToSellPerTier);
+                    const [memberId, itemType] = key.split('_');
+                    const tierInfo = idolMerchTiers[itemType];
+                    const member = getMemberById(memberId); // Fine to use getMemberById for read-only name
+                    if (tierInfo && member) {
+                        onlineStoreRevenue += toSell * tierInfo.price;
+                        tempIdolMerchInv[key] -= toSell;
+                        if (tempIdolMerchInv[key] === 0) {
+                            addNotificationInLoop({ type: 'Sales', message: `Online Store: ${member.name}'s ${tierInfo.name} has sold out!` });
+                            localUpdateMemberState(memberId, m => ({ ...m, fans: { ...m.fans, casual: (m.fans.casual || 0) + 100 }}));
+                        }
+                        itemsSoldSummary.push(`${toSell}x ${member.name}'s ${tierInfo.name}`);
+                    }
+                }
+            });
 
-      setMediaJobDoneThisWeek(false);
-      setGroupMediaJobDoneThisWeek(false);
-      setHasPerformedThisWeek(false);
-      if (activeTour) return progressTour();
-      
-      const scandalRoll = Math.random();
-      const scandalsByImpact = {
-        low: [
-          {
-            type: 'Reported Rudeness to Staff',
-            severity: 'Low',
-            description: 'An anonymous staff member has posted online about being treated poorly by the member. Fans are questioning their beloved idol\'s true personality behind the scenes.',
-            baseFanLoss: 0.05,
-            baseMoraleHit: 15,
-            baseUrgency: 20,
-          },
-          {
-            type: 'Family Member Causing Trouble',
-            severity: 'Low',
-            description: 'A parent or sibling of the member has made controversial statements online or is using their connection for personal gain, causing a backlash by association.',
-            baseFanLoss: 0.03,
-            baseMoraleHit: 20,
-            baseUrgency: 15,
-          },
-        ],
-        mid: [
-          {
-            type: 'Leaked Private Messages',
-            severity: 'Mid',
-            description: 'Screenshots of a private conversation have been leaked online. In them, the member complains about work, the fans, or another member in a negative light. The sense of betrayal is palpable.',
-            baseFanLoss: 0.10,
-            baseMoraleHit: 25,
-            baseUrgency: 30,
-          },
-          {
-            type: 'Past Bullying Rumors',
-            severity: 'Mid',
-            description: 'An old classmate has come forward with allegations of bullying from the member\'s school days. The story is spreading fast, with netizens digging for "proof".',
-            baseFanLoss: 0.12,
-            baseMoraleHit: 35,
-            baseUrgency: 35,
-          },
-          {
-            type: 'Association with a Disreputable Person',
-            severity: 'Mid',
-            description: 'The member was spotted with an individual known for shady business or a bad reputation. The media is questioning their judgment and character by association.',
-            baseFanLoss: 0.08,
-            baseMoraleHit: 25,
-            baseUrgency: 25,
-          },
-        ],
-        high: [
-          {
-            type: 'Paparazzi Dating Photo',
-            severity: 'High',
-            description: 'A blurry photo surfaces showing a member getting too close to an unidentified person in a private setting. The media is speculating about a secret relationship, and fans are in an uproar.',
-            baseFanLoss: 0.15,
-            baseMoraleHit: 30,
-            baseUrgency: 40,
-          },
-          {
-            type: 'Underage Drinking/Smoking Allegation',
-            severity: 'High',
-            description: 'A photo from a party, possibly old, shows the member near alcoholic beverages or cigarettes. Even if untrue, the allegation is damaging public perception and tainting their pure image.',
-            baseFanLoss: 0.20,
-            baseMoraleHit: 40,
-            baseUrgency: 50,
-          },
-        ],
-      };
-
-  if (scandalRoll < 0.05 && members.length > 0) { 
-      const target = members[Math.floor(Math.random() * members.length)];
-      
-      // --- NEW: Weighted Scandal Selection ---
-      let scandal;
-      const impactRoll = Math.random();
-      if (impactRoll < 0.05) { // 5% chance for a High impact scandal
-          scandal = scandalsByImpact.high[Math.floor(Math.random() * scandalsByImpact.high.length)];
-      } else if (impactRoll < 0.30) { // 25% chance for a Mid impact scandal
-          scandal = scandalsByImpact.mid[Math.floor(Math.random() * scandalsByImpact.mid.length)];
-      } else { // 70% chance for a Low impact scandal
-          scandal = scandalsByImpact.low[Math.floor(Math.random() * scandalsByImpact.low.length)];
-      }
-
-      // Set the active scandal and show the decision modal
-      setActiveScandal({ member: target, scandal: scandal });
-      setShowModal('scandalDecision');
-      return; // Stop the rest of nextWeek to focus on the decision
-  }
-
-      // --- NEW: Solo Endorsement Opportunity Event ---
-      const centerMember = members.find(m => m.isCurrentCenter);
-      const promotingSingleForCenter = centerMember ? songs.find(s => s.chartWeeksLeft > 0 && s.tracks.some(t => t.type === 'title' && (t.center || []).includes(String(centerMember.id)))) : undefined;
-
-      // 4% chance per week for a center of a promoting single who doesn't already have a deal
-      if (centerMember && promotingSingleForCenter && !centerMember.endorsement && Math.random() < 0.04) {
-          const weeklyIncome = Math.floor((Math.random() * 15000) + 10000); // 10k to 25k
-          
-          updateMemberState(centerMember.id, m => ({
-              ...m,
-              endorsement: {
-                  singleId: promotingSingleForCenter.id,
-                  weeklyIncome: weeklyIncome,
-              }
-          }));
-
-          const eventMessage = `Amazing news! ${centerMember.name} has landed a solo endorsement deal for the duration of the "${promotingSingleForCenter.name}" promotion, earning ¥${weeklyIncome.toLocaleString()} weekly!`;
-          addNotification({ type: 'Good', message: eventMessage, idolId: centerMember.id });
-          setMessage(eventMessage); // Make it the main message for the week
-      }
-      // --- END NEW ---
-
-
-      const newWeek = week + 1;
-      let priorityMessage = '';
-
-    // --- MERCHANDISE DELIVERY ---
-    const deliveredItems = pendingMerch.filter(item => item.deliveryWeek === week + 1);
-    if (deliveredItems.length > 0) {
-        let newMerchInv = { ...merchInventory };
-        let newIdolMerchInv = { ...idolMerchInventory };
-        let deliverySummary = [];
-
-        deliveredItems.forEach(item => {
-            if (item.type === 'regular') {
-                newMerchInv[item.key] = (newMerchInv[item.key] || 0) + item.amount;
-            } else if (item.type === 'idol') {
-                newIdolMerchInv[item.key] = (newIdolMerchInv[item.key] || 0) + item.amount;
+            if (onlineStoreRevenue > 0) {
+                if (staff.merchManager > 0) {
+                    onlineStoreRevenue = Math.floor(onlineStoreRevenue * (1 + (staff.merchManager * 0.05)));
+                }
+                incomeBreakdown.push(`Online Store: ¥${onlineStoreRevenue.toLocaleString()}`);
+                totalWeeklyIncome += onlineStoreRevenue;
+                addNotificationInLoop({ type: 'Sales', message: `Online store sold merchandise for ¥${onlineStoreRevenue.toLocaleString()}.` });
             }
-            deliverySummary.push(`${item.amount}x ${item.name}`);
+        }
+
+        // --- THEATER SHOW INCOME ---
+        const mainGroupTheater = theaters.find(t => t.owner === 'main');
+        if (mainGroupTheater && mainGroupTheater.level > 0) {
+            const capacity = getTheaterCapacity(mainGroupTheater.level);
+            const ticketPrice = getTicketPrice(mainGroupTheater.level);
+            const avgFanFame = (membersForUpdate.reduce((acc, m) => acc + getTotalFansForMember(m), 0) / (membersForUpdate.length || 1)) / 10000;
+            const attendance = Math.min(capacity, Math.floor(capacity * (avgFanFame * 0.5 + Math.random() * 0.5)));
+            const theaterRevenue = attendance * ticketPrice;
+
+            if (theaterRevenue > 0) {
+                incomeBreakdown.push(`Theater: ¥${theaterRevenue.toLocaleString()}`);
+                totalWeeklyIncome += theaterRevenue;
+            }
+
+            if (isCampaignActive) {
+                const theaterVotes = Math.floor(attendance / 10);
+                if (theaterVotes > 0) {
+                    tempElectionVotePool += theaterVotes;
+                    addNotificationInLoop({ type: 'Election', message: `+${theaterVotes.toLocaleString()} votes added from this week's theater show!` });
+                }
+            }
+        }
+        
+        // --- OTHER INCOME STREAMS ---
+        const sisterIncome = (sisterGroupsForUpdate || []).reduce((s, g) => s + (g.income || 0), 0);
+        if (sisterIncome > 0) { incomeBreakdown.push(`Sister Groups: ¥${sisterIncome.toLocaleString()}`); totalWeeklyIncome += sisterIncome; }
+        const varietyIncome = (varietyShows || []).reduce((s, v) => s + (v.income || 0), 0);
+        if (varietyIncome > 0) { incomeBreakdown.push(`Variety Shows: ¥${varietyIncome.toLocaleString()}`); totalWeeklyIncome += varietyIncome; }
+
+        // --- COMMIT DRAFTS FOR THIS SECTION ---
+        moneyForUpdate += totalWeeklyIncome;
+        setElectionVotePool(tempElectionVotePool); // This is a simple state, safe to update.
+        setMerchInventory(tempMerchInv);           // This is also safe as its data for next week is now final.
+        setIdolMerchInventory(tempIdolMerchInv);
+
+        // --- 5. CALCULATE CHART SALES & FAN GAINS (from drafts) ---
+
+        let weeklyChartRevenue = 0;
+        let weeklyChartReport = [];
+
+        // This is a single, unified function to process any song's sales for the week.
+        const processSongSales = (song, groupNameForLog = groupName) => {
+            if (song.chartWeeksLeft > 0) {
+                const chartWeekIndex = 8 - song.chartWeeksLeft;
+
+                // Make sure the song is within its 8-week charting period
+                if (chartWeekIndex >= 0 && chartWeekIndex < weeklySalesCurve.length) {
+                    const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production?.song] || 1);
+                    const salesThisWeek = Math.floor((song.baseSalesPotential || 0) * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
+                    const revenueThisWeek = salesThisWeek * 15;
+                    
+                    // Add this song's revenue to the draft variable for this week's total.
+                    weeklyChartRevenue += revenueThisWeek;
+                    
+                    // Calculate fan gain
+                    let fanMultiplier = 1;
+                    if (song.type === 'single') { fanMultiplier = (fanMultipliers[song.production?.mv] || 1) * (promoMultipliers[song.production?.promo] || 1); }
+                    else if (song.type === 'album' && song.production?.promo_album) { fanMultiplier = promoMultipliers[song.production.promo_album] || 1; }
+                    const fansThisWeek = Math.floor(5 + ((salesThisWeek / 15) * fanMultiplier));
+
+                    // Distribute fans using our safe local helper
+                    const allMemberIdsInSingle = (song.tracks || []).flatMap(t => (t.members || []).map(m => String(m.id)));
+                    const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
+                    localDistributeFans(fansThisWeek, uniqueMemberIds);
+
+                    // Add to the weekly report string
+                    const logName = (groupNameForLog === groupName || !groupNameForLog) ? song.name : `${groupNameForLog}'s ${song.name}`;
+                    weeklyChartReport.push(`${logName}: ${salesThisWeek.toLocaleString()} sold.`);
+
+                    // Handle election single vote contribution
+                    const newChartWeeksLeft = song.chartWeeksLeft - 1;
+                    if (newChartWeeksLeft === 0 && song.isElectionSingle) {
+                        const finalSales = (song.totalSales || 0) + salesThisWeek;
+                        // Update the draft variable, not the state directly
+                        tempElectionVotePool += finalSales;
+                        addNotificationInLoop({ type: 'Election', message: `Votes from "${song.name}" are tallied! Added: ${finalSales.toLocaleString()} votes.` });
+                        setIsElectionSingleFinished(true); // This simple boolean update is safe
+                    }
+                    
+                    // Return the fully updated song object for the draft array.
+                    return {
+                        ...song,
+                        totalSales: (song.totalSales || 0) + salesThisWeek,
+                        chartWeeksLeft: newChartWeeksLeft,
+                        salesHistory: [...(song.salesHistory || []), { week: newWeek, sales: salesThisWeek }],
+                        weeklySales: [...(song.weeklySales || []), salesThisWeek],
+                    };
+                }
+            }
+            return song; // Return the song unchanged if it's not charting.
+        };
+
+        // Now, apply this safe function to our draft arrays.
+        songsForUpdate = songsForUpdate.map(song => processSongSales(song, groupName));
+
+        sisterGroupsForUpdate = sisterGroupsForUpdate.map(sg => {
+            if (!sg.songs || sg.songs.length === 0) return sg;
+            const newSgSongs = sg.songs.map(song => processSongSales(song, sg.name));
+            return { ...sg, songs: newSgSongs };
         });
 
-        setMerchInventory(newMerchInv);
-        setIdolMerchInventory(newIdolMerchInv);
-        setPendingMerch(prev => prev.filter(item => item.deliveryWeek !== week + 1));
-        addNotification({ type: 'Delivery', message: `Merchandise delivered: ${deliverySummary.join(', ')}.` });
-    }
-    // --- END DELIVERY ---
-
-
-      // --- START: UNIFIED EVENT AND RELEASE PROCESSING ---
-
-      // 1. Process Scheduled Graduation Events
-      const eventsForNextWeek = scheduledEvents.filter(e => e.week === newWeek);
-      if (eventsForNextWeek.length > 0) {
-          eventsForNextWeek.forEach(event => {
-    if (event.type === 'FINAL_GRADUATION') {
-        graduateMember(event.memberId);
-        graduatingIdsThisWeek.push(String(event.memberId)); // Add this line
-        priorityMessage = `${event.memberName} has officially graduated.`;
-
-    } else if (event.type === 'FINAL_HANDSHAKE') {
-        const member = getMemberById(event.memberId);
-        if (member) {
-            const charismaModifier = (member.charisma || 0) / 200; // Increased impact for a final event
-            const fansToConvert = Math.floor((member.fans?.casual || 0) * (0.25 + charismaModifier));
-            const newCasualFans = Math.floor(getTotalFansForMember(member) * (0.05 + charismaModifier)) + 500;
-
-            updateMemberState(member.rosterId || member.id, m => {
-                const casual = m.fans?.casual || 0;
-                const hardcore = m.fans?.hardcore || 0;
-                return {
-                    ...m,
-                    fans: {
-                    hardcore: hardcore + fansToConvert,
-                    casual: Math.max(0, casual - fansToConvert) + newCasualFans,
-                    },
-                    morale: Math.min(100, (m.morale || 0) + 20) // Morale boost from fan love
-                };
-            });
-            
-            // Keep the notification for the log
-            const finalHandshakeMessage = `${member.name}'s final handshake event was a huge success, converting ${fansToConvert.toLocaleString()} fans and gaining ${newCasualFans.toLocaleString()} new ones.`;
-            addNotification({ type: 'Event', message: finalHandshakeMessage });
-
-            // NEW: Show the result modal
-            setModalData({
-                convertedFans: fansToConvert,
-                newFans: newCasualFans,
-                members: [member], // The final handshake is for one member
-                isFinal: true      // The flag to change the modal's appearance
-            });
-            setShowModal('handshakeResult');
+        // Finally, add the total chart revenue to our draft money variable.
+        if (weeklyChartRevenue > 0) {
+            moneyForUpdate += weeklyChartRevenue;
+            incomeBreakdown.push(`Chart Sales: ¥${weeklyChartRevenue.toLocaleString()}`);
+            addNotificationInLoop({ type: 'info', message: `Chart Sales Report: ${weeklyChartReport.join(' ')}` });
         }
-        
-} else if (event.type === 'FINAL_THEATER_SHOW') {
-    const gradMember = getMemberById(event.memberId);
-    if (gradMember) {
-        // Find the graduating member's home theater
-        const homeGroupId = gradMember.isSisterMember ? String(gradMember.groupId) : 'main';
-        const homeTheater = theaters.find(t => t.owner === homeGroupId);
+      
+        // --- 6. CALCULATE EXPENSES & FAN CHURN (from drafts) ---
 
-        if (!homeTheater) {
-            // Fallback if they have no home theater, just give a fan boost and message
-            updateMemberState(gradMember.rosterId || gradMember.id, m => ({ ...m, fans: { hardcore: (m.fans.hardcore || 0) + 250, casual: (m.fans.casual || 0) + 1000 } }));
-            priorityMessage = `The group held a touching final performance for ${gradMember.name}.`;
-            addNotification({ type: 'Event', message: priorityMessage });
-        } else {
-            // Find the member's team to get the right setlist and members
-            const team = teams.find(t => t.members.includes(String(gradMember.rosterId || gradMember.id)));
+        let expenseNotification = '';
+        if (newWeek > 0 && newWeek % 4 === 0) {
+            const allMembersForSalary = [...membersForUpdate, ...sisterGroupsForUpdate.flatMap(sg => sg.members || [])];
+            const totalSalaries = allMembersForSalary.reduce((sum, member) => {
+                const memberFans = getTotalFansForMember(member);
+                let baseSalary;
+                if (memberFans < 5000) { baseSalary = 2000; }
+                else if (memberFans < 25000) { baseSalary = 5000; }
+                else if (memberFans < 100000) { baseSalary = 15000; }
+                else if (memberFans < 500000) { baseSalary = 40000; }
+                else { baseSalary = 100000; }
+                const skillBonus = Math.floor(((member.singing || 0) + (member.dancing || 0) + (member.variety || 0)) * 5);
+                const fanBonus = Math.floor(memberFans / 50);
+                return sum + baseSalary + skillBonus + fanBonus;
+            }, 0);
 
-            // The holdTheaterShow function now calculates performance details and returns them.
-            // We pass the graduating member's ID to ensure they are the center.
-            const performanceResult = holdTheaterShow({
-                teamId: team ? team.id : null,
-                venueOwnerId: homeTheater.owner,
-                concertTheme: 'classic', // A fitting theme for a grad stage
-                travelCost: 0,
-                centerMemberId: gradMember.rosterId || gradMember.id, // Ensure the graduating member is the center
-            });
+            const practiceRoomUpkeep = Object.values(buildings.practiceRooms || {}).reduce((sum, level) => sum + level, 0) * 1000;
+            const theaterUpkeep = (theaters || []).reduce((sum, t) => sum + (5000 * t.level), 0);
+            const monthlyExpenses = totalSalaries + practiceRoomUpkeep + theaterUpkeep;
             
-            // Use the returned result to display the performance modal
-            if (performanceResult) {
-                setModalData(performanceResult);
-                setShowModal('performanceResult');
-                priorityMessage = `${gradMember.name}'s graduation stage has concluded.`;
+            // Subtract from our draft money variable
+            moneyForUpdate -= monthlyExpenses;
+
+            // Calculate fan churn and update the draft member arrays
+            let totalFansActuallyLost = 0;
+            const updateMemberFansForChurn = (member) => {
+                if (!member.fans || typeof member.fans !== 'object') return member;
+                const fansLost = Math.ceil((member.fans.casual || 0) * 0.05);
+                totalFansActuallyLost += fansLost;
+                return { ...member, fans: { ...member.fans, casual: Math.max(0, (member.fans.casual || 0) - fansLost) } };
+            };
+            
+            membersForUpdate = membersForUpdate.map(updateMemberFansForChurn);
+            sisterGroupsForUpdate = sisterGroupsForUpdate.map(sg => ({ ...sg, members: (sg.members || []).map(updateMemberFansForChurn) }));
+
+            expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()}. Lost ${totalFansActuallyLost.toLocaleString()} fans.`;
+            addNotificationInLoop({ type: 'info', message: expenseNotification });
+        }
+
+
+        // --- 7. PROCESS WEEKLY MEMBER UPDATES (Training, Stats, etc.) ---
+
+        let campMessage = '';
+        if (activeTrainingCamp) {
+            if (activeTrainingCamp.weeksLeft <= 1) {
+                const member = getMemberById(activeTrainingCamp.memberId);
+                const skill = activeTrainingCamp.skill;
+                localUpdateMemberState(activeTrainingCamp.memberId, m => ({ ...m, isAvailable: true, [skill]: Math.min(100, (m[skill] || 0) + 15) }));
+                campMessage = `${member?.name || 'A member'} has returned from ${skill} camp with a huge skill boost!`;
+                if (!priorityMessage) priorityMessage = campMessage;
+                setActiveTrainingCamp(null);
             } else {
-                // Fallback message if the show couldn't be held
-                priorityMessage = `There was an issue scheduling the final performance for ${gradMember.name}.`;
+                setActiveTrainingCamp(prev => ({ ...prev, weeksLeft: prev.weeksLeft - 1 }));
+                campMessage = `Training camp continues for ${activeTrainingCamp.weeksLeft - 1} more week(s).`;
             }
         }
-    }
-}
-          });
-          setScheduledEvents(prev => prev.filter(e => e.week !== newWeek));
-      }
 
-      // BATCHING FIX: Create mutable copies of state that can be passed through functions
-      let membersForUpdate = [...members];
-      let sisterGroupsForUpdate = JSON.parse(JSON.stringify(sisterGroups));
-
-      // 2. Process Scheduled Releases (Singles & Albums)
-      const releasesForThisWeek = scheduledSingles.filter(r => r.releaseWeek === newWeek);
-      if (releasesForThisWeek.length > 0) {
-          releasesForThisWeek.forEach(release => {
-              const result = release.type === 'album' 
-                  ? executeAlbumRelease(release, membersForUpdate, sisterGroupsForUpdate) 
-                  : executeSongRelease(release, membersForUpdate, sisterGroupsForUpdate);
-              
-              if (result && result.releaseMessage) {
-                  // Pass the updated data to the next iteration
-                  membersForUpdate = result.updatedMembers;
-                  sisterGroupsForUpdate = result.updatedSisterGroups;
-                  if (!priorityMessage) {
-                      priorityMessage = result.releaseMessage;
-                  }
-              }
-          });
-      }
-      setScheduledSingles(prev => prev.filter(r => r.releaseWeek !== newWeek));
-      
-      // --- END: UNIFIED EVENT AND RELEASE PROCESSING ---
-// --- Online Store Weekly Sales ---
-if (onlineStore.level > 0) {
-    let onlineStoreRevenue = 0;
-    let itemsSoldSummary = [];
-    const itemsToSellPerTier = onlineStore.level * 50; // Lvl 1 sells 50 of each, Lvl 2 sells 100, etc.
-
-    let tempMerchInv = { ...merchInventory };
-    let tempIdolMerchInv = { ...idolMerchInventory };
-
-    // Sell regular merch
-    Object.keys(tempMerchInv).forEach(key => {
-        if (tempMerchInv[key] > 0) {
-            const toSell = Math.min(tempMerchInv[key], itemsToSellPerTier);
-            const [item, tier] = key.split('_');
-            const tierInfo = merchTiers[item]?.[tier];
-            if (tierInfo) {
-                onlineStoreRevenue += toSell * tierInfo.price;
-                tempMerchInv[key] -= toSell;
-if (tempMerchInv[key] === 0) {
-    addNotification({ type: 'Sales', message: `Online Store: ${tierInfo.name} has sold out due to high demand!` });
-}
-
-
-                itemsSoldSummary.push(`${toSell}x ${tierInfo.name}`);
+        // Handle Merchandise Design Bonus Countdown
+        if (merchDesignBonus) {
+            const newWeeksLeft = merchDesignBonus.weeksLeft - 1;
+            if (newWeeksLeft <= 0) {
+                setMerchDesignBonus(null);
+                addNotificationInLoop({ type: 'Info', message: "The merchandise production cost bonus has expired." });
+            } else {
+                setMerchDesignBonus(prev => ({ ...prev, weeksLeft: newWeeksLeft }));
             }
         }
-    });
+        
+        const allMembersForWeeklyUpdate = [...membersForUpdate.map(m => ({ ...m, rosterId: String(m.id) })), ...sisterGroupsForUpdate.flatMap(sg => (sg.members || []).map(m => ({ ...m, rosterId: `sg-${sg.id}-${m.id}` })))];
+        
+        allMembersForWeeklyUpdate.forEach(member => {
+            if (!member.rosterId) return;
 
-    // Sell idol-specific merch
-    Object.keys(tempIdolMerchInv).forEach(key => {
-        if (tempIdolMerchInv[key] > 0) {
-            const toSell = Math.min(tempIdolMerchInv[key], itemsToSellPerTier);
-            const [memberId, itemType] = key.split('_');
-            const tierInfo = idolMerchTiers[itemType];
-            if (tierInfo) {
-                onlineStoreRevenue += toSell * tierInfo.price;
-                tempIdolMerchInv[key] -= toSell;
-
-                if (tempIdolMerchInv[key] === 0) {
-    addNotification({ type: 'Sales', message: `Online Store: ${memberName}'s ${tierInfo.name} has sold out!` });
-    updateMemberState(memberId, m => ({ ...m, fans: { ...m.fans, casual: (m.fans.casual || 0) + 100 }}));
-}
-
-                const memberName = getMemberById(memberId)?.name || 'Idol';
-                itemsSoldSummary.push(`${toSell}x ${memberName}'s ${tierInfo.name}`);
-            }
-        }
-    });
-
-    if (onlineStoreRevenue > 0) {
-
-if (staff.merchManager > 0) {
-    const revenueBonus = staff.merchManager * 0.05;
-    onlineStoreRevenue = Math.floor(onlineStoreRevenue * (1 + revenueBonus));
-}
-
-        setMoney(prev => prev + onlineStoreRevenue);
-        setMerchInventory(tempMerchInv);
-        setIdolMerchInventory(tempIdolMerchInv);
-        incomeBreakdown.push(`Online Store: ¥${onlineStoreRevenue.toLocaleString()}`);
-        totalWeeklyIncome += onlineStoreRevenue;
-        addNotification({ type: 'Sales', message: `Online store sold ${itemsSoldSummary.length} types of items for ¥${onlineStoreRevenue.toLocaleString()}.` });
-    }
-}
-
-
-      let weeklyChartRevenue = 0;
-      let weeklyChartReport = [];
-      const incomeBreakdown = [];
-      let totalWeeklyIncome = 0;
-
-      // --- NEW: Theater Show Income & Election Votes ---
-      const mainGroupTheater = theaters.find(t => t.owner === 'main');
-      if (mainGroupTheater && mainGroupTheater.level > 0) {
-          const capacity = getTheaterCapacity(mainGroupTheater.level);
-          const ticketPrice = getTicketPrice(mainGroupTheater.level);
-          const avgFame = (members.reduce((acc, m) => acc + (m.fame || 0), 0) / (members.length || 1)) / 100;
-          const attendance = Math.min(capacity, Math.floor(capacity * (avgFame * 0.7 + Math.random() * 0.3)));
-          const theaterRevenue = attendance * ticketPrice;
-
-          if (theaterRevenue > 0) {
-              incomeBreakdown.push(`Theater: ¥${theaterRevenue.toLocaleString()}`);
-              totalWeeklyIncome += theaterRevenue;
-          }
-
-          // Add votes if campaign is active
-          if (isCampaignActive) {
-              const theaterVotes = Math.floor(attendance / 10);
-              if (theaterVotes > 0) {
-                  setElectionVotePool(prev => prev + theaterVotes);
-                  addNotification({ type: 'Election', message: `+${theaterVotes.toLocaleString()} votes added from this week's theater show!` });
-              }
-          }
-      }
-      // --- END NEW ---
-
-      const baseIncome = 0;
-      if (baseIncome > 0) {
-          incomeBreakdown.push(`Base: ¥${baseIncome.toLocaleString()}`);
-          totalWeeklyIncome += baseIncome;
-      }
-      const sisterIncome = (sisterGroups || []).reduce((s, g) => s + (g.income || 0), 0);
-      if (sisterIncome > 0) {
-          incomeBreakdown.push(`Sister Groups: ¥${sisterIncome.toLocaleString()}`);
-          totalWeeklyIncome += sisterIncome;
-      }
-
-      const varietyIncome = (varietyShows || []).reduce((s, v) => s + (v.income || 0), 0);
-      if (varietyIncome > 0) {
-          incomeBreakdown.push(`Variety Shows: ¥${varietyIncome.toLocaleString()}`);
-          totalWeeklyIncome += varietyIncome;
-      }
-
-      // --- NEW: Add Endorsement Income to Total ---
-      if (endorsementIncome > 0) {
-          incomeBreakdown.push(`Endorsements: ¥${endorsementIncome.toLocaleString()}`);
-          totalWeeklyIncome += endorsementIncome;
-      }
-      // --- END NEW ---
-
-      setMoney(prev => (prev || 0) + totalWeeklyIncome);
-
-      setSongs(currentSongs => {
-          if (!currentSongs) return [];
-          return currentSongs.map(song => {
-              if (song.chartWeeksLeft > 0) {
-                  const chartWeekIndex = 8 - song.chartWeeksLeft;
-                  const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production.song] || 1);
-                  const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
-                  const revenueThisWeek = salesThisWeek * 15;
-                    let fanMultiplier = 1;
-                    if (song.type === 'single') {
-                        fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
-                    } else if (song.type === 'album' && song.production.promo_album) {
-                        fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
-                    }
-                    const fansThisWeek = Math.floor(5 + ((salesThisWeek / 15) * fanMultiplier));
-                    weeklyChartRevenue += revenueThisWeek;
-                    const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
-                    const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
-
-                    // NEW LOGIC STARTS HERE
-                    const newChartWeeksLeft = song.chartWeeksLeft - 1;
-                if (newChartWeeksLeft === 0 && song.isElectionSingle) {
-                    const finalSales = (song.totalSales || 0) + salesThisWeek;
-                    setElectionVotePool(prevPool => prevPool + finalSales);
-                    addNotification({ type: 'Election', message: `Votes from "${song.name}" are tallied! Added: ${finalSales.toLocaleString()} votes.` });
-                    setIsElectionSingleFinished(true); // Enable the campaign button
+            // Handle members finishing activities
+            if (!member.isAvailable && member.currentActivity && newWeek >= member.activityEnd) {
+                if (member.currentActivity === 'design_merch') {
+                    const bonusValue = 0.1 + ((member.charisma || 0) / 2000); // Original detailed calculation
+                    setMerchDesignBonus({ memberName: member.name, weeksLeft: 4, bonus: bonusValue });
+                    addNotificationInLoop({ type: 'Good', message: `${member.name} finished designing! Production costs reduced by ${(bonusValue * 100).toFixed(1)}%.` });
                 }
-                    // NEW LOGIC ENDS HERE
-
-                    distributeFans(fansThisWeek, uniqueMemberIds);
-                    weeklyChartReport.push(`${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
-                  
-                  return {
-                      ...song,
-                      totalSales: (song.totalSales || 0) + salesThisWeek,
-                      chartWeeksLeft: newChartWeeksLeft,
-                      salesHistory: [...(song.salesHistory || []), { week: newWeek, sales: salesThisWeek }],
-                      weeklySales: [...(song.weeklySales || []), salesThisWeek],
-                  };
-              }
-              return song;
-          });
-      });
-
-      setSisterGroups(currentSisterGroups => {
-          if (!currentSisterGroups) return [];
-          return currentSisterGroups.map(sg => {
-              if (!sg.songs || sg.songs.length === 0) return sg;
-              const newSgSongs = sg.songs.map(song => {
-                  if (song.chartWeeksLeft > 0) {
-                      const chartWeekIndex = 8 - song.chartWeeksLeft;
-                      const salesMultiplier = song.type === 'album' ? 1 : (salesMultipliers[song.production.song] || 1);
-                      const salesThisWeek = Math.floor(song.baseSalesPotential * weeklySalesCurve[chartWeekIndex] * salesMultiplier * (0.85 + Math.random() * 0.3));
-                      const revenueThisWeek = salesThisWeek * 15;
-                      let fanMultiplier = 1;
-                      if (song.type === 'single') {
-                          fanMultiplier = (fanMultipliers[song.production.mv] || 1) * (promoMultipliers[song.production.promo] || 1);
-                      } else if (song.type === 'album' && song.production.promo_album) {
-                          fanMultiplier = promoMultipliers[song.production.promo_album] || 1;
-                      }
-                      const fansThisWeek = Math.floor((salesThisWeek / 10) * fanMultiplier);
-                      weeklyChartRevenue += revenueThisWeek;
-                      const allMemberIdsInSingle = song.tracks.flatMap(t => (t.members || []).map(m => String(m.id)));
-                      const uniqueMemberIds = [...new Set(allMemberIdsInSingle)];
-                      distributeFans(fansThisWeek, uniqueMemberIds);
-                      weeklyChartReport.push(`${sg.name}'s ${song.name}: ${salesThisWeek.toLocaleString()} sold.`);
-                      
-                      return {
-                          ...song,
-                          totalSales: (song.totalSales || 0) + salesThisWeek,
-                          chartWeeksLeft: song.chartWeeksLeft - 1,
-                          salesHistory: [...(song.salesHistory || []), { week: newWeek, sales: salesThisWeek }],
-                          weeklySales: [...(song.weeklySales || []), salesThisWeek],
-                      };
-                  }
-                  return song;
-              });
-              return { ...sg, songs: newSgSongs };
-          });
-      });
-
-      if (weeklyChartRevenue > 0) {
-          setMoney(prev => prev + weeklyChartRevenue);
-          addNotification({ type: 'info', message: `Chart Sales Report: ${weeklyChartReport.join(' ')}` });
-      }
-
-      let expenseNotification = '';
-      if (newWeek > 0 && newWeek % 4 === 0) {
-          const allMembersForSalary = [...members, ...sisterGroups.flatMap(sg => sg.members || [])];
-          const totalSalaries = allMembersForSalary.reduce((sum, member) => {
-              const memberFans = getTotalFansForMember(member);
-              let baseSalary;
-              if (memberFans < 5000) { baseSalary = 2000; } 
-              else if (memberFans < 25000) { baseSalary = 5000; } 
-              else if (memberFans < 100000) { baseSalary = 15000; } 
-              else if (memberFans < 500000) { baseSalary = 40000; } 
-              else { baseSalary = 100000; }
-              const skillBonus = Math.floor(((member.singing || 0) + (member.dancing || 0) + (member.variety || 0)) * 5);
-              const fanBonus = Math.floor(memberFans / 50); 
-              return sum + baseSalary + skillBonus + fanBonus;
-          }, 0);
-
-          const practiceRoomUpkeep = Object.values(buildings.practiceRooms || {}).reduce((sum, level) => sum + level, 0) * 1000;
-          const theaterUpkeep = (theaters || []).reduce((sum, t) => {
-              const maintenancePerLevel = 5000;
-              return sum + (maintenancePerLevel * t.level);
-          }, 0);
-          const totalUpkeep = practiceRoomUpkeep + theaterUpkeep;
-          const monthlyExpenses = totalSalaries + totalUpkeep;
-          setMoney(prev => prev - monthlyExpenses);
-
-          let totalFansActuallyLost = 0;
-          const allMembersForChurn = [...members, ...(sisterGroups || []).flatMap(sg => sg.members || [])];
-          allMembersForChurn.forEach(member => {
-              if (member.fans && typeof member.fans === 'object') {
-                  const casualFans = member.fans.casual || 0;
-                  totalFansActuallyLost += Math.ceil(casualFans * 0.05);
-              }
-          });
-          const updateMemberFansForChurn = (member) => {
-            if (!member.fans || typeof member.fans !== 'object') return member;
-            const casualFans = member.fans.casual || 0;
-            const hardcoreFans = member.fans.hardcore || 0;
-            const fansLost = Math.ceil(casualFans * 0.05);
-            return { ...member, fans: { hardcore: hardcoreFans, casual: Math.max(0, casualFans - fansLost) } };
-          };
-          setMembers(prev => prev.map(updateMemberFansForChurn));
-          setSisterGroups(prev => prev.map(sg => ({ ...sg, members: (sg.members || []).map(m => updateMemberFansForChurn(m)) })));
-
-          expenseNotification = `Monthly Report: Expenses ¥${monthlyExpenses.toLocaleString()} (Salaries & Upkeep). Lost ${totalFansActuallyLost.toLocaleString()} fans due to churn.`;
-          addNotification({ type: 'info', message: expenseNotification });
-      }
-    
-      let campMessage = '';
-      if (activeTrainingCamp) {
-          if (activeTrainingCamp.weeksLeft <= 1) {
-              campMessage = handleTrainingCampReturn();
-              if (campMessage) priorityMessage = campMessage;
-          } else {
-              setActiveTrainingCamp(prev => ({ ...prev, weeksLeft: prev.weeksLeft - 1 }));
-              campMessage = `Training camp continues for ${activeTrainingCamp.weeksLeft - 1} more week(s).`;
-          }
-      }
-      
-      if (priorityMessage) {
-          setMessage(priorityMessage);
-      } else if (expenseNotification) {
-          setMessage(expenseNotification);
-      } else {
-          const incomeDetails = incomeBreakdown.length > 0 ? `(${incomeBreakdown.join(', ')})` : '';
-          setMessage(`Week ${newWeek}: +¥${totalWeeklyIncome.toLocaleString()} ${incomeDetails}. ${campMessage}`);
-      }
-      
-      addNotification({ type: 'info', message: `+¥${totalWeeklyIncome.toLocaleString()} income.` });
-      if (campMessage && !priorityMessage.includes('camp')) {
-          addNotification({ type: 'info', message: campMessage });
-      }
-
-      const updateMemberWeekly = (m, isSister = false) => {
-        let memberToUpdate = { ...m };
-
-        // --- NEW: Relationship Effects ---
-        const numFriends = memberToUpdate.relationships?.friends?.length || 0;
-        const numRivals = memberToUpdate.relationships?.rivals?.length || 0;
-        // --- END NEW ---
-
-        if (!memberToUpdate.isAvailable && memberToUpdate.returningWeek && newWeek >= memberToUpdate.returningWeek) {
-            memberToUpdate.isAvailable = true;
-            memberToUpdate.returningWeek = undefined;
-            addNotification({ type: 'info', message: `${memberToUpdate.name} has returned from their assignment and is available again.` });
-        }
-
-    if (!memberToUpdate.isAvailable && memberToUpdate.activityEnd && newWeek >= memberToUpdate.activityEnd) {
-        const completedActivity = memberToUpdate.currentActivity;
-
-        if (completedActivity === 'design_merch') {
-            const bonusValue = 0.1 + ((memberToUpdate.charisma || 0) / 2000); 
-            setMerchDesignBonus({ 
-                memberName: memberToUpdate.name, 
-                weeksLeft: 4, 
-                bonus: bonusValue 
-            });
-            addNotification({ type: 'Good', message: `${memberToUpdate.name} finished designing! Production costs are reduced by ${(bonusValue * 100).toFixed(1)}% for 4 weeks.` });
-        }
-
-        memberToUpdate.isAvailable = true;
-        memberToUpdate.currentActivity = null;
-        memberToUpdate.activityEnd = null;
-        addNotification({ type: 'info', message: `${memberToUpdate.name} has finished their activity and is available again.` });
-    }
-
-
-        if (newWeek > 52 && newWeek % 52 === 1) {
-            if (memberToUpdate.yearsActive >= 4) {
-                const decay = Math.random() * 0.5 + 0.2;
-                const moralePenalty = 5;
-                memberToUpdate.singing = Math.max(20, memberToUpdate.singing - decay);
-                memberToUpdate.dancing = Math.max(20, memberToUpdate.dancing - decay);
-                memberToUpdate.variety = Math.max(20, memberToUpdate.variety - decay);
-                memberToUpdate.morale = Math.max(0, memberToUpdate.morale - moralePenalty);
-                addNotification({ type: 'info', message: `${memberToUpdate.name} is feeling the strain of a long career. Her stats and morale have slightly decreased.` });
+                localUpdateMemberState(member.rosterId, m => ({ ...m, isAvailable: true, currentActivity: null, activityEnd: null, returningWeek: undefined }));
+                member.isAvailable = true; 
             }
-        }
 
-        if (!memberToUpdate.isAvailable) {
-            return { ...memberToUpdate, yearsActive: Math.floor(newWeek / 52) };
-        }
+            // Handle members returning from suspension
+            if (!member.isAvailable && member.returningWeek && newWeek >= member.returningWeek) {
+                localUpdateMemberState(member.rosterId, m => ({ ...m, isAvailable: true, returningWeek: undefined }));
+                addNotificationInLoop({ type: 'info', message: `${member.name} has returned and is available again.` });
+                member.isAvailable = true;
+            }
 
-        let newStamina = memberToUpdate.stamina || 100;
-        let newStress = memberToUpdate.stress || 0;
-        let newMorale = memberToUpdate.morale || 80;
+            const yearsActive = Math.floor(newWeek / 52);
 
-        newStamina = Math.min(100, newStamina + 20);
-        
-        // --- MODIFIED: Stress and Morale with Relationship Effects ---
-        newStress = Math.max(0, newStress - (15 + (numFriends * 2)) + numRivals); // Friends reduce stress, rivals add it
-        newMorale = Math.min(100, newMorale + numFriends); // Friends give a small morale boost
-        // --- END MODIFIED ---
+            // Yearly stat decay for veterans
+            if (newWeek > 52 && newWeek % 52 === 1 && yearsActive >= 4) {
+                 const decay = Math.random() * 0.5 + 0.2;
+                 localUpdateMemberState(member.rosterId, m => ({
+                    ...m,
+                    singing: Math.max(20, m.singing - decay),
+                    dancing: Math.max(20, m.dancing - decay),
+                    variety: Math.max(20, m.variety - decay),
+                    morale: Math.max(0, m.morale - 5)
+                 }));
+                 addNotificationInLoop({ type: 'Info', message: `${member.name} is feeling the strain of a long career. Stats and morale have slightly decreased.` });
+            }
 
-        if (newStress >= 100) {
-            addNotification({ type: 'alert', message: `${memberToUpdate.name} is Burned Out! Their morale has plummeted.` });
-            newMorale = Math.max(0, newMorale - 40);
-            newStress = 70;
-        }
-        if (newStamina <= 0) {
-            addNotification({ type: 'alert', message: `${memberToUpdate.name} is Exhausted! They are being forced to rest.` });
-            newStamina = 60;
-            newStress = Math.max(0, newStress - 20);
-        }
+            if (!member.isAvailable) {
+                localUpdateMemberState(member.rosterId, m => ({ ...m, yearsActive: yearsActive }));
+                return; // Skip the rest of the updates for unavailable members
+            }
 
-                // --- NEW: Center Pressure Mechanic ---
-        if (memberToUpdate.isCurrentCenter) {
-            newStress = Math.min(100, newStress + 5); // Add a small amount of extra stress each week for being the center
-        }
-        // --- END NEW ---
+            let newStamina = member.stamina || 100;
+            let newStress = member.stress || 0;
+            let newMorale = member.morale || 80;
+            const numFriends = member.relationships?.friends?.length || 0;
+            const numRivals = member.relationships?.rivals?.length || 0;
 
+            // Passive Recovery & Relationship Effects
+            newStamina = Math.min(100, newStamina + 20);
+            newStress = Math.max(0, newStress - (15 + (numFriends * 2)) + numRivals);
+            newMorale = Math.min(100, newMorale + numFriends);
 
-        let newSinging = memberToUpdate.singing || 0;
-        let newDancing = memberToUpdate.dancing || 0;
-        let newVariety = memberToUpdate.variety || 0;
+            // Center Pressure
+            if (member.isCurrentCenter) {
+                newStress = Math.min(100, newStress + 5);
+            }
 
-        const roomType = getRoomType(memberToUpdate.trainingFocus);
-        const roomLevel = roomType ? (buildings.practiceRooms[roomType] || 0) : 0;
-        const roomBonus = roomLevel * 0.1;
+            // Check for Burnout and Exhaustion
+            if (newStress >= 100) {
+                addNotificationInLoop({ type: 'alert', message: `${member.name} is Burned Out! Their morale has plummeted.` });
+                newMorale = Math.max(0, newMorale - 40);
+                newStress = 70;
+            }
+            if (newStamina <= 0) {
+                addNotificationInLoop({ type: 'alert', message: `${member.name} is Exhausted! They are being forced to rest.` });
+                newStamina = 60;
+                newStress = Math.max(0, newStress - 20);
+            }
 
-        // --- MODIFIED: Training Gains with Rivalry Effects ---
-        const rivalryBonus = numRivals * 0.05;
-        const focusedGain = (0.2 + Math.random() * 0.3) + roomBonus + rivalryBonus;
-        const passiveGain = 0.05 + Math.random() * 0.05 + (rivalryBonus / 5); // Smaller bonus for passive
-        // --- END MODIFIED ---
+            // Training, including Rivalry Bonus
+            if (member.trainingFocus && member.trainingFocus !== 'none') {
+                const skill = member.trainingFocus;
+                const roomType = getRoomType(skill);
+                const roomLevel = roomType ? (buildings.practiceRooms[roomType] || 0) : 0;
+                const rivalryBonus = numRivals * 0.05;
+                const focusedGain = (0.2 + Math.random() * 0.3) + (roomLevel * 0.1) + rivalryBonus;
+                localUpdateMemberState(member.rosterId, m => ({ ...m, [skill]: Math.min(100, (m[skill] || 0) + focusedGain) }));
+            }
+            
+            // Detailed Graduation Urgency Increase
+            let gradUrgencyIncrease = 0;
+            if (newMorale < 30) { gradUrgencyIncrease += (member.ambition === 'Find Normal Happiness') ? 5 : 2; }
+            if (newStamina < 15) { gradUrgencyIncrease += (member.ambition === 'Physical Health / Injury') ? 4 : 1; }
+            if (newWeek > 1 && newWeek % 52 === 1) { // Yearly check
+                if (yearsActive >= member.graduationWindow.min) {
+                    gradUrgencyIncrease += 5;
+                    if (yearsActive >= member.graduationWindow.max) { gradUrgencyIncrease += 10; }
+                    if (member.ambition === 'Space for Juniors' && yearsActive > 4) { gradUrgencyIncrease += 10; }
+                    if (member.ambition === 'Study Abroad' || member.ambition === 'Academic Focus') { gradUrgencyIncrease += 8; }
+                }
+            }
+            const newUrgency = Math.min(100, (member.graduationUrgency || 0) + gradUrgencyIncrease);
 
-        if (memberToUpdate.trainingFocus && memberToUpdate.trainingFocus !== 'none') {
-            const skill = memberToUpdate.trainingFocus;
-            if (skill === 'singing') { newSinging += focusedGain; } 
-            else if (skill === 'dancing') { newDancing += focusedGain; } 
-            else if (skill === 'variety') { newVariety += focusedGain; } 
-            else if (skill === 'visual') { memberToUpdate.visual = (memberToUpdate.visual || 0) + focusedGain; } 
-            else if (skill === 'charisma') { memberToUpdate.charisma = (memberToUpdate.charisma || 0) + focusedGain; } 
-            else if (skill === 'intelligence') { memberToUpdate.intelligence = (memberToUpdate.intelligence || 0) + focusedGain; }
+            localUpdateMemberState(member.rosterId, m => ({...m, stamina: newStamina, stress: newStress, morale: newMorale, yearsActive: yearsActive, graduationUrgency: newUrgency }));
+        });
+
+                // --- 8. FINAL MESSAGES & STATE COMMIT ---
+
+        // Construct the final message for the UI
+        if (priorityMessage) {
+            messageForUpdate = priorityMessage;
+        } else if (expenseNotification) {
+            messageForUpdate = expenseNotification;
         } else {
-            newSinging += passiveGain;
-            newDancing += passiveGain;
-            newVariety += passiveGain;
-            memberToUpdate.visual = (memberToUpdate.visual || 0) + passiveGain;
-            memberToUpdate.charisma = (memberToUpdate.charisma || 0) + passiveGain;
-            memberToUpdate.intelligence = (memberToUpdate.intelligence || 0) + passiveGain;
+            const incomeDetails = incomeBreakdown.length > 0 ? `(${incomeBreakdown.join(', ')})` : '';
+            messageForUpdate = `Week ${newWeek}: +¥${totalWeeklyIncome.toLocaleString()} income. ${incomeDetails} ${campMessage}`;
+        }
+
+        // Add specific notifications to the log, as per the original logic
+        if (totalWeeklyIncome > 0) {
+            addNotificationInLoop({ type: 'info', message: `+¥${totalWeeklyIncome.toLocaleString()} income.` });
+        }
+        if (campMessage && !priorityMessage.includes('camp')) {
+            addNotificationInLoop({ type: 'info', message: campMessage });
         }
         
-        memberToUpdate.singing = Math.min(100, parseFloat(newSinging.toFixed(2)));
-        memberToUpdate.dancing = Math.min(100, parseFloat(newDancing.toFixed(2)));
-        memberToUpdate.variety = Math.min(100, parseFloat(newVariety.toFixed(2)));
-        memberToUpdate.visual = Math.min(100, parseFloat((memberToUpdate.visual || 0).toFixed(2)));
-        memberToUpdate.charisma = Math.min(100, parseFloat((memberToUpdate.charisma || 0).toFixed(2)));
-        memberToUpdate.intelligence = Math.min(100, parseFloat((memberToUpdate.intelligence || 0).toFixed(2)));
-        
-        let gradUrgencyIncrease = 0;
-        if (newMorale < 30) { gradUrgencyIncrease += (memberToUpdate.ambition === 'Find Normal Happiness') ? 5 : 2; }
-        if (newStamina < 15) { gradUrgencyIncrease += (memberToUpdate.ambition === 'Physical Health / Injury') ? 4 : 1; }
-        if (newWeek > 1 && newWeek % 52 === 1) {
-            const years = Math.floor(newWeek / 52);
-            if (years >= memberToUpdate.graduationWindow.min) {
-                gradUrgencyIncrease += 5;
-                if (years >= memberToUpdate.graduationWindow.max) { gradUrgencyIncrease += 10; }
-                if (memberToUpdate.ambition === 'Space for Juniors' && years > 4) { gradUrgencyIncrease += 10; }
-                if (memberToUpdate.ambition === 'Study Abroad' || memberToUpdate.ambition === 'Academic Focus') { gradUrgencyIncrease += 8; }
-            }
+        const allUpdatedMembers = [ ...membersForUpdate, ...sisterGroupsForUpdate.flatMap(sg => sg.members || []) ];
+        const graduatingMember = allUpdatedMembers.find(m => (m.graduationUrgency || 0) >= 100 && !m.isGraduating);
+
+        // --- THE GRAND FINALE: COMMIT ALL DRAFT VARIABLES TO THE REAL STATE ---
+        setWeek(newWeek);
+        setMessage(messageForUpdate);
+        setMoney(moneyForUpdate);
+        setSongs(songsForUpdate);
+        setMembers(membersForUpdate.filter(m => !graduatingIdsThisWeek.includes(String(m.id)))); // Remove officially graduated members
+        setSisterGroups(sisterGroupsForUpdate);
+        setNotifications(notificationsForUpdate);
+
+        // If a new member is announcing graduation, pause the game to show the modal.
+        if (graduatingMember) {
+            setModalData(graduatingMember);
+            setShowModal('graduationAnnouncement');
+            return;
         }
-        memberToUpdate.graduationUrgency = (memberToUpdate.graduationUrgency || 0) + gradUrgencyIncrease;
-        
-        return { ...memberToUpdate, stamina: newStamina, stress: newStress, morale: newMorale, yearsActive: Math.floor(newWeek / 52) };
-      };
-
-      const updatedMainMembers = (membersForUpdate || []).map(m => updateMemberWeekly(m, false));
-      const updatedSisterGroupsState = (sisterGroupsForUpdate || []).map(sg => ({ ...sg, members: (sg.members || []).map(m => updateMemberWeekly(m, true)) }));
-      
-      const allUpdatedMembers = [ ...updatedMainMembers, ...updatedSisterGroupsState.flatMap(sg => sg.members || []) ];
-      const graduatingMember = allUpdatedMembers.find(m => (m.graduationUrgency || 0) >= 100 && !m.graduated && !m.isGraduating);
-
-      setMembers(updatedMainMembers.filter(m => !graduatingIdsThisWeek.includes(String(m.id))));
-      setSisterGroups(updatedSisterGroupsState);
-
-      if (graduatingMember) {
-          setModalData(graduatingMember);
-          setShowModal('graduationAnnouncement');
-          return; 
-      }
-
-// --- START: Weekly Bonus & Activity Management (CORRECTED) ---
-setMerchDesignBonus(prevBonus => {
-    if (!prevBonus) {
-        return null; // If there's no bonus, do nothing.
-    }
-    
-    const weeksLeft = prevBonus.weeksLeft - 1;
-    
-    if (weeksLeft <= 0) {
-        addNotification({ type: 'Info', message: "The merchandise production cost bonus has expired." });
-        return null; // Bonus expires
-    }
-    
-    return { ...prevBonus, weeksLeft: weeksLeft };
-});
-
-
-      setWeek(newWeek);
     };
     
     const confirmCreateSisterGroup = (groupData) => {
