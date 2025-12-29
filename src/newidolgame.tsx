@@ -16,7 +16,7 @@ import {
   Film, Plane, GraduationCap, Shirt, Camera, BarChart3, Bell, X, Edit, Plus, Shuffle, 
   User, Check, ChevronDown, ChevronUp, ShoppingBag, Mic, Hand, Brain, Package,
   Minimize2, Maximize2, Trash2, MapPin, Smile, LogIn, CalendarCheck, Home, 
-  ClipboardCheck, Clock, Moon, BarChart2, Wrench, Layers, Clipboard
+  ClipboardCheck, Clock, Moon, BarChart2, FileText, Scissors, Wrench, Layers, Clipboard
 } from 'lucide-react';
 
 
@@ -33,13 +33,13 @@ const App = () => {
     // Destructure everything from the custom hook
     const {
     // State
-    gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory,  merchDesignBonus, beginActivity, merchTiers, idolMerchTiers, eventMerchTiers, produceEventMerch, eventMerchInventory, idolMerchInventory, produceIdolMerch, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
+    draftKaigi, draftProspects, liveSportsFestival, simulateSportsFestivalEvent, finishSportsFestival, startSportsFestival, sportsFestivalHistory, lastRequestHourResult, startRequestHour, castPlayerVotes, requestHourStatus, votingTickets, requestHourHistory, groupReputation, confirmKouhakuParticipation, declineKouhakuInvitation, kouhakuHistory, kouhakuInvitationOffered, acceptKouhakuInvitation, simulateJankenRound, electionHistory, jankenHistory, setLastJankenResult, lastJankenResult, startJankenTournament, advanceJankenRound, jankenTournament, setJankenTournament, gameStarted, setGameStarted, groupName, money, week, formattedDate, members, electionVotePool, setElectionVotePool, isElectionSingleFinished, lastElectionResult, isCampaignActive, setIsCampaignActive, campaignEndWeek, setCampaignEndWeek, setMembers, handleTogglePushMember, pushedMembers, setPushedMembers, selectedMember, scheduledEvents, setScheduledEvents, setSelectedMember, message, setMessage, totalFans, setTotalFans, currentTab, setCurrentTab, showNotifications, setShowNotifications, notifications, setNotifications, pastReleases, songs, setSongs, teams, setTeams, allSetlists, setAllSetlists, theaterSongs, setTheaterSongs, buildings, setBuildings, theaters, setTheaters, setWeek, setMoney, sisterGroups, setScheduledSingles, setSisterGroups, rivalGroups, setRivalGroups, achievements, hallOfFame, events, sponsorships, showModal, setShowModal, modalData, setModalData, activeScandal, setActiveScandal, selectedSisterGroup, setSelectedSisterGroup, selectedTheaterTeam, setSelectedTheaterTeam, username, setUsername, memberView, setMemberView, merchInventory, setMerchInventory,  merchDesignBonus, beginActivity, merchTiers, idolMerchTiers, eventMerchTiers, produceEventMerch, eventMerchInventory, idolMerchInventory, produceIdolMerch, activeTour, setActiveTour, venues, setVenues, performanceHistory, setPerformanceHistory, performanceTypes, auditionCandidates, setAuditionCandidates, mediaJobDoneThisWeek, setMediaJobDoneThisWeek, groupMediaJobDoneThisWeek, setGroupMediaJobDoneThisWeek,
     // Firebase/Persistence
     db, auth, userId, isAuthReady, saveGame, loadGame,
     // Utilities
     startGame, getAllAvailableMembers, getFormattedDateForWeek, getMemberById, updateMemberState, getMemberGroupStatus, getMemberRank, addNotification, getMainGroupRoster,
     // Logic
-    pendingMerch, warehouse, upgradeWarehouse, trainMember, onlineStore, upgradeOnlineStore, staff, hireStaff, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference,  completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
+    handleAiDraftPick, finishDraft, handlePlayerDraftPick, advanceDraftStage, startDraftKaigi, pendingMerch, warehouse, upgradeWarehouse, trainMember, onlineStore, upgradeOnlineStore, staff, hireStaff, restMember, restAllTired, buildTheater, upgradePracticeRoom, upgradeTheater, buildSisterTheater, renameTheater, handleCheatCode, startTour, progressTour, createTeam, editTeam, saveTeam, deleteTeam, showTeamDetails, startTheaterShowPrep, graduateMember, askAboutGraduation, handleScandalResponse, holdTheaterShow, holdSisterGroupShow, holdElection, createSong, createCustomSetlist, confirmCreateSetlist, scheduleNewSingle, scheduleNewAlbum, executeAlbumRelease, handleDisbandSisterGroup, handleConfirmEditGroupName, produceMerch, startHandshakeEvent, startTrainingCamp, startMediaJob, startGroupMediaJob, nextWeek, confirmCreateSisterGroup, handleSisterMemberTransfer, recordPerformance, startPerformancePrep, holdMajorConcert, runElectionLogic, startSenbatsuPromotion, holdPressConference,  completedBsidePromos, setCompletedBsidePromos, holdBsideFanMeeting, startElectionCampaign, createElectionPoster, createElectionPosterForAll, createAppealVideoForAll, startAudition, confirmRecruitment, handleSetTrainingFocus, assignRandomTraining, assignLowestSkillTraining
 
     } = useIdolManager();
 
@@ -67,6 +67,23 @@ const App = () => {
     // --- NEW STATE FOR SORT/FILTER ---
     const [memberSort, setMemberSort] = useState({ key: 'rank', asc: true });
     const [memberFilter, setMemberFilter] = useState('all');
+    const [selectedSingleForPromo, setSelectedSingleForPromo] = useState(null);
+
+    useEffect(() => {
+        const allChartingSingles = [
+            ...songs.filter(s => s.type === 'single' && s.chartWeeksLeft > 0),
+            ...sisterGroups.flatMap(sg => (sg.songs || []).filter(s => s.type === 'single' && s.chartWeeksLeft > 0))
+        ];
+        
+        const firstChartingId = allChartingSingles.length > 0 ? allChartingSingles[0].id : null;
+
+        if (selectedSingleForPromo && !allChartingSingles.some(s => s.id === selectedSingleForPromo)) {
+            setSelectedSingleForPromo(firstChartingId);
+        } else if (!selectedSingleForPromo && firstChartingId) {
+            setSelectedSingleForPromo(firstChartingId);
+        }
+    }, [songs, sisterGroups]);
+
 
     const getAvgSkill = (m) => ((m.singing || 0) + (m.dancing || 0) + (m.variety || 0) + (m.visual || 0) + (m.charisma || 0) + (m.intelligence || 0)) / 6;
     // --- END NEW STATE ---
@@ -482,7 +499,7 @@ const CustomSetlistModal = () => {
   
       const handleConfirm = () => {
           const selectedTrainees = auditionCandidates.filter(c => selected.includes(c.id));
-          confirmRecruitment(selectedTrainees);
+          confirmRecruitment(selectedTrainees, modalData);
       };
   
       const SortableHeader = ({ label, sortKey }) => (
@@ -559,95 +576,95 @@ const CustomSetlistModal = () => {
   };
   
 
-    const ElectionSummaryModal = () => {
-        const { participating, nonParticipating, onConfirm } = modalData;
-        if (!participating) return null;
+const ElectionSummaryModal = () => {
+    const { participating, nonParticipating, onConfirm } = modalData;
+    if (!participating) return null;
 
-        // This is a sub-component for displaying the lists within the new theme.
-        const GroupDisplay = ({ title, members, colorClass, icon: Icon }) => {
-            if (!members || members.length === 0) return null;
+    const GroupDisplay = ({ title, members, colorClass, icon: Icon }) => {
+        if (!members || members.length === 0) return null;
 
-            const grouped = {};
-            const mainGroupName = groupName;
+        const grouped = {};
+        const mainGroupName = groupName;
+        
+        members.forEach(item => {
+            const member = item.member || item;
+            const groupKey = member.isSisterMember ? member.displayGroupName : mainGroupName;
+            const subGroupKey = member.teamName ? `Team ${member.teamName}` : `${member.generation || 'Gen ?'}`;
             
-            // This logic correctly groups members by their main group/sister group and then by their team/generation.
-            members.forEach(item => {
-                const member = item.member || item;
-                const groupKey = member.isSisterMember ? member.displayGroupName : mainGroupName;
-                const subGroupKey = member.teamName ? `Team ${member.teamName}` : `${member.generation || 'Gen ?'}`;
-                
-                if (!grouped[groupKey]) grouped[groupKey] = {};
-                if (!grouped[groupKey][subGroupKey]) grouped[groupKey][subGroupKey] = [];
-                
-                const memberInfo = { name: member.name, reason: item.reason || null };
-                grouped[groupKey][subGroupKey].push(memberInfo);
-            });
+            if (!grouped[groupKey]) grouped[groupKey] = {};
+            if (!grouped[groupKey][subGroupKey]) grouped[groupKey][subGroupKey] = [];
+            
+            const memberInfo = { name: member.name, reason: item.reason || null };
+            grouped[groupKey][subGroupKey].push(memberInfo);
+        });
 
-            const groupEntries = Object.entries(grouped).filter(([_, subGroups]) => Object.keys(subGroups).length > 0);
-
-            return (
-                <div className={`p-4 rounded-xl bg-white/5 border ${colorClass}`}>
-                    <h3 className={`text-xl font-bold mb-3 flex items-center text-gray-100`}>
-                        <Icon size={22} className="mr-2" />
-                        {title} ({members.length})
-                    </h3>
-                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {groupEntries.map(([groupName, subGroups]) => (
-                            <div key={groupName}>
-                                <h4 className="font-semibold text-md border-b border-white/10 pb-1 mb-2 text-gray-300">{groupName}</h4>
-                                {Object.entries(subGroups).map(([subGroupKey, members]) => (
-                                    <div key={subGroupKey} className="text-sm pl-2">
-                                        <p className="font-bold text-gray-400">{subGroupKey} ({members.length})</p>
-                                        <ul className="list-disc list-inside pl-2 text-gray-200">
-                                            {members.map((m, i) => (
-                                                <li key={i}>{m.name} {m.reason && <span className="text-xs text-red-400">({m.reason})</span>}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
+        const groupEntries = Object.entries(grouped).filter(([_, subGroups]) => Object.keys(subGroups).length > 0);
 
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
-                <div className="w-full max-w-5xl rounded-2xl bg-gray-800 bg-opacity-70 border border-gray-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
-                    {/* Header */}
-                    <div className="p-4 flex justify-between items-center bg-white bg-opacity-10">
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold uppercase tracking-wider bg-white bg-opacity-20 text-white py-1 px-3 rounded-full">ELECTION</span>
-                            <h3 className="font-bold text-lg text-white">General Election Summary</h3>
+            <div className={`p-4 rounded-xl bg-white/5 border ${colorClass} flex flex-col`}>
+                <h3 className={`text-xl font-bold mb-3 flex items-center text-gray-100 flex-shrink-0`}>
+                    <Icon size={22} className="mr-2" />
+                    {title} ({members.length})
+                </h3>
+                {/* --- THIS IS THE FIX --- */}
+                {/* The list div now has a max height and will scroll internally. */}
+                <div className="space-y-3 pr-2 custom-scrollbar max-h-64 overflow-y-auto">
+                    {groupEntries.map(([groupName, subGroups]) => (
+                        <div key={groupName}>
+                            <h4 className="font-semibold text-md border-b border-white/10 pb-1 mb-2 text-gray-300">{groupName}</h4>
+                            {Object.entries(subGroups).map(([subGroupKey, members]) => (
+                                <div key={subGroupKey} className="text-sm pl-2">
+                                    <p className="font-bold text-gray-400">{subGroupKey} ({members.length})</p>
+                                    <ul className="list-disc list-inside pl-2 text-gray-200">
+                                        {members.map((m, i) => (
+                                            <li key={i}>{m.name} {m.reason && <span className="text-xs text-red-400">({m.reason})</span>}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
                         </div>
-                        <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
-                            <X size={20} />
-                        </button>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-5 grid gap-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <GroupDisplay title="Participating" members={participating} colorClass="border-green-500/50" icon={Check} />
-                            <GroupDisplay title="Not Participating" members={nonParticipating} colorClass="border-red-500/50" icon={X} />
-                        </div>
-
-                        {/* Footer / Actions */}
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
-                            <p className="font-bold text-lg text-gray-300">Total Cost: <span className="text-green-400">¥5,000</span></p>
-                            <div className="flex gap-4">
-                                <button onClick={() => setShowModal(null)} className="px-6 py-2 bg-gray-500/20 text-gray-200 rounded-lg font-semibold hover:bg-gray-500/40 transition-colors">Cancel</button>
-                                <button onClick={onConfirm} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
-                                    Confirm & Begin Election
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
         );
     };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-5xl rounded-2xl bg-gray-800 bg-opacity-70 border border-gray-700 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-5">
+                {/* Header (fixed) */}
+                <div className="p-4 flex justify-between items-center bg-white bg-opacity-10 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold uppercase tracking-wider bg-white bg-opacity-20 text-white py-1 px-3 rounded-full">ELECTION</span>
+                        <h3 className="font-bold text-lg text-white">General Election Summary</h3>
+                    </div>
+                    <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                {/* Scrollable Content Area */}
+                <div className="p-5 grid gap-4 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <GroupDisplay title="Participating" members={participating} colorClass="border-green-500/50" icon={Check} />
+                        <GroupDisplay title="Not Participating" members={nonParticipating} colorClass="border-red-500/50" icon={X} />
+                    </div>
+                </div>
+
+                {/* Footer / Actions (fixed) */}
+                <div className="flex justify-between items-center p-5 mt-auto border-t border-white/10 flex-shrink-0">
+                    <p className="font-bold text-lg text-gray-300">Total Cost: <span className="text-green-400">¥5,000</span></p>
+                    <div className="flex gap-4">
+                        <button onClick={() => setShowModal(null)} className="px-6 py-2 bg-gray-500/20 text-gray-200 rounded-lg font-semibold hover:bg-gray-500/40 transition-colors">Cancel</button>
+                        <button onClick={onConfirm} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
+                            Confirm & Begin Election
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 const ElectionResultModal = () => {
@@ -699,12 +716,27 @@ const ElectionResultModal = () => {
         return `REVEAL RANK #${nextRank}`;
     };
 
-    const RankChangeArrow = ({ oldRank, newRank }) => {
-        if (oldRank === 999 || !oldRank) return <span className="text-blue-400 font-bold">-</span>;
-        if (newRank < oldRank) return <span className="text-green-400 font-bold">▲{oldRank - newRank}</span>;
-        if (newRank > oldRank) return <span className="text-red-400 font-bold">▼{newRank - oldRank}</span>;
-        return <span className="text-gray-400 font-bold">-</span>;
-    };
+        const RankChangeArrow = ({ member }) => {
+            if (!member) return null;
+            const oldRank = member.previousRank;
+            const newRank = member.rank;
+
+            // This history is from *before* the current election.
+            const hadPreviousRankings = (member.electionHistory || []).length > 0;
+
+            if (oldRank === 999 || !oldRank) {
+                if (hadPreviousRankings) {
+                    // Was ranked before, but not last year = Re-Entry!
+                    return <span className="text-purple-500 font-bold">Re-Entry</span>;
+                } else {
+                    // Never ranked before = New Entry!
+                    return <span className="text-cyan-500 font-bold">New Entry</span>;
+                }
+            }
+            if (newRank < oldRank) return <span className="text-green-400 font-bold">▲{oldRank - newRank}</span>;
+            if (newRank > oldRank) return <span className="text-red-400 font-bold">▼{newRank - oldRank}</span>;
+            return <span className="text-gray-400 font-bold">-</span>;
+        };
     
     return (
         <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in" style={{ background: 'radial-gradient(circle at 50% 30%, #ffffff 0%, #dfe6e9 60%, #b2bec3 100%)' }}>
@@ -758,10 +790,40 @@ const ElectionResultModal = () => {
                                         <h2 className="text-xl sm:text-3xl font-bold uppercase tracking-tighter">{currentMember?.name || '...'}</h2>
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-bold text-lg sm:text-xl text-yellow-600">#{currentMember?.rank}</span>
-                                            <RankChangeArrow oldRank={currentMember?.previousRank} newRank={currentMember?.rank} />
+                                            <RankChangeArrow member={currentMember} />
                                         </div>
                                     </div>
-                                    <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-widest">{getMemberGroupStatus(currentMember) || '...'}</span>
+                                        <span className="text-[11px] sm:text-xs font-bold text-gray-500 tracking-widest">
+        {(() => {
+            if (!currentMember) return '...';
+            
+            const { isSisterMember, displayGroupName, generation, id } = currentMember;
+            let teamStatus = '';
+
+            // Find all teams the member is currently in
+            const allMemberTeams = teams.filter(t => (t.members || []).map(String).includes(String(id)));
+
+            if (allMemberTeams.length > 0) {
+                teamStatus = allMemberTeams.map(team => {
+                    let parentGroupName;
+                    if (team.groupId === 'main') {
+                        parentGroupName = groupName;
+                    } else {
+                        const parentGroup = sisterGroups.find(sg => String(sg.id) === String(team.groupId));
+                        parentGroupName = parentGroup ? parentGroup.name : '';
+                    }
+                    return `${parentGroupName} Team ${team.name}`;
+                }).join(' / ');
+            } else {
+                // Fallback for members not in any team (Kenkyuusei)
+                teamStatus = isSisterMember ? displayGroupName : groupName;
+            }
+
+            const generationStatus = generation ? `${generation}` : null;
+            
+            return [teamStatus, generationStatus].filter(Boolean).join(' | ');
+        })()}
+    </span>
                                 </div>
                                 <div className="text-left sm:text-right mt-2 sm:mt-0">
                                     <div className="text-2xl sm:text-3xl font-black text-yellow-600 font-mono">{displayVotes.toLocaleString()}</div>
@@ -1071,64 +1133,118 @@ const ElectionResultModal = () => {
 
     const applyPreviousLineup = (trackId) => {
 
-    if (String(trackId).startsWith('election-')) {
-        const unit = String(trackId).replace('election-', '');
-        if (!lastElectionResult) return;
+        if (String(trackId) === 'janken-senbatsu') {
+            if (!lastJankenResult) return;
 
-        const rankRanges = {
-            senbatsu: { min: 1, max: 16 },
-            undergirls: { min: 17, max: 32 },
-            nextgirls: { min: 33, max: 48 },
-            futuregirls: { min: 49, max: 64 },
-            upcominggirls: { min: 65, max: 80 },
-        };
+            const minRank = 1;
+            const maxRank = 16;
 
-        const range = rankRanges[unit];
-        if (!range) return;
+            const unitMembers = lastJankenResult
+                .filter(m => m.rank >= minRank && m.rank <= maxRank)
+                .sort((a, b) => a.rank - b.rank);
 
-        const unitMembers = lastElectionResult.filter(m => m.rank >= range.min && m.rank <= range.max);
+            if (unitMembers.length === 0) return;
 
-        const newMemberIds = unitMembers.map(m => m.rosterId || m.id);
-        let newCenterIds = [];
-        const newHotlineup = {};
+            const newMemberIds = unitMembers.map(m => String(m.rosterId || m.id));
+            const centerMember = unitMembers.find(m => m.rank === 1);
+            const newCenterIds = centerMember ? [String(centerMember.rosterId || centerMember.id)] : [];
+            const newHotlineup = {};
 
-        unitMembers.forEach(member => {
-            const relativeRank = member.rank - range.min + 1;
-            const memberId = String(member.rosterId || member.id);
+            unitMembers.forEach(member => {
+                const memberId = String(member.rosterId || member.id);
+                const rank = member.rank;
 
-            if (relativeRank === 1) {
-                newCenterIds = [memberId];
-                newHotlineup[memberId] = '1st Row';
-            } else if (relativeRank <= 3) { // Ranks 2-3
-                newHotlineup[memberId] = '2nd Row';
-            } else if (relativeRank <= 7) { // Ranks 4-7
-                newHotlineup[memberId] = '3rd Row';
-            } else if (relativeRank <= 11) { // Ranks 8-11
-                newHotlineup[memberId] = '4th Row';
-            } else { // Ranks 12-16
-                newHotlineup[memberId] = '5th Row';
+                if (rank === 1) { // Rank 1
+                    newHotlineup[memberId] = '1st Row';
+                } else if (rank <= 3) { // Ranks 2-3
+                    newHotlineup[memberId] = '2nd Row';
+                } else if (rank <= 7) { // Ranks 4-7
+                    newHotlineup[memberId] = '3rd Row';
+                } else if (rank <= 11) { // Ranks 8-11
+                    newHotlineup[memberId] = '4th Row';
+                } else { // Ranks 12-16
+                    newHotlineup[memberId] = '5th Row';
+                }
+            });
+
+            const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+                const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+                if (index !== currentIndex) return track;
+                return { ...track, members: newMemberIds, center: newCenterIds, lineup: newHotlineup };
+            });
+
+            if (releaseType === 'album') {
+                setAlbumTracks(updateFn);
+            } else {
+                setTracks(updateFn);
             }
-        });
 
-        const updateFn = (prevTracks) => prevTracks.map((track, index) => {
-            const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
-            if (index !== currentIndex) return track;
-            return { ...track, members: newMemberIds, center: newCenterIds, lineup: newHotlineup };
-        });
-
-        if (releaseType === 'album') {
-            setAlbumTracks(updateFn);
-        } else {
-            setTracks(updateFn);
+            const singleDropdown = document.getElementById('import-lineup');
+            const albumDropdown = document.getElementById('import-lineup-album');
+            if(singleDropdown) singleDropdown.value = "";
+            if(albumDropdown) albumDropdown.value = "";
+            
+            return;
         }
-
-        const singleDropdown = document.getElementById('import-lineup');
-        const albumDropdown = document.getElementById('import-lineup-album');
-        if(singleDropdown) singleDropdown.value = "";
-        if(albumDropdown) albumDropdown.value = "";
-        
-        return; // Exit the function after processing
-    }
+    
+        if (String(trackId).startsWith('election-')) {
+            const unit = String(trackId).replace('election-', '');
+            if (!lastElectionResult) return;
+    
+            const rankRanges = {
+                senbatsu: { min: 1, max: 16 },
+                undergirls: { min: 17, max: 32 },
+                nextgirls: { min: 33, max: 48 },
+                futuregirls: { min: 49, max: 64 },
+                upcominggirls: { min: 65, max: 80 },
+            };
+    
+            const range = rankRanges[unit];
+            if (!range) return;
+    
+            const unitMembers = lastElectionResult.filter(m => m.rank >= range.min && m.rank <= range.max);
+    
+            const newMemberIds = unitMembers.map(m => m.rosterId || m.id);
+            let newCenterIds = [];
+            const newHotlineup = {};
+    
+            unitMembers.forEach(member => {
+                const relativeRank = member.rank - range.min + 1;
+                const memberId = String(member.rosterId || member.id);
+    
+                if (relativeRank === 1) {
+                    newCenterIds = [memberId];
+                    newHotlineup[memberId] = '1st Row';
+                } else if (relativeRank <= 3) {
+                    newHotlineup[memberId] = '2nd Row';
+                } else if (relativeRank <= 7) {
+                    newHotlineup[memberId] = '3rd Row';
+                } else if (relativeRank <= 11) {
+                    newHotlineup[memberId] = '4th Row';
+                } else {
+                    newHotlineup[memberId] = '5th Row';
+                }
+            });
+    
+            const updateFn = (prevTracks) => prevTracks.map((track, index) => {
+                const currentIndex = releaseType === 'album' ? selectedAlbumTrackIndex : selectedTrackIndex;
+                if (index !== currentIndex) return track;
+                return { ...track, members: newMemberIds, center: newCenterIds, lineup: newHotlineup };
+            });
+    
+            if (releaseType === 'album') {
+                setAlbumTracks(updateFn);
+            } else {
+                setTracks(updateFn);
+            }
+    
+            const singleDropdown = document.getElementById('import-lineup');
+            const albumDropdown = document.getElementById('import-lineup-album');
+            if(singleDropdown) singleDropdown.value = "";
+            if(albumDropdown) albumDropdown.value = "";
+            
+            return;
+        }
 
 
         if (!trackId) return;
@@ -1146,7 +1262,7 @@ const ElectionResultModal = () => {
         const newMemberIds = historicMemberIds.filter(id => availableMemberIds.has(String(id)));
         
         // Validate the center
-        const newCenterIds = (historicCenterId || []).filter(id => availableMemberIds.has(String(id)));
+        const newCenterIds = [].concat(historicCenterId || []).filter(id => availableMemberIds.has(String(id)));
 
         // Clean the lineup object, removing any members who are no longer available
         const newHotlineup = Object.keys(historicLineup).reduce((acc, key) => {
@@ -1406,28 +1522,73 @@ const setAlbumCenter = (memberId) => {
     const selectableSenbatsu = selectableMembers.filter(m => (currentTrack?.members || []).map(String).includes(String(m.id)));
 
 
-    // **BUG FIX**: Moved filtering logic here so the 'Toggle' button can use it.
+// --- NEW: Generate structured data for the new filter ---
+const mainGroupGenerations = [...new Set(selectableMembers.filter(m => (!m.isSisterMember || m.homeGroup === 'main')).map(m => m.generation).filter(Boolean))];
+const sisterGroupDetails = sisterGroups.map(sg => ({
+    ...sg,
+    generations: [...new Set(selectableMembers.filter(m => m.groupId === sg.id).map(m => m.generation).filter(Boolean))]
+}));
+
+// --- NEW: Logic to filter members based on the detailed dropdown selection ---
+let filteredMembers = selectableMembers;
+if (memberFilter !== 'all') {
+    if (memberFilter === 'main') {
+        filteredMembers = selectableMembers.filter(m => (!m.isSisterMember || m.homeGroup === 'main'));
+    } else if (memberFilter.startsWith('main-gen-')) {
+        const gen = memberFilter.replace('main-gen-', '');
+        filteredMembers = selectableMembers.filter(m => (!m.isSisterMember || m.homeGroup === 'main') && m.generation === gen);
+    } else if (memberFilter.startsWith('sg-')) {
+        if (memberFilter.includes('-gen-')) {
+            const [sgIdStr, gen] = memberFilter.replace('sg-', '').split('-gen-');
+            const sgId = parseInt(sgIdStr, 10);
+            filteredMembers = selectableMembers.filter(m => m.groupId === sgId && m.generation === gen);
+        } else {
+            const sgId = parseInt(memberFilter.replace('sg-', ''), 10);
+            filteredMembers = selectableMembers.filter(m => m.groupId === sgId);
+        }
+    }
+}
+
+    // --- UPDATED Function ---
+    // Define the list of currently visible members based on the filter
     const visibleRoster = selectableMembers.filter(member => {
+        if (filterKey === 'All') return true;
         if (filterKey === 'Unchosen') {
             const isMemberInAnyTrack = tracks.some(track => track.members.map(String).includes(String(member.id)));
             return !isMemberInAnyTrack;
         }
-        if (filterKey === 'All') return true;
-
-        const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
-        const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
-        const memberTeamName = memberData?.teamName;
-
-        if (filterKey === 'main') return !member.isSister;
-        if (member.homeGroup === filterKey) return true;
-        if (memberTeamName && memberTeamName === filterKey) return true;
-        
+        if (filterKey.startsWith('team-')) {
+            const teamId = parseInt(filterKey.replace('team-', ''), 10);
+            const selectedTeam = teams.find(t => t.id === teamId);
+            if (!selectedTeam) return false;
+            if (member.teamId !== teamId) return false;
+            if (selectedTeam.groupId === 'main') return !member.isSister;
+            else return member.isSister;
+        }
+        if (filterKey === 'main') {
+            return !member.isSister;
+        }
+        if (filterKey.startsWith('main-gen-')) {
+            const gen = filterKey.replace('main-gen-', '');
+            return !member.isSister && member.generation === gen;
+        }
+        if (filterKey.startsWith('sg-')) {
+            if (filterKey.includes('-gen-')) {
+                const [sgIdStr, gen] = filterKey.replace('sg-', '').split('-gen-');
+                const sgId = parseInt(sgIdStr, 10);
+                return member.groupId === sgId && member.generation === gen;
+            } else {
+                const sgId = parseInt(filterKey.replace('sg-', ''), 10);
+                return member.groupId === sgId;
+            }
+        }
         return false;
     });
 
-    // --- UPDATED Function ---
     const handleToggleSelectAllFiltered = () => {
         if (!currentTrack) return;
+        
+        // This now correctly uses the 'visibleRoster' variable defined above
         const visibleIds = visibleRoster.map(m => String(m.id));
         const allCurrentlySelected = visibleIds.every(id => currentTrack.members.map(String).includes(id));
         
@@ -1435,14 +1596,18 @@ const setAlbumCenter = (memberId) => {
             if (index !== selectedTrackIndex) return track;
             let newMembers;
             let newLineup = { ...track.lineup };
+
             if (allCurrentlySelected) {
+                // Deselect all visible
                 newMembers = track.members.filter(id => !visibleIds.includes(String(id)));
                 visibleIds.forEach(id => delete newLineup[id]);
             } else {
+                // Select all visible that are not already selected
                 const newIdsToAdd = visibleIds.filter(id => !track.members.map(String).includes(id));
-                newMembers = [...track.members, ...newIdsToAdd];
+                newMembers = [...track.members.map(String), ...newIdsToAdd];
                 newIdsToAdd.forEach(id => { if (!newLineup[id]) newLineup[id] = '5th Row'; });
             }
+
             let newCenter = (track.center || []).filter(centerId => newMembers.includes(String(centerId)));
             return { ...track, members: newMembers, center: newCenter, lineup: newLineup };
         }));
@@ -1529,6 +1694,7 @@ const handleSchedule = () => {
                 name: t.name,
                 unitName: t.unitName,
                 type: t.type,
+                popularity: 1.0,
                     members: trackMembers.map(member => ({
                         id: member.rosterId || member.id,
                         name: member.name,
@@ -1574,6 +1740,7 @@ const handleSchedule = () => {
                     name: t.name,
                     unitName: t.unitName,
                     type: t.type,
+                    popularity: 1.0,
                         members: trackMembers.map(member => ({
                             id: member.rosterId || member.id,
                             name: member.name,
@@ -1718,7 +1885,7 @@ const renderSelectGraduatingMemberStep = () => {
                     <div className="lg:col-span-3 space-y-4">
                         <div>
                             <h4 className="font-semibold mb-1 dark:text-gray-200">Target Group</h4>
-                            <select value={targetGroup} onChange={(e) => { setTargetGroup(e.target.value); setTracks([{ name: 'Title Track', type: 'title', members: [], center: null, lineup: {} }, { name: 'B-Side 1', type: 'b-side', members: [], center: null, lineup: {} }]); }} className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                            <select value={targetGroup} onChange={(e) => { setTargetGroup(e.target.value); setTracks([{ name: 'Title Track', unitName: 'Senbatsu', type: 'title', members: [], center: null, lineup: {} }, { name: 'B-Side 1', unitName: 'Universe Girls', type: 'b-side', members: [], center: null, lineup: {}, cdType: 'common' }]); }} className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                                 <option value="main">{groupName} (Main)</option>
                                 {(sisterGroups || []).map(sg => <option key={sg.id} value={sg.name}>{sg.name}</option>)}
                             </select>
@@ -1814,7 +1981,15 @@ const renderSelectGraduatingMemberStep = () => {
                                                 <option value="election-futuregirls">Future Girls (Ranks 49-64)</option>
                                                 <option value="election-upcominggirls">Upcoming Girls (Ranks 65-80)</option>
                                             </optgroup>
+                                            
                                         )}
+
+                                        {lastJankenResult && (
+                                            <optgroup label="Last Janken Tournament">
+                                                <option value="janken-senbatsu">Janken Senbatsu (Top 16)</option>
+                                            </optgroup>
+                                        )}
+
                                 </select>
                             </div>
 
@@ -1834,43 +2009,56 @@ const renderSelectGraduatingMemberStep = () => {
                                     }} className="px-2 py-1 text-xs bg-sky-500 text-white rounded">Select by Skill</button>
                                 
                                 </div>
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
-                                <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
-                                <button onClick={() => setFilterKey('main')} className={`px-3 py-1 text-xs rounded ${filterKey === 'main' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{groupName}</button>
-                                {sisterGroups.map(sg => (
-                                    <button key={sg.id} onClick={() => setFilterKey(sg.name)} className={`px-3 py-1 text-xs rounded ${filterKey === sg.name ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{sg.name}</button>
-                                ))}
-                                {(teams || []).map(team => (
-                                     <button key={team.id} onClick={() => setFilterKey(team.name)} className={`px-3 py-1 text-xs rounded ${filterKey === team.name ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{team.name}</button>
-                                ))}
+                            <div className="mb-2">
+                                <label htmlFor="member-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Members</label>
+                                <select 
+                                    id="member-filter" 
+                                    value={filterKey} 
+                                    onChange={e => setFilterKey(e.target.value)} 
+                                    className="w-full p-2 text-sm rounded border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+                                >
+                                    <option value="All">All</option>
+                                    <option value="Unchosen">Unchosen</option>
+                                    
+                                    {(teams || []).length > 0 && (
+                                        <optgroup label="Teams">
+                                            {teams.map(team => (
+                                                <option key={`team-${team.id}`} value={`team-${team.id}`}>{team.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    
+                                    <optgroup label="Groups">
+                                        <option value="main">{groupName}</option>
+                                        {sisterGroups.map(sg => (
+                                            <option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>
+                                        ))}
+                                    </optgroup>
+
+                                    {mainGroupGenerations.length > 0 && (
+                                        <optgroup label={`${groupName} Generations`}>
+                                            {mainGroupGenerations.map(gen => (
+                                                <option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+
+                                    {sisterGroupDetails.map(sg => (
+                                        sg.generations.length > 0 && (
+                                            <optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Generations`}>
+                                                {sg.generations.map(gen => (
+                                                    <option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>
+                                                ))}
+                                            </optgroup>
+                                        )
+                                    ))}
+                                </select>
                             </div>
+
                             <button onClick={handleToggleSelectAllFiltered} className="w-full mb-2 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
-                            
+                                                        
                             <div className="border rounded p-2 h-96 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-sm">
-                                {selectableMembers
-                                    .filter(member => {
-                                        // **BUG FIX STARTS HERE**
-                                        if (filterKey === 'Unchosen') {
-                                            // Check if the member is in ANY track of this single, not just the current one.
-                                            const isMemberInAnyTrack = tracks.some(track => track.members.map(String).includes(String(member.id)));
-                                            return !isMemberInAnyTrack;
-                                        }
-                                        // **BUG FIX ENDS HERE**
-
-                                        if (filterKey === 'All') return true;
-
-                                        const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
-                                        const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
-                                        const memberTeamName = memberData?.teamName;
-
-                                        if (filterKey === 'main') return !member.isSister;
-                                        if (member.homeGroup === filterKey) return true;
-                                        if (memberTeamName && memberTeamName === filterKey) return true;
-                                        
-                                        return false;
-                                    })
-                                    .map(member => {
+                                {visibleRoster.map(member => {
                                     const isSelected = currentTrack?.members.map(String).includes(String(member.id));
                                     return (
                                         <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
@@ -1988,7 +2176,7 @@ const renderSelectGraduatingMemberStep = () => {
                                         <div className='flex justify-between items-center mb-1'>
                                             <span className={`font-bold text-sm ${selectedAlbumTrackIndex === index ? 'text-white' : 'dark:text-gray-200'}`}>{track.type === 'title' ? 'Lead Track' : `B-Side ${index}`}</span>
                                             <div className="flex items-center gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); updateAlbumTrackName(index, generateRandomName()); }} className="p-1 rounded-md bg-pink-300 text-white hover:bg-pink-400 transition-colors" title="Generate Random Name">
+                                                <button onClick={(e) => { e.stopPropagation(); updateAlbumTrackName(index, generateSongTitle()); }} className="p-1 rounded-md bg-pink-300 text-white hover:bg-pink-400 transition-colors" title="Generate Random Name">
                                                     <Shuffle size={14} />
                                                 </button>
                                                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${track.type === 'title' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{track.type === 'title' ? 'LEAD' : 'B-SIDE'}</span>
@@ -2021,60 +2209,176 @@ const renderSelectGraduatingMemberStep = () => {
                                                     {track.name}
                                                 </option>
                                             ))}
-                                            {lastElectionResult && (
-                                                <optgroup label="Last General Election">
-                                                    <option value="election-senbatsu">Senbatsu (Ranks 1-16)</option>
-                                                    <option value="election-undergirls">Undergirls (Ranks 17-32)</option>
-                                                    <option value="election-nextgirls">Next Girls (Ranks 33-48)</option>
-                                                    <option value="election-futuregirls">Future Girls (Ranks 49-64)</option>
-                                                    <option value="election-upcominggirls">Upcoming Girls (Ranks 65-80)</option>
-                                                </optgroup>
-                                            )}
-                                    </select>
-                                </div>
+                                        {lastElectionResult && (
+                                            <optgroup label="Last General Election">
+                                                <option value="election-senbatsu">Senbatsu (Ranks 1-16)</option>
+                                                <option value="election-undergirls">Undergirls (Ranks 17-32)</option>
+                                                <option value="election-nextgirls">Next Girls (Ranks 33-48)</option>
+                                                <option value="election-futuregirls">Future Girls (Ranks 49-64)</option>
+                                                <option value="election-upcominggirls">Upcoming Girls (Ranks 65-80)</option>
+                                            </optgroup>
+                                            
+                                        )}
+
+                                        {lastJankenResult && (
+                                            <optgroup label="Last Janken Tournament">
+                                                <option value="janken-senbatsu">Janken Senbatsu (Top 16)</option>
+                                            </optgroup>
+                                        )}
+
+                                </select>
+                            </div>
+
                                 <div className="flex items-center gap-2 mb-2">
-                                    <input type="number" id={`random-album-members-input-${selectedAlbumTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
+                                    <input type="number" id={`random-members-input-${selectedTrackIndex}`} defaultValue="7" className="w-20 p-1 border rounded text-sm bg-white dark:bg-gray-700" />
                                     <button onClick={() => {
-                                        const input = document.getElementById(`random-album-members-input-${selectedAlbumTrackIndex}`);
-                                        if (input) handleRandomizeMembers(selectedAlbumTrackIndex, parseInt(input.value, 10));
+                                        const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
+                                        if (input) handleRandomizeMembers(selectedTrackIndex, parseInt(input.value, 10));
                                     }} className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Random Members</button>
                                         <button onClick={() => {
-                                            const input = document.getElementById(`random-album-members-input-${selectedAlbumTrackIndex}`);
-                                            if (input) handleRandomizeByFans(selectedAlbumTrackIndex, parseInt(input.value, 10));                                                ;
+                                            const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
+                                            if (input) handleRandomizeByFans(selectedTrackIndex, parseInt(input.value, 10));
                                         }} className="px-2 py-1 text-xs bg-teal-500 text-white rounded">Select by Fans</button>
+                                <button onClick={() => {
+                                        const input = document.getElementById(`random-members-input-${selectedTrackIndex}`);
+                                        if (input) handleSelectByAvgSkill(selectedTrackIndex, parseInt(input.value, 10));
+                                    }} className="px-2 py-1 text-xs bg-sky-500 text-white rounded">Select by Skill</button>
+                                
                                 </div>
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <button onClick={() => setFilterKey('All')} className={`px-3 py-1 text-xs rounded ${filterKey === 'All' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>All</button>
-                                <button onClick={() => setFilterKey('Unchosen')} className={`px-3 py-1 text-xs rounded ${filterKey === 'Unchosen' ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>Unchosen</button>
-                                {allGroups.map(g => <button key={g.id} onClick={() => setFilterKey(g.name)} className={`px-3 py-1 text-xs rounded ${filterKey === g.name ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{g.name}</button>)}
-                                {(teams || []).map(team => <button key={team.id} onClick={() => setFilterKey(team.name)} className={`px-3 py-1 text-xs rounded ${filterKey === team.name ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>{team.name}</button>)}
+                                
+                            <div className="mb-2">
+                                <label htmlFor="member-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Members</label>
+                                <select 
+                                    id="member-filter" 
+                                    value={filterKey} 
+                                    onChange={e => setFilterKey(e.target.value)} 
+                                    className="w-full p-2 text-sm rounded border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+                                >
+                                    <option value="All">All</option>
+                                    <option value="Unchosen">Unchosen</option>
+                                    
+                                    {(teams || []).length > 0 && (
+                                        <optgroup label="Teams">
+                                            {teams.map(team => (
+                                                <option key={`team-${team.id}`} value={`team-${team.id}`}>{team.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    
+                                    <optgroup label="Groups">
+                                        <option value="main">{groupName}</option>
+                                        {sisterGroups.map(sg => (
+                                            <option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>
+                                        ))}
+                                    </optgroup>
+
+                                    {mainGroupGenerations.length > 0 && (
+                                        <optgroup label={`${groupName} Generations`}>
+                                            {mainGroupGenerations.map(gen => (
+                                                <option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+
+                                    {sisterGroupDetails.map(sg => (
+                                        sg.generations.length > 0 && (
+                                            <optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Generations`}>
+                                                {sg.generations.map(gen => (
+                                                    <option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>
+                                                ))}
+                                            </optgroup>
+                                        )
+                                    ))}
+                                </select>
                             </div>
-                            <button onClick={handleToggleSelectAllFilteredForAlbum} className="w-full mb-2 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
+
+                            <button onClick={handleToggleSelectAllFiltered} className="w-full mb-2 px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600">Toggle Select All (Filtered)</button>
+                                                        
                             <div className="border rounded p-2 h-96 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-sm">
-                                {selectableMembers.filter(member => {
-                                    if (filterKey === 'Unchosen') return !albumTracks.some(track => track.members.map(String).includes(String(member.id)));
-                                    if (filterKey === 'All') return true;
-                                    const originalMemberId = String(member.id).includes('sg-') ? String(member.id).split('-')[2] : String(member.id);
-                                    const memberData = getMemberById(originalMemberId, member.isSister ? member.groupId : 'main');
-                                    const memberTeamName = memberData?.teamName;
-                                    if (filterKey === 'main' || filterKey === groupName) return !member.isSister;
-                                    if (member.homeGroup === filterKey) return true;
-                                    if (memberTeamName && memberTeamName === filterKey) return true;
-                                    return false;
-                                }).map(member => (
-                                    <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
-                                        <div className="flex flex-col">
-                                            <span className="font-medium dark:text-gray-200">{member.name}</span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                Vo.{Math.round(member.singing)} Da.{Math.round(member.dancing)} Vi.{Math.round(member.visual)} Ch.{Math.round(member.charisma)} In.{Math.round(member.intelligence)} Fans:{getTotalFansForMember(member).toLocaleString()}
-                                                {getMemberWarning(member) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarning(member)}</span>}
-                                            </span>
+        {selectableMembers
+                    .filter(member => {
+                        if (filterKey === 'All') return true;
+
+                        if (filterKey === 'Unchosen') {
+                            const isMemberInAnyTrack = tracks.some(track => track.members.map(String).includes(String(member.id)));
+                            return !isMemberInAnyTrack;
+                        }
+
+                        if (filterKey.startsWith('team-')) {
+                            const teamId = parseInt(filterKey.replace('team-', ''), 10);
+                            const selectedTeam = teams.find(t => t.id === teamId);
+
+                            if (!selectedTeam) return false;
+
+                            // Member must have the correct teamId to be considered.
+                            if (member.teamId !== teamId) {
+                                return false;
+                            }
+
+                            // CORRECTED LOGIC:
+                            // If the selected team is a main group team, only show main group members.
+                            if (selectedTeam.groupId === 'main') {
+                                return !member.isSister;
+                            } 
+                            // Otherwise, it's a sister group team, so only show sister group members.
+                            else {
+                                return member.isSister;
+                            }
+                        }
+
+                        if (filterKey === 'main') {
+                            return !member.isSister;
+                        }
+
+                        if (filterKey.startsWith('main-gen-')) {
+                            const gen = filterKey.replace('main-gen-', '');
+                            return !member.isSister && member.generation === gen;
+                        }
+
+                        if (filterKey.startsWith('sg-')) {
+                            if (filterKey.includes('-gen-')) {
+                                const [sgIdStr, gen] = filterKey.replace('sg-', '').split('-gen-');
+                                const sgId = parseInt(sgIdStr, 10);
+                                return member.groupId === sgId && member.generation === gen;
+                            } else {
+                                const sgId = parseInt(filterKey.replace('sg-', ''), 10);
+                                return member.groupId === sgId;
+                            }
+                        }
+                        
+                        return false;
+                    })
+            .map(member => {
+                                    const isSelected = currentTrack?.members.map(String).includes(String(member.id));
+                                    return (
+                                        <div key={member.id} className="flex items-center justify-between p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium dark:text-gray-200">
+                                                    {member.name}
+                                                    <span className="ml-2 text-xs text-pink-300 font-normal">
+                                                        {(() => {
+                                                            const otherTracks = tracks.filter(t => 
+                                                                t.name !== (currentTrack?.name || '') && 
+                                                                (t.members || []).map(String).includes(String(member.id))
+                                                            );
+                                                            if (otherTracks.length > 0) {
+                                                                return `(in ${otherTracks.map(t => t.name).join(', ')})`;
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </span>
+                                                </span>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Vocal:{Math.round(member.singing)} Dance:{Math.round(member.dancing)} Visual:{Math.round(member.visual)} Fans:{getTotalFansForMember(member).toLocaleString()}
+                                                    {getMemberWarning(member) && <span className="text-yellow-500 ml-2 font-semibold">{getMemberWarning(member)}</span>}
+                                                </span>
+                                            </div>
+                                            <button onClick={() => toggleMember(member.id)} className={`px-2 py-1 text-xs rounded ${isSelected ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                                                {isSelected ? 'Remove' : 'Add'}
+                                            </button>
                                         </div>
-                                        <button onClick={() => toggleAlbumMember(member.id)} className={`px-2 py-1 text-xs rounded ${currentTrack?.members.map(String).includes(String(member.id)) ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-                                            {currentTrack?.members.map(String).includes(String(member.id)) ? 'Remove' : 'Add'}
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                         <div>
@@ -2343,30 +2647,39 @@ return (
                         return <p>{performance.members.join(', ')}</p>
                     }
 
-                    const memberObjects = performance.members.map(id => getMemberById(id)).filter(Boolean);
+const memberObjects = performance.members.map(id => getMemberById(id)).filter(Boolean);
 
-            const memberGroups = track.members.reduce((acc, member) => {
-                if (!member) return acc;
-                let groupKey;
-                const mainGroupName = groupName || 'Hoshimi01';
+const memberGroups = memberObjects.reduce((acc, member) => {
+    if (!member) return acc;
+    let groupKey;
+    const mainGroupName = groupName || 'Hoshimi01';
 
-                // Kennin members are a special case
-                if (member.isKennin) {
-                    const kenninGroup = (member.kenninGroups && member.kenninGroups.length > 0) ? member.kenninGroups[0] : 'Kennin Group';
-                    groupKey = `${member.homeGroup} Team ${member.teamName} / ${kenninGroup} Team`;
-                } else if (member.isSisterMember) {
-                    const sgName = member.displayGroupName || 'Sister Group';
-                    groupKey = member.isKenkyuusei ? `${sgName} Kenkyuusei` : `${sgName} Team ${member.teamName}`;
-                } else { // Main group members
-                    groupKey = member.isKenkyuusei ? `${mainGroupName} Kenkyuusei` : `Team ${member.teamName}`;
-                }
+    if (member.isKennin) {
+        const kenninGroup = (member.kenninGroups && member.kenninGroups.length > 0) ? member.kenninGroups[0] : 'Kennin';
+        const baseGroup = member.teamName ? `Team ${member.teamName}` : (member.homeGroup || mainGroupName);
+        groupKey = `${baseGroup} / ${kenninGroup}`;
 
-                if (!acc[groupKey]) {
-                    acc[groupKey] = [];
-                }
-                acc[groupKey].push(member);
-                return acc;
-            }, {});
+    } else if (member.isSisterMember) {
+        const sgName = member.displayGroupName || 'Sister Group';
+        if (member.teamName) {
+            groupKey = `${sgName} Team ${member.teamName}`;
+        } else {
+            groupKey = `${sgName} Kenkyuusei`;
+        }
+    } else { // Main group members
+        if (member.teamName) {
+            groupKey = `Team ${member.teamName}`;
+        } else {
+            groupKey = `${mainGroupName} Kenkyuusei`;
+        }
+    }
+
+    if (!acc[groupKey]) {
+        acc[groupKey] = [];
+    }
+    acc[groupKey].push(member);
+    return acc;
+}, {});
                     return (
                         <div className="space-y-2">
                             {Object.entries(memberGroups).sort((a, b) => a[0].localeCompare(b[0])).map(([groupKeyName, membersInGroup]) => (
@@ -2819,473 +3132,627 @@ if (release.isGraduationSingle) {
     
     // NEW: Performance Selection Modal (Consolidates large concerts/tours)
     const PerformanceModal = () => {
-        // --- STATE ---
-        const [performanceName, setPerformanceName] = useState('');
-        const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
-        const [setlist, setSetlist] = useState([]);
-        const [selectedMembers, setSelectedMembers] = useState([]);
-        const [filterCategory, setFilterCategory] = useState('All');
-        const [memberFilter, setMemberFilter] = useState('all');
-        
-        // --- DERIVED DATA ---
-        const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
-        
-        const allTracks = [
-            // Existing single/album tracks
-            ...[...songs, ...sisterGroups.flatMap(sg => sg.songs || [])].flatMap(s => (s.tracks || []).map(t => {
-                const releaseType = s.type === 'album' ? 'Album' : 'Single';
-                const releaseArtist = s.artist || (s.targetGroup === 'main' ? groupName : s.targetGroup);
-                return {
-                    id: `${s.id}-${t.name}-${releaseArtist}`,
-                    name: `${t.name} (${releaseType}: ${s.name})`,
-                    type: 'release'
-                };
-            })),
-            // Newly added theater songs
-            ...(theaterSongs || []).map(song => {
-                const originalSetlist = allSetlists.find(s => s.id === song.originalSetlistId);
-                return {
-                    id: `theater-${song.id}`,
-                    name: `${song.name} (Theater - ${originalSetlist ? originalSetlist.name : 'Original'})`,
-                    item: { id: song.id, name: song.name },
-                    type: 'theater'
-                };
-            })
-        ];
-        
-        const availableMembers = getAllAvailableMembers(true); 
-        const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
-        const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
-        
-        const filteredMembers = availableMembers.filter(member => {
-            if (memberFilter === 'all') return true;
-            if (memberFilter === 'main') return member.homeGroup === 'main';
-            return String(member.groupId) === memberFilter;
-        });
+    // --- STATE ---
+    const [performanceName, setPerformanceName] = useState('');
+    const [selectedTypeLabel, setSelectedTypeLabel] = useState(null);
+    const [setlist, setSetlist] = useState([]);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [filterCategory, setFilterCategory] = useState('All');
+    // MODIFIED: This is the only state change needed.
+    const [memberFilter, setMemberFilter] = useState('all');
+    
+    // --- DERIVED DATA ---
+    const selectedTypeData = performanceTypes.find(p => p.label === selectedTypeLabel);
+    
+    const allTracks = [
+        ...[...songs, ...sisterGroups.flatMap(sg => sg.songs || [])].flatMap(s => (s.tracks || []).map(t => {
+            const releaseType = s.type === 'album' ? 'Album' : 'Single';
+            const releaseArtist = s.artist || (s.targetGroup === 'main' ? groupName : s.targetGroup);
+            return {
+                id: `${s.id}-${t.name}-${releaseArtist}`,
+                name: `${t.name} (${releaseType}: ${s.name})`,
+                type: 'release'
+            };
+        })),
+        ...(theaterSongs || []).map(song => {
+            const originalSetlist = allSetlists.find(s => s.id === song.originalSetlistId);
+            return {
+                id: `theater-${song.id}`,
+                name: `${song.name} (Theater - ${originalSetlist ? originalSetlist.name : 'Original'})`,
+                item: { id: song.id, name: song.name },
+                type: 'theater'
+            };
+        })
+    ];
+    
+    const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable); 
+    const categories = ['All', ...new Set(performanceTypes.map(p => p.category))];
+    const filteredTypes = filterCategory === 'All' ? performanceTypes : performanceTypes.filter(p => p.category === filterCategory);
 
-        // --- SETLIST MANIPULATION ---
-        const addTrackToSetlist = (trackId) => {
-            const trackToAdd = allTracks.find(t => t.id === trackId);
-            if(trackToAdd) {
-                 // Ensure the object has the {type: 'song', item: ...} structure
-                setSetlist(prev => [...prev, { type: 'song', item: { id: trackToAdd.id, name: trackToAdd.name } }]);
-            }
-        };
-        const addSpecialItemToSetlist = (itemType) => {
-            if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
-            let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
-            setSetlist(prev => [...prev, newItem]);
-        };
-        const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
-        const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
-        const moveSetlistItem = (index, direction) => {
-            if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
-            setSetlist(prev => {
-                const newList = [...prev];
-                const item = newList.splice(index, 1)[0];
-                newList.splice(index + direction, 0, item);
-                return newList;
+    // --- NEW: Generate structured data for the new filter ---
+const mainGroupGenerations = [...new Set(availableMembers.filter(m => !m.isSisterMember).map(m => m.generation).filter(Boolean))];
+const sisterGroupDetails = sisterGroups.map(sg => ({
+    ...sg,
+    generations: [...new Set(availableMembers.filter(m => m.groupId === sg.id).map(m => m.generation).filter(Boolean))]
+}));
+
+    // --- NEW: Logic to filter members based on the detailed dropdown selection ---
+let filteredMembers = availableMembers;
+if (memberFilter !== 'all') {
+    if (memberFilter.startsWith('team-')) {
+        const teamId = parseInt(memberFilter.replace('team-', ''), 10);
+        const selectedTeam = teams.find(t => t.id === teamId);
+
+        if (!selectedTeam) {
+            filteredMembers = [];
+        } else {
+            filteredMembers = availableMembers.filter(member => {
+                // Primary requirement: Member must be in the selected team. (Using String() for type safety)
+                if (String(member.teamId) !== String(teamId)) {
+                    return false;
+                }
+
+                // Secondary requirement: Member must belong to the correct group for that team.
+                const isMainGroupTeam = selectedTeam.groupId === 'main';
+
+                if (isMainGroupTeam) {
+                    // For a main group team, only show main group members.
+                    return !member.isSisterMember;
+                } else {
+                    // For a sister group team, only show members from that specific sister group.
+                    // Coercing both to String() prevents type-related comparison errors.
+                    return String(member.groupId) === String(selectedTeam.groupId);
+                }
             });
-        };
-    
-        // --- MEMBER & EXECUTION ---
-        const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
-        const selectAllMembers = () => setSelectedMembers(filteredMembers.map(m => m.id));
-        const deselectAllMembers = () => setSelectedMembers([]);
-        const executePerformance = () => {
-            if (!selectedTypeData) return setMessage("Please select a performance type.");
-            recordPerformance(selectedTypeData, setlist, selectedMembers, performanceName.trim());
-        };
-    
-        // --- RENDER LOGIC ---
-        let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
-        return (
-            <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
-                    {/* Col 1-3: Performance Type */}
-                    <div className="col-span-12 lg:col-span-3 space-y-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
-                        <div>
-                            <h4 className="font-semibold mb-1 dark:text-gray-100">Performance Name (Optional)</h4>
-                            <input type="text" value={performanceName} onChange={e => setPerformanceName(e.target.value)} placeholder="e.g., Weekly Showcase" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
-                        </div>
+        }
+    } else if (memberFilter === 'main') {
+        filteredMembers = availableMembers.filter(m => !m.isSisterMember);
+    } else if (memberFilter.startsWith('main-gen-')) {
+        const gen = memberFilter.replace('main-gen-', '');
+        filteredMembers = availableMembers.filter(m => !m.isSisterMember && m.generation === gen);
+    } else if (memberFilter.startsWith('sg-')) {
+        if (memberFilter.includes('-gen-')) {
+            const [sgIdStr, gen] = memberFilter.replace('sg-', '').split('-gen-');
+            const sgId = parseInt(sgIdStr, 10);
+            filteredMembers = availableMembers.filter(m => m.groupId === sgId && m.generation === gen);
+        } else {
+            const sgId = parseInt(memberFilter.replace('sg-', ''), 10);
+            filteredMembers = availableMembers.filter(m => m.groupId === sgId);
+        }
+    }
+}
 
-                        <h4 className="font-semibold flex items-center dark:text-gray-100 pt-2"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
-                        <div className="flex flex-wrap gap-1 mb-2">
-                            {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full font-semibold ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}>{cat}</button>)}
-                        </div>
-                        <div className="h-[450px] overflow-y-auto space-y-2">
-                            {filteredTypes.map(type => (
-                                <div key={type.label} onClick={() => setSelectedTypeLabel(type.label)} className={`p-3 border rounded cursor-pointer ${selectedTypeLabel === type.label ? 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-300 dark:bg-indigo-900 dark:border-indigo-600' : 'bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'}`} title={type.desc}>
-                                    <span className="font-bold block dark:text-gray-100">{type.label}</span>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">Cost: ¥{type.cost.toLocaleString()}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+    // --- SETLIST MANIPULATION ---
+    const addTrackToSetlist = (trackId) => {
+        const trackToAdd = allTracks.find(t => t.id === trackId);
+        if(trackToAdd) {
+            setSetlist(prev => [...prev, { type: 'song', item: { id: trackToAdd.id, name: trackToAdd.name } }]);
+        }
+    };
+    const addSpecialItemToSetlist = (itemType) => {
+        if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
+        let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
+        setSetlist(prev => [...prev, newItem]);
+    };
+    const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
+    const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
+    const moveSetlistItem = (index, direction) => {
+        if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
+        setSetlist(prev => {
+            const newList = [...prev];
+            const item = newList.splice(index, 1)[0];
+            newList.splice(index + direction, 0, item);
+            return newList;
+        });
+    };
+
+    // --- MEMBER & EXECUTION ---
+    const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+    // MODIFIED: These now correctly use the filtered list
+    const selectAllMembers = () => setSelectedMembers(prev => [...new Set([...prev, ...filteredMembers.map(m => m.id)])]);
+    const deselectAllMembers = () => {
+        const filteredIds = new Set(filteredMembers.map(m => m.id));
+        setSelectedMembers(prev => prev.filter(id => !filteredIds.has(id)));
+    };
     
-                    {/* Col 4-7: Combined Setlist Builder */}
-                    <div className="col-span-12 lg:col-span-4 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
-                        <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>2. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
-                        <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800 mb-2">
-                            {setlist.map((item, index) => {
-                                let label, labelColor;
-                                if (item.type === 'encore') inEncore = true;
-                                if (item.type === 'song') {
-                                    if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
-                                    labelColor = 'text-blue-600 dark:text-blue-400';
-                                } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
-                                
-                                return (
-                                    <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
-                                        <div className="flex items-center overflow-hidden flex-1"><span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
-                                            {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
-                                            {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200" />}
-                                            {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE ---</span>}
-                                        </div>
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-2">
-                                            {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Ann?</label>}
-                                            <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
-                                            <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
-                                            <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                         <div className="grid grid-cols-2 gap-2">
-                            <select onChange={e => addTrackToSetlist(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Add Song --</option>{allTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-                            <div><button onClick={() => addSpecialItemToSetlist('mc')} className="w-1/2 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded-l hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="w-1/2 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-r hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
-                        </div>
+    const executePerformance = () => {
+        if (!selectedTypeData) return setMessage("Please select a performance type.");
+        // FIX: Corrected typo 'selectedTypeAta' to 'selectedTypeData' and removed non-existent 'targetGroup'
+        recordPerformance(selectedTypeData, setlist, selectedMembers, performanceName);
+    };
+
+    // --- RENDER LOGIC ---
+    let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
+    return (
+        <ModalWrapper title={<span className="flex items-center"><ClipboardCheck size={24} className="mr-2"/> Schedule Performance</span>} maxWidth="max-w-7xl">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{minHeight: '60vh'}}>
+                {/* Col 1-3: Performance Type */}
+                <div className="col-span-12 lg:col-span-3 space-y-3 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
+                    <div>
+                        <h4 className="font-semibold mb-1 dark:text-gray-100">Performance Name (Optional)</h4>
+                        <input type="text" value={performanceName} onChange={e => setPerformanceName(e.target.value)} placeholder="e.g., Weekly Showcase" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
                     </div>
-    
-                    {/* Col 8-12: Member Selection (Expanded) */}
-                    <div className="col-span-12 lg:col-span-5">
-                        <h4 className="font-semibold mb-2 dark:text-gray-100">3. Select Members ({selectedMembers.length})</h4>
-                        <div className="flex flex-wrap gap-1 mb-2">
-                            <button onClick={() => setMemberFilter('all')} className={`text-xs p-1 rounded ${memberFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>All</button>
-                            <button onClick={() => setMemberFilter('main')} className={`text-xs p-1 rounded ${memberFilter === 'main' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{groupName}</button>
-                            {sisterGroups.map(sg => (
-                                <button key={sg.id} onClick={() => setMemberFilter(String(sg.id))} className={`text-xs p-1 rounded ${memberFilter === String(sg.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{sg.name}</button>
-                            ))}
-                        </div>
-                         <div className="space-y-1 max-h-[500px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
-                            {filteredMembers.map(member => (
-                                <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
-                                    <div>
-                                        <p className="font-semibold text-sm">{member.name}</p>
-                                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                                            Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {getTotalFansForMember(member).toLocaleString()}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => toggleMember(member.id)}
-                                        className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
-                                    >
-                                        {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                            <button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select Filtered</button>
-                            <button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">None</button>
-                        </div>
+
+                    <h4 className="font-semibold flex items-center dark:text-gray-100 pt-2"><Clock size={16} className='mr-1'/> 1. Select Type</h4>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`text-xs px-2 py-1 rounded-full font-semibold ${filterCategory === cat ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}>{cat}</button>)}
+                    </div>
+                    <div className="h-[450px] overflow-y-auto space-y-2">
+                        {filteredTypes.map(type => (
+                            <div key={type.label} onClick={() => setSelectedTypeLabel(type.label)} className={`p-3 border rounded cursor-pointer ${selectedTypeLabel === type.label ? 'bg-indigo-100 border-indigo-500 ring-2 ring-indigo-300 dark:bg-indigo-900 dark:border-indigo-600' : 'bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'}`} title={type.desc}>
+                                <span className="font-bold block dark:text-gray-100">{type.label}</span>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">Cost: ¥{type.cost.toLocaleString()}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
-    
-                <div className="flex justify-between items-center mt-6 pt-4 border-t">
-                    <div>
-                      <p className="font-bold text-lg dark:text-gray-100">Cost: ¥{selectedTypeData ? selectedTypeData.cost.toLocaleString() : '0'}</p>
+
+                {/* Col 4-7: Combined Setlist Builder */}
+                <div className="col-span-12 lg:col-span-4 lg:border-r pr-3 pb-4 border-b lg:border-b-0">
+                    <h4 className="font-semibold mb-2 flex justify-between dark:text-gray-100"><span>2. Design Setlist ({setlist.length})</span><button onClick={() => setSetlist([])} className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold">Clear</button></h4>
+                    <div className="h-[550px] overflow-y-auto space-y-1 border p-2 rounded bg-gray-100 dark:bg-gray-800 mb-2">
+                        {setlist.map((item, index) => {
+                            let label, labelColor;
+                            if (item.type === 'encore') inEncore = true;
+                            if (item.type === 'song') {
+                                if (inEncore) { encoreSongCount++; label = `EN${encoreSongCount}`; } else { mainSongCount++; label = `M${mainSongCount < 10 ? '0' : ''}${mainSongCount}`; }
+                                labelColor = 'text-blue-600 dark:text-blue-400';
+                            } else { label = item.type.toUpperCase(); labelColor = item.type === 'mc' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400 font-black'; }
+                            
+                            return (
+                                <div key={index} className="p-1.5 border rounded bg-white dark:bg-gray-700 group flex items-center justify-between">
+                                    <div className="flex items-center overflow-hidden flex-1"><span className={`font-black w-12 text-sm ${labelColor}`}>{label}</span>
+                                        {item.type === 'song' && <span className="font-medium text-sm truncate dark:text-gray-200">{item.item.name}</span>}
+                                        {item.type === 'mc' && <input type="text" value={item.name} onChange={(e) => updateSetlistItem(index, { name: e.target.value })} className="text-sm p-0.5 border-b flex-1 bg-transparent dark:text-gray-200" />}
+                                        {item.type === 'encore' && <span className="font-black text-sm text-yellow-600 dark:text-yellow-400">--- ENCORE ---</span>}
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-2">
+                                        {item.type === 'mc' && <label className="text-xs flex items-center dark:text-gray-300"><input type="checkbox" checked={item.hasAnnouncement} onChange={(e) => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className="mr-1"/>Ann?</label>}
+                                        <button onClick={() => moveSetlistItem(index, -1)} disabled={index === 0} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronUp size={14}/></button>
+                                        <button onClick={() => moveSetlistItem(index, 1)} disabled={index === setlist.length - 1} className="p-0.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 disabled:opacity-20"><ChevronDown size={14}/></button>
+                                        <button onClick={() => removeSetlistItem(index)} className="p-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"><X size={14}/></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
-                        <button onClick={executePerformance} disabled={!selectedTypeData || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length === 0 || money < (selectedTypeData?.cost || 0)} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
-                            Execute Performance
+                     <div className="grid grid-cols-2 gap-2">
+                        <select onChange={e => addTrackToSetlist(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Add Song --</option>{allTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                        <div><button onClick={() => addSpecialItemToSetlist('mc')} className="w-1/2 p-2 text-xs font-semibold bg-green-100 text-green-800 rounded-l hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">Add MC</button><button onClick={() => addSpecialItemToSetlist('encore')} disabled={setlist.some(i => i.type === 'encore')} className="w-1/2 p-2 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-r hover:bg-yellow-200 disabled:opacity-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800">Add Encore</button></div>
+                    </div>
+                </div>
+
+                {/* Col 8-12: Member Selection (Expanded) */}
+                <div className="col-span-12 lg:col-span-5">
+                    {/* --- MODIFIED: The entire member selection header is replaced with the new filter --- */}
+                    <div className="flex justify-between items-center mb-2">
+                         <h4 className="font-semibold dark:text-gray-100">3. Select Members ({selectedMembers.length})</h4>
+                         <div>
+                            <label htmlFor="member-filter" className="text-sm mr-2 dark:text-gray-300">Filter:</label>
+<select id="member-filter" value={memberFilter} onChange={e => setMemberFilter(e.target.value)} className="p-1 rounded border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 text-sm">
+    <option value="all">All Available Members</option>
+    
+    {(teams || []).length > 0 && (
+        <optgroup label="Teams">
+            {teams.map(team => (
+                <option key={`team-${team.id}`} value={`team-${team.id}`}>{team.name}</option>
+            ))}
+        </optgroup>
+    )}
+
+    <optgroup label="Groups">
+        <option value="main">{groupName}</option>
+        {sisterGroups.map(sg => (
+            <option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>
+        ))}
+    </optgroup>
+    {mainGroupGenerations.length > 0 && (
+        <optgroup label={`${groupName} Generations`}>
+            {mainGroupGenerations.map(gen => (
+                <option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>
+            ))}
+        </optgroup>
+    )}
+    {sisterGroupDetails.map(sg => (
+        sg.generations.length > 0 && (
+            <optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Generations`}>
+                {sg.generations.map(gen => (
+                    <option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>
+                ))}
+            </optgroup>
+        )
+    ))}
+</select>
+                         </div>
+                    </div>
+                     <div className="space-y-1 max-h-[500px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                        {/* MODIFIED: This now maps over 'filteredMembers' */}
+                        {filteredMembers.map(member => (
+                            <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
+                                <div>
+                                    <p className="font-semibold text-sm">{member.name}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {getTotalFansForMember(member).toLocaleString()}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => toggleMember(member.id)}
+                                    className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
+                                >
+                                    {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                        {/* MODIFIED: These buttons now respect the filter */}
+                        <button onClick={selectAllMembers} className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select Filtered</button>
+                        <button onClick={deselectAllMembers} className="px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Deselect Filtered</button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                <div>
+                  <p className="font-bold text-lg dark:text-gray-100">Cost: ¥{selectedTypeData ? selectedTypeData.cost.toLocaleString() : '0'}</p>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 rounded">Cancel</button>
+                    <button onClick={executePerformance} disabled={!selectedTypeData || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length === 0 || money < (selectedTypeData?.cost || 0)} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                        Execute Performance
+                    </button>
+                </div>
+            </div>
+        </ModalWrapper>
+    );
+};
+    
+const MajorConcertModal = () => {
+    // --- STATE ---
+    const [concertName, setConcertName] = useState('');
+    const [kageAna, setKageAna] = useState('');
+    const [shimeAna, setShimeAna] = useState('');
+    const [selectedVenueId, setSelectedVenueId] = useState('');
+    const [setlist, setSetlist] = useState([]);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [memberFilter, setMemberFilter] = useState('all');
+    const [sPrice, setSPrice] = useState(0);
+    const [aPrice, setAPrice] = useState(0);
+    const [bPrice, setBPrice] = useState(0);
+    // NEW: State for Joint Concerts
+    const [isJointConcert, setIsJointConcert] = useState(false);
+    const [participatingGroups, setParticipatingGroups] = useState(['main']);
+
+    // --- DERIVED DATA & HOOKS ---
+    const selectedVenue = venues.find(v => v.id === parseInt(selectedVenueId));
+    const allGroups = [{ id: 'main', name: groupName }, ...(sisterGroups || [])];
+
+    // Reset selections when participating groups change
+    useEffect(() => {
+        setSelectedMembers([]);
+        setSetlist([]);
+        setKageAna('');
+        setShimeAna('');
+        setMemberFilter('all');
+    }, [participatingGroups]);
+
+    // Update ticket prices when venue changes
+    useEffect(() => {
+        if (selectedVenue) {
+            setSPrice(6000 + Math.floor(selectedVenue.capacity / 10));
+            setAPrice(4000 + Math.floor(selectedVenue.capacity / 20));
+            setBPrice(2500 + Math.floor(selectedVenue.capacity / 30));
+        }
+    }, [selectedVenue]);
+    
+    // Toggle a group's participation in a joint concert
+    const handleGroupToggle = (groupId) => {
+        setParticipatingGroups(prev => {
+            if (prev.includes(groupId)) {
+                return prev.length > 1 ? prev.filter(id => id !== groupId) : prev;
+            }
+            return [...prev, groupId];
+        });
+    };
+
+    // Recalculate available members based on selected groups
+    const availableMembers = getAllAvailableMembers(true).filter(member => {
+        const groupIdsForMember = [
+            member.isSisterMember ? String(member.groupId) : 'main',
+            ...(member.kenninGroups || []).map(name => allGroups.find(g => g.name === name)?.id)
+        ].filter(Boolean);
+        return groupIdsForMember.some(id => participatingGroups.includes(id));
+    });
+
+    // Recalculate available songs based on selected groups
+        const allGroupTracks = [
+            ...songs
+                .flatMap(s => (s.tracks || []).map(t => ({ id: `${s.id}-${t.name}`, name: `${t.name} (from ${s.name})`, item: { id: t.id, name: t.name } }))),
+            ...sisterGroups
+                        .flatMap(sg => (sg.songs || []).flatMap(s => (s.tracks || []).map(t => ({ id: `sg-${sg.id}-${s.id}-${t.name}`, name: `${t.name} (from ${s.name})`, item: { id: t.id, name: t.name } })))),
+            ...(theaterSongs || []).map(song => ({ id: `theater-${song.id}`, name: `${song.name} (Theater)`, item: { id: song.id, name: song.name } }))
+        ].filter((track, index, self) => index === self.findIndex((t) => t.id === track.id)); // Ensure unique tracks
+
+    // Data for filter dropdown
+    const mainGroupGenerations = [...new Set(availableMembers.filter(m => !m.isSisterMember).map(m => m.generation).filter(Boolean))];
+    const sisterGroupDetails = sisterGroups.map(sg => ({
+        ...sg,
+        generations: [...new Set(availableMembers.filter(m => String(m.groupId) === String(sg.id)).map(m => m.generation).filter(Boolean))]
+    }));
+
+    // Corrected filtering logic
+    let filteredMembers = availableMembers;
+    if (memberFilter !== 'all') {
+        if (memberFilter.startsWith('team-')) {
+            const teamId = parseInt(memberFilter.replace('team-', ''), 10);
+            const selectedTeam = teams.find(t => t.id === teamId);
+            if (selectedTeam) {
+                filteredMembers = availableMembers.filter(member => {
+                    if (String(member.teamId) !== String(teamId)) return false;
+                    const isMainGroupTeam = selectedTeam.groupId === 'main';
+                    if (isMainGroupTeam) return !member.isSisterMember;
+                    return String(member.groupId) === String(selectedTeam.groupId);
+                });
+            } else {
+                filteredMembers = [];
+            }
+        } else if (memberFilter === 'main') {
+            filteredMembers = availableMembers.filter(m => !m.isSisterMember);
+        } else if (memberFilter.startsWith('main-gen-')) {
+            const gen = memberFilter.replace('main-gen-', '');
+            filteredMembers = availableMembers.filter(m => !m.isSisterMember && m.generation === gen);
+        } else if (memberFilter.startsWith('sg-')) {
+            if (memberFilter.includes('-gen-')) {
+                const [sgIdStr, gen] = memberFilter.replace('sg-', '').split('-gen-');
+                filteredMembers = availableMembers.filter(m => String(m.groupId) === sgIdStr && m.generation === gen);
+            } else {
+                const sgId = memberFilter.replace('sg-', '');
+                filteredMembers = availableMembers.filter(m => String(m.groupId) === sgId);
+            }
+        }
+    }
+
+    // --- MANIPULATION & CONFIRMATION ---
+    const addTrackToSetlist = (trackId) => {
+        const track = allGroupTracks.find(t => t.id === trackId);
+        if (track) setSetlist(prev => [...prev, { type: 'song', item: track.item }]);
+    };
+    const addSpecialItemToSetlist = (itemType) => {
+        if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
+        let newItem = itemType === 'mc' ? { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false } : { type: itemType };
+        setSetlist(prev => [...prev, newItem]);
+    };
+    const updateSetlistItem = (index, newProps) => setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
+    const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
+    const moveSetlistItem = (index, direction) => {
+        if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
+        setSetlist(prev => { const newList = [...prev]; const item = newList.splice(index, 1)[0]; newList.splice(index + direction, 0, item); return newList; });
+    };
+
+    const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+    const selectAllFiltered = () => setSelectedMembers(prev => [...new Set([...prev, ...filteredMembers.map(m => m.id)])]);
+    const deselectAllFiltered = () => {
+        const filteredIds = new Set(filteredMembers.map(m => m.id));
+        setSelectedMembers(prev => prev.filter(id => !filteredIds.has(id)));
+    };
+    
+    const handleConfirm = () => {
+        if (!selectedVenue || setlist.filter(i => i.type === 'song').length === 0 || selectedMembers.length < 5) {
+            setMessage("A concert requires a venue, at least 5 members, and at least one song.");
+            return;
+        }
+        const concertDetails = { name: concertName.trim(), kageAna: getMemberById(kageAna)?.name, shimeAna: getMemberById(shimeAna)?.name };
+        const ticketPrices = { s: sPrice, a: aPrice, b: bPrice };
+        const groupNames = participatingGroups.map(id => allGroups.find(g => g.id === id)?.name).filter(Boolean);
+        // Pass array of group names to main function
+        holdMajorConcert(selectedVenue, setlist, selectedMembers, groupNames, concertDetails, ticketPrices);
+    };
+
+    const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
+    let mainSongCount = 0, encoreSongCount = 0;
+
+    const importRequestHourSetlist = () => {
+        if (!lastRequestHourResult || !lastRequestHourResult.results) {
+            setMessage("No Request Hour results available to import.");
+            return;
+        }
+
+        const top100SongIds = [...lastRequestHourResult.results].reverse().map(r => r.songId);
+
+        const newSetlist = top100SongIds.map(songId => {
+            const track = allGroupTracks.find(t => t.id === songId);
+            return track ? { type: 'song', item: track.item } : null;
+        }).filter(Boolean);
+
+        const finalSetlist = [];
+        newSetlist.forEach((song, index) => {
+            finalSetlist.push(song);
+            if ((index + 1) % 4 === 0 && index < 15) {
+                finalSetlist.push({ type: 'mc', name: `MC ${finalSetlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false });
+            }
+        });
+
+        const encoreIndex = finalSetlist.findIndex(item => item.item?.name === newSetlist[3]?.item?.name) + 1;
+        if (encoreIndex > 0) {
+            finalSetlist.splice(encoreIndex, 0, { type: 'encore' });
+        }
+
+        setSetlist(finalSetlist);
+        setConcertName(`${new Date().getFullYear()} Request Hour Best 100`);
+        setMessage("Request Hour Best 100 setlist has been imported!");
+    };
+
+
+    // --- RENDER LOGIC ---
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold mb-4 dark:text-white">Plan Major Concert</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left Column: Details, Venue, Groups, Setlist */}
+                    <div>
+                        <div className="mb-4">
+                            <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
+                            <input type="text" value={concertName} onChange={(e) => setConcertName(e.target.value)} placeholder="e.g., 'First Light Tour'" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
+                        </div>
+                        <div className="mb-4">
+                            <h4 className="font-semibold mb-1 dark:text-gray-100">Venue</h4>
+                            <select value={selectedVenueId} onChange={(e) => setSelectedVenueId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Select Venue --</option>{venues.map(v => (<option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>))}</select>
+                            {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
+                        </div>
+                        <div className="mb-4 p-3 border rounded">
+                            <div className="flex items-center mb-2">
+                                <input type="checkbox" id="jointConcertCheck" checked={isJointConcert} onChange={e => { setIsJointConcert(e.target.checked); if (!e.target.checked) setParticipatingGroups(['main']); }} className="h-4 w-4 rounded mr-2"/>
+                                <label htmlFor="jointConcertCheck" className="font-semibold dark:text-gray-100">Joint Concert</label>
+                            </div>
+                            {isJointConcert ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {allGroups.map(group => (
+                                        <label key={group.id} className="flex items-center p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                            <input type="checkbox" checked={participatingGroups.includes(group.id)} onChange={() => handleGroupToggle(group.id)} className="h-4 w-4 rounded mr-2"/>
+                                            <span>{group.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <select value={participatingGroups[0]} onChange={e => setParticipatingGroups([e.target.value])} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200">
+                                    {allGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+
+{/* --- START: Exclusive Concert Merchandise --- */}
+{(selectedVenue || Object.values(eventMerchInventory || {}).some(stock => stock > 0)) && (
+    <div className="my-4 pt-4 border-t">
+        <h3 className="text-xl font-bold mb-4 text-purple-600 dark:text-purple-400">Exclusive Concert Merchandise</h3>
+        <p className="text-sm text-gray-500 mb-4">Produce limited-edition items for the concert. This stock will be sold automatically during the show.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(eventMerchTiers).map(([itemType, tierInfo]) => {
+                const currentStock = eventMerchInventory[itemType] || 0;
+                const cost = tierInfo.cost * 100;
+
+                return (
+                    <div key={itemType} className="p-3 bg-purple-50 dark:bg-gray-700 rounded-lg shadow">
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold">{tierInfo.name}</span>
+                            <span className="text-sm font-mono bg-purple-200 dark:bg-purple-800 px-2 py-1 rounded">
+                                In Stock: {currentStock.toLocaleString()}
+                            </span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 my-1">
+                            A high-demand item that will sell well to concert attendees.
+                        </p>
+                        <button
+                            onClick={() => produceEventMerch(itemType, 100)}
+                            className="w-full mt-2 p-2 text-sm bg-purple-500 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            disabled={money < cost}
+                        >
+                            Produce 100 (Cost: ¥{cost.toLocaleString()})
                         </button>
                     </div>
-                </div>
-            </ModalWrapper>
-        );
-    };
-    
-    const MajorConcertModal = () => {
-        // --- STATE ---
-        const [concertName, setConcertName] = useState('');
-        const [kageAna, setKageAna] = useState('');
-        const [shimeAna, setShimeAna] = useState('');
-        const [selectedVenueId, setSelectedVenueId] = useState('');
-        const [setlist, setSetlist] = useState([]);
-        const [selectedMembers, setSelectedMembers] = useState([]);
-        const [targetGroup, setTargetGroup] = useState('main');
-        const [memberFilter, setMemberFilter] = useState('all');
-        const [sPrice, setSPrice] = useState(0);
-        const [aPrice, setAPrice] = useState(0);
-        const [bPrice, setBPrice] = useState(0);
+                );
+            })}
+        </div>
+    </div>
+)}
+{/* --- END: Exclusive Concert Merchandise --- */}
 
-        // --- DERIVED DATA ---
-        const selectedVenue = venues.find(v => v.id === parseInt(selectedVenueId));
-        const allSongs = [...songs, ...sisterGroups.flatMap(sg => (sg.songs || []))];
-            const allGroupTracks = [
-                // Existing single/album tracks for the target group
-                ...allSongs
-                    .filter(s => targetGroup === 'main' ? s.targetGroup === 'main' || s.targetGroup === groupName : s.targetGroup === targetGroup)
-                    .flatMap(s => (s.tracks || []).map(t => ({ id: `${s.id}-${t.name}-${s.targetGroup}`, name: `${t.name} (Single: ${s.name})` }))),
-// All theater songs are available for any group's major concert
-...(theaterSongs || []).map(song => {
-    const originalSetlist = allSetlists.find(s => s.id === song.originalSetlistId);
-    return {
-        id: `theater-${song.id}`,
-        name: `${song.name} (Theater - ${originalSetlist ? originalSetlist.name : 'Original'})`
-    };
-})
-            ];
-
-        const availableMembers = getAllAvailableMembers(true).filter(member => {
-            if (targetGroup === 'main') return member.homeGroup === 'main' || (member.kenninGroups || []).includes('main');
-            const sg = sisterGroups.find(g => g.name === targetGroup);
-            return sg ? String(member.groupId) === String(sg.id) : false;
-        });
-
-        const filteredMembers = availableMembers.filter(member => {
-    if (memberFilter === 'all') return true;
-    if (memberFilter === 'main') return member.homeGroup === 'main';
-    const sg = sisterGroups.find(g => g.name === targetGroup);
-    return sg ? String(member.groupId) === String(sg.id) : false;
-});
+{/* --- START: Ticket Pricing UI (with correct safety check) --- */}
+{selectedVenue && (
+    <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
+        <h4 className="font-semibold mb-2 dark:text-gray-100">Ticket Prices</h4>
+        <div className="space-y-2">
+            <div className="grid grid-cols-3 items-center gap-2">
+                <label className="font-semibold text-sm dark:text-gray-300">S Zone</label>
+                <input type="number" step="100" value={sPrice} onChange={e => setSPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(6000 + Math.floor(selectedVenue.capacity / 10)).toLocaleString()}</small>
+            </div>
+            <div className="grid grid-cols-3 items-center gap-2">
+                <label className="font-semibold text-sm dark:text-gray-300">A Zone</label>
+                <input type="number" step="100" value={aPrice} onChange={e => setAPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(4000 + Math.floor(selectedVenue.capacity / 20)).toLocaleString()}</small>
+            </div>
+            <div className="grid grid-cols-3 items-center gap-2">
+                <label className="font-semibold text-sm dark:text-gray-300">B Zone</label>
+                <input type="number" step="100" value={bPrice} onChange={e => setBPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
+                <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(2500 + Math.floor(selectedVenue.capacity / 30)).toLocaleString()}</small>
+            </div>
+        </div>
+    </div>
+)}
+{/* --- END: Ticket Pricing UI --- */}
 
 
-        // --- USE EFFECTS ---
-        useEffect(() => {
-            setSelectedMembers([]);
-            setSetlist([]);
-            setKageAna('');
-            setShimeAna('');
-        }, [targetGroup]);
-        
-        useEffect(() => {
-            if (selectedVenue) {
-                setSPrice(6000 + Math.floor(selectedVenue.capacity / 10));
-                setAPrice(4000 + Math.floor(selectedVenue.capacity / 20));
-                setBPrice(2500 + Math.floor(selectedVenue.capacity / 30));
-            }
-        }, [selectedVenue]);
-
-        // --- SETLIST MANIPULATION ---
-        const addTrackToSetlist = (track) => setSetlist(prev => [...prev, { type: 'song', item: track }]);
-        const addSpecialItemToSetlist = (itemType) => {
-            if (itemType === 'encore' && setlist.some(item => item.type === 'encore')) return setMessage("Encore break can only be added once.");
-            let newItem;
-            if (itemType === 'mc') newItem = { type: 'mc', name: `MC ${setlist.filter(i => i.type === 'mc').length + 1}`, hasAnnouncement: false };
-            else newItem = { type: itemType };
-            setSetlist(prev => [...prev, newItem]);
-        };
-        const updateSetlistItem = (index, newProps) => {
-            setSetlist(prev => prev.map((item, i) => i === index ? { ...item, ...newProps } : item));
-        };
-        const removeSetlistItem = (index) => setSetlist(prev => prev.filter((_, i) => i !== index));
-        const moveSetlistItem = (index, direction) => {
-            if ((index === 0 && direction === -1) || (index === setlist.length - 1 && direction === 1)) return;
-            setSetlist(prev => {
-                const newList = [...prev];
-                const item = newList.splice(index, 1)[0];
-                newList.splice(index + direction, 0, item);
-                return newList;
-            });
-        };
-
-        // --- MEMBER SELECTION & CONFIRMATION ---
-        const toggleMember = (memberId) => setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
-        const selectAllMembers = () => setSelectedMembers(availableMembers.map(m => m.id));
-        const deselectAllMembers = () => setSelectedMembers([]);
-        const handleConfirm = () => {
-            const concertDetails = {
-                name: concertName.trim(),
-                kageAna: getMemberById(kageAna)?.name,
-                shimeAna: getMemberById(shimeAna)?.name,
-            };
-            const ticketPrices = { s: sPrice, a: aPrice, b: bPrice };
-            
-            if (!selectedVenue || setlist.filter(i => i.type === 'song').length === 0) {
-                setMessage("Must select a venue and at least one song.");
-                return;
-            }
-            if (selectedMembers.length < 5) {
-                setMessage("Need at least 5 members for a major concert.");
-                return;
-            }
-            
-            // Call the main function directly
-            holdMajorConcert(selectedVenue, setlist, selectedMembers, targetGroup, concertDetails, ticketPrices);
-   };
-        const cost = selectedVenue ? selectedVenue.cost + selectedVenue.maintenance : 0;
-
-        // --- RENDER LOGIC ---
-        let mainSongCount = 0, encoreSongCount = 0, inEncore = false;
-        
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <h3 className="text-2xl font-bold mb-4 dark:text-white">Plan Major Concert</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Left Column: Details & Setlist */}
-                        <div>
-                            <div className="mb-4">
-                                <h4 className="font-semibold mb-1 dark:text-gray-100">Concert Name</h4>
-                                <input type="text" value={concertName} onChange={(e) => setConcertName(e.target.value)} placeholder="e.g., 'First Light Tour'" className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200" />
+                        <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-semibold dark:text-gray-100">Setlist ({setlist.length})</h4>
+                                {lastRequestHourResult && (
+                                    <button
+                                        onClick={importRequestHourSetlist}
+                                        className="px-3 py-1 text-xs bg-cyan-500 text-white rounded font-semibold hover:bg-cyan-600"
+                                    >
+                                        Import Request Hour
+                                    </button>
+                                )}
                             </div>
-
-                            <div className="mb-4">
-                                <h4 className="font-semibold mb-1 dark:text-gray-100">Venue & Group</h4>
-                                <select value={selectedVenueId} onChange={(e) => setSelectedVenueId(e.target.value)} className="w-full p-2 border rounded mb-1 bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Select Venue --</option>{venues.map(v => (<option key={v.id} value={v.id}>{v.name} (Cap: {v.capacity.toLocaleString()})</option>))}</select>
-                                <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="main">{groupName} (Main)</option>{(sisterGroups || []).map(sg => (<option key={sg.id} value={sg.name}>{sg.name}</option>))}</select>
-                                 {selectedVenue && <div className='mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm'><p className='font-bold text-red-600 dark:text-yellow-200'>COST: ¥{cost.toLocaleString()}</p></div>}
+                            <div className="max-h-40 overflow-y-auto mb-2 border-y dark:border-gray-700">
+                                {setlist.map((item, index) => { let inEncore = setlist.slice(0, index).some(i => i.type === 'encore'); if (item.type === 'song') { if(inEncore) encoreSongCount++; else mainSongCount++; } return ( <div key={index} className="flex items-center p-1 border-b dark:border-gray-700 last:border-b-0"> <span className="font-bold text-gray-500 dark:text-gray-400 w-6">{index + 1}.</span> <div className="flex-grow"> {item.type === 'song' && (<span className='text-blue-600 dark:text-blue-400'>{item.item.name}</span>)} {item.type === 'mc' && (<div className='flex items-center'><span className='text-green-600 dark:text-green-400'>{item.name}</span><label className='ml-4 text-xs'><input type="checkbox" checked={item.hasAnnouncement} onChange={e => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className='mr-1' />Announce?</label></div>)} {item.type === 'vtr' && <span className='text-purple-600 dark:text-purple-400'>VTR</span>} {item.type === 'encore' && <span className='font-bold text-red-500 dark:text-red-400'>-- ENCORE --</span>} </div> <button onClick={() => moveSetlistItem(index, -1)} disabled={index===0} className="px-1 text-gray-400 disabled:opacity-20">↑</button> <button onClick={() => moveSetlistItem(index, 1)} disabled={index===setlist.length-1} className="px-1 text-gray-400 disabled:opacity-20">↓</button> <button onClick={() => removeSetlistItem(index)} className="px-2 text-red-500 font-bold">X</button> </div> ); })}
                             </div>
-                            
-                            {/* --- EVENT-SPECIFIC MERCHANDISE --- */}
-                            {selectedVenue && (
-                                <div className="mt-4 pt-4 border-t">
-                                    <h3 className="text-xl font-bold mb-4 text-purple-600 dark:text-purple-400">Exclusive Concert Merchandise</h3>
-                                    <p className="text-sm text-gray-500 mb-4">Produce limited-edition items for the concert. This stock will be sold automatically during the show.</p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {Object.entries(eventMerchTiers).map(([itemType, tierInfo]) => {
-                                            const currentStock = eventMerchInventory[itemType] || 0;
-                                            const cost = tierInfo.cost * 100;
-
-                                            return (
-                                                <div key={itemType} className="p-3 bg-purple-50 dark:bg-gray-700 rounded-lg shadow">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-semibold">{tierInfo.name}</span>
-                                                        <span className="text-sm font-mono bg-purple-200 dark:bg-purple-800 px-2 py-1 rounded">
-                                                            In Stock: {currentStock.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-600 dark:text-gray-400 my-1">
-                                                        A high-demand item that will sell well to concert attendees.
-                                                    </p>
-                                                    <button
-                                                        onClick={() => produceEventMerch(itemType, 100)}
-                                                        className="w-full mt-2 p-2 text-sm bg-purple-500 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                                        disabled={money < cost}
-                                                    >
-                                                        Produce 100 (Cost: ¥{cost.toLocaleString()})
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* --- Ticket Pricing UI --- */}
-                            {selectedVenue && (
-                                <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
-                                    <h4 className="font-semibold mb-2 dark:text-gray-100">Ticket Prices</h4>
-                                    <div className="space-y-2">
-                                        <div className="grid grid-cols-3 items-center gap-2">
-                                            <label className="font-semibold text-sm dark:text-gray-300">S Zone</label>
-                                            <input type="number" step="100" value={sPrice} onChange={e => setSPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
-                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(6000 + Math.floor(selectedVenue.capacity / 10)).toLocaleString()}</small>
-                                        </div>
-                                        <div className="grid grid-cols-3 items-center gap-2">
-                                            <label className="font-semibold text-sm dark:text-gray-300">A Zone</label>
-                                            <input type="number" step="100" value={aPrice} onChange={e => setAPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
-                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(4000 + Math.floor(selectedVenue.capacity / 20)).toLocaleString()}</small>
-                                        </div>
-                                        <div className="grid grid-cols-3 items-center gap-2">
-                                            <label className="font-semibold text-sm dark:text-gray-300">B Zone</label>
-                                            <input type="number" step="100" value={bPrice} onChange={e => setBPrice(parseInt(e.target.value))} className="p-1 border rounded col-span-2 text-center bg-white dark:bg-gray-800" />
-                                            <small className="col-span-3 text-xs text-gray-500 text-center -mt-1">Recommended: ¥{(2500 + Math.floor(selectedVenue.capacity / 30)).toLocaleString()}</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Setlist builder here */}
-                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
-                                <h4 className="font-semibold mb-2 dark:text-gray-100">Setlist</h4>
-                                <div className="max-h-60 overflow-y-auto mb-2 border-y dark:border-gray-700">
-                                    {setlist.map((item, index) => {
-                                        if (item.type === 'encore') inEncore = true;
-                                        if (item.type === 'song') {
-                                            if (inEncore) encoreSongCount++; else mainSongCount++;
-                                        }
-                                        return (
-                                            <div key={index} className="flex items-center p-1 border-b dark:border-gray-700 last:border-b-0">
-                                                <span className="font-bold text-gray-500 dark:text-gray-400 w-6">{index + 1}.</span>
-                                                <div className="flex-grow">
-                                                {item.type === 'song' && (<span className='text-blue-600 dark:text-blue-400'>{item.item.name}</span>)}
-                                                {item.type === 'mc' && (<div className='flex items-center'><span className='text-green-600 dark:text-green-400'>{item.name}</span><label className='ml-4 text-xs'><input type="checkbox" checked={item.hasAnnouncement} onChange={e => updateSetlistItem(index, { hasAnnouncement: e.target.checked })} className='mr-1' />Announce?</label></div>)}
-                                                {item.type === 'vtr' && <span className='text-purple-600 dark:text-purple-400'>VTR</span>}
-                                                {item.type === 'encore' && <span className='font-bold text-red-500 dark:text-red-400'>-- ENCORE --</span>}
-                                                </div>
-                                                <button onClick={() => moveSetlistItem(index, -1)} disabled={index===0} className="px-1 text-gray-400 disabled:opacity-20">↑</button>
-                                                <button onClick={() => moveSetlistItem(index, 1)} disabled={index===setlist.length-1} className="px-1 text-gray-400 disabled:opacity-20">↓</button>
-                                                <button onClick={() => removeSetlistItem(index)} className="px-2 text-red-500 font-bold">X</button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                <select onChange={e => addTrackToSetlist(allGroupTracks.find(t => t.id === e.target.value))} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option>-- Add Song --</option>{allGroupTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                            <div className="grid grid-cols-2 gap-2">
+                                <select onChange={e => {addTrackToSetlist(e.target.value); e.target.value = ''}} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">-- Add Song --</option>{allGroupTracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
                                 <div><button onClick={() => addSpecialItemToSetlist('mc')} className="w-1/3 p-2 text-xs bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 rounded-l">MC</button><button onClick={() => addSpecialItemToSetlist('vtr')} className="w-1/3 p-2 text-xs bg-purple-200 hover:bg-purple-300 dark:bg-purple-800 dark:hover:bg-purple-700">VTR</button><button onClick={() => addSpecialItemToSetlist('encore')} className="w-1/3 p-2 text-xs bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 rounded-r">Encore</button></div>
-                                </div>
-                                <div className='text-xs mt-1 text-gray-500'>Main: {mainSongCount} songs, Encore: {encoreSongCount} songs</div>
-                            </div>
-                        </div>
-
-                        {/* Right Column: Members & Announcements */}
-                        <div>
-                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
-    <h4 className="font-semibold mb-2 dark:text-gray-100">Performing Members ({selectedMembers.length})</h4>
-    <div className="flex flex-wrap gap-1 mb-2">
-        <button onClick={() => setMemberFilter('all')} className={`text-xs p-1 rounded ${memberFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>All</button>
-        <button onClick={() => setMemberFilter('main')} className={`text-xs p-1 rounded ${memberFilter === 'main' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{groupName}</button>
-        {sisterGroups.map(sg => (
-            <button key={sg.id} onClick={() => setMemberFilter(String(sg.id))} className={`text-xs p-1 rounded ${memberFilter === String(sg.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{sg.name}</button>
-        ))}
-    </div>
-    <div className='mb-2'>
-        <button onClick={selectAllMembers} className='text-xs p-1 bg-blue-100 dark:bg-blue-900 rounded'>Select Filtered</button>
-        <button onClick={deselectAllMembers} className='ml-2 text-xs p-1 bg-gray-200 dark:bg-gray-700 rounded'>Deselect All</button>
-    </div>
-    <div className="space-y-1 max-h-60 overflow-y-auto border-t border-b dark:border-gray-700 p-1">
-        {filteredMembers.map(member => (
-            <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
-                <div>
-                    <p className="font-semibold text-sm">{member.name}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Vo: {member.singing} Da: {member.dancing} Va: {member.variety} Fans: {getTotalFansForMember(member).toLocaleString()}
-                    </p>
-                </div>
-                <button
-                    onClick={() => toggleMember(member.id)}
-                    className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 hover:bg-red-300 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-red-100' : 'bg-green-200 hover:bg-green-300 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-green-100'}`}
-                >
-                    {selectedMembers.includes(member.id) ? 'Remove' : 'Add'}
-                </button>
-            </div>
-        ))}
-    </div>
-</div>
-                            <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
-                                <h4 className="font-semibold mb-2 dark:text-gray-100">Announcements</h4>
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kage-ana</label><select value={kageAna} onChange={e => setKageAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
-                                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Shime-ana</label><select value={shimeAna} onChange={e => setShimeAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
-                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <div className="mt-6 flex justify-end space-x-3">
-                        <button onClick={() => setShowModal(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancel</button>
-                        <button onClick={handleConfirm} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Book Concert</button>
+                    {/* Right Column: Members & Announcements */}
+                    <div>
+                        <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900 mb-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-semibold dark:text-gray-100">Performing Members ({selectedMembers.length})</h4>
+                                <select id="concert-member-filter" value={memberFilter} onChange={e => setMemberFilter(e.target.value)} className="p-1 rounded border-gray-300 dark:bg-gray-700 dark:border-gray-600 text-xs">
+                                    <option value="all">All</option>
+                                    <optgroup label="Teams">{(teams || []).map(team => (<option key={`team-${team.id}`} value={`team-${team.id}`}>{team.name}</option>))}</optgroup>
+                                    <optgroup label="Groups">
+                                        <option value="main">{groupName}</option>
+                                        {sisterGroups.map(sg => (<option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>))}
+                                    </optgroup>
+                                    {mainGroupGenerations.length > 0 && <optgroup label={`${groupName} Gen`}>{mainGroupGenerations.map(gen => (<option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>))}</optgroup>}
+                                    {sisterGroupDetails.map(sg => (sg.generations.length > 0 && (<optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Gen`}>{sg.generations.map(gen => (<option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>))}</optgroup>)))}
+                                </select>
+                            </div>
+                            <div className='mb-2 flex gap-2'>
+                                <button onClick={selectAllFiltered} className='flex-1 text-xs p-1 bg-blue-100 dark:bg-blue-900 rounded'>Select Filtered</button>
+                                <button onClick={deselectAllFiltered} className='flex-1 text-xs p-1 bg-gray-200 dark:bg-gray-700 rounded'>Deselect Filtered</button>
+                            </div>
+                            <div className="space-y-1 max-h-60 overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                                {filteredMembers.map(member => (
+                                    <div key={member.id} className={`flex items-center justify-between p-2 rounded ${selectedMembers.includes(member.id) ? 'bg-blue-200 dark:bg-blue-800' : 'bg-white dark:bg-gray-800/50'}`}>
+                                        <div>
+                                            <p className="font-semibold text-sm">{member.name}</p>
+                                            <p className="text-xs text-gray-600 dark:text-gray-400">Vo: {member.singing} Da: {member.dancing} Fans: {getTotalFansForMember(member).toLocaleString()}</p>
+                                        </div>
+                                        <button onClick={() => toggleMember(member.id)} className={`px-3 py-1 text-xs rounded font-semibold ${selectedMembers.includes(member.id) ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{selectedMembers.includes(member.id) ? 'Remove' : 'Add'}</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="border p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
+                            <h4 className="font-semibold mb-2 dark:text-gray-100">Announcements</h4>
+                            <div className='grid grid-cols-2 gap-4'>
+                                <div><label className="block text-sm font-medium dark:text-gray-300">Kage-ana</label><select value={kageAna} onChange={e => setKageAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
+                                <div><label className="block text-sm font-medium dark:text-gray-300">Shime-ana</label><select value={shimeAna} onChange={e => setShimeAna(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-gray-800 dark:text-gray-200"><option value="">None</option>{selectedMembers.map(id => { const m = getMemberById(id); return m && <option key={id} value={id}>{m.name}</option>})}</select></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={() => setShowModal(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancel</button>
+                    <button onClick={handleConfirm} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400" disabled={!selectedVenue || selectedMembers.length < 5 || setlist.filter(i=>i.type==='song').length < 1}>Book Concert</button>
+                </div>
             </div>
-        );
-    };
+        </div>
+    );
+};
 
     const TheaterSelectionModal = () => {
         const { selection } = modalData; // selection can be teamId, 'sg-ID', or null
@@ -3600,94 +4067,279 @@ const PerformanceResultModal = () => {
     );
 };
 
+const SportsFestivalModal = () => {
+    return (
+        <ModalWrapper title="Hold Sports Festival" maxWidth="max-w-lg">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Divide all available members into two teams, Red and White, for a day of athletic competitions.
+                This is a great way to boost morale for the entire group.
+            </p>
+            <div className="p-3 bg-yellow-50 dark:bg-gray-900 rounded-lg border border-yellow-200 dark:border-gray-700 text-center mb-4">
+                <p className="font-bold text-lg text-red-600 dark:text-yellow-300">Cost: ¥150,000</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Covers venue rental, equipment, and prizes.</p>
+            </div>
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-gray-600">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Cancel</button>
+                <button
+                    onClick={startSportsFestival}
+                    disabled={money < 150000}
+                    className="p-2 bg-red-500 text-white rounded px-4 font-bold disabled:bg-gray-400"
+                >
+                    Begin Festival
+                </button>
+            </div>
+        </ModalWrapper>
+    );
+};
+
+const SportsFestivalResultModal = () => {
+    if (!modalData) return null;
+    const { winningTeam, mvp, teamRed, teamWhite, events } = modalData;
+
+    const TeamColumn = ({ teamName, members, colorClass, score }) => (
+        <div className={`p-4 rounded-lg bg-opacity-20 ${colorClass}`}>
+            <h3 className={`text-2xl font-bold mb-3 text-center`}>{teamName} Team - {score}pts</h3>
+            <div className="space-y-1 max-h-60 overflow-y-auto pr-2">
+                {members.map(m => <p key={m.id} className="text-sm p-1 bg-black bg-opacity-10 rounded">{m.name}</p>)}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-4xl rounded-2xl bg-gray-800 bg-opacity-80 border border-gray-700 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-5">
+                <div className="p-4 flex justify-between items-center bg-white bg-opacity-10 flex-shrink-0">
+                     <h3 className="font-bold text-2xl text-white">Sports Festival Results</h3>
+                    <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-5 grid gap-4 overflow-y-auto text-white">
+                    <div className="text-center my-4">
+                        <h2 className="text-4xl font-bold">The <span className={winningTeam === 'Red' ? 'text-red-400' : 'text-blue-400'}>{winningTeam} Team</span> is Victorious!</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <TeamColumn teamName="Red" members={teamRed.members} colorClass="bg-red-500" score={teamRed.score} />
+                        <TeamColumn teamName="White" members={teamWhite.members} colorClass="bg-blue-500" score={teamWhite.score} />
+                    </div>
+
+                    <div className="mt-4 p-4 bg-black bg-opacity-30 rounded-xl text-center">
+                        <h3 className="text-xl font-bold text-yellow-300">MVP</h3>
+                        <p className="text-2xl font-semibold">{mvp.name}</p>
+                        <p className="text-sm text-gray-300">For outstanding performance and spirit!</p>
+                    </div>
+
+                    <div className="mt-2">
+                        <h3 className="font-bold text-lg mb-2 text-center">Event Highlights</h3>
+                        <div className="space-y-2 max-h-48 overflow-y-auto p-2 border border-white/10 rounded-lg bg-black bg-opacity-20">
+                            {events.map((event, index) => (
+                                <div key={index} className="p-2 bg-white/5 rounded">
+                                    <p className="font-semibold text-sm">{event.name}</p>
+                                    <p className="text-xs text-gray-300">Winner: {event.winnerName} ({event.winningTeam} Team)</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end p-5 mt-auto border-t border-white/10 flex-shrink-0">
+                    <button onClick={() => setShowModal(null)} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                        Awesome!
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const LiveSportsFestivalModal = () => {
+    if (!liveSportsFestival) return null;
+
+    const { teamRed, teamWhite, events, currentEventIndex, eventLog } = liveSportsFestival;
+    const isFinished = currentEventIndex >= events.length;
+
+    const EventCard = ({ log, index }) => (
+        <div className="p-3 bg-black/20 rounded-lg animate-in fade-in slide-in-from-bottom-5" style={{animationDelay: `${index * 100}ms`}}>
+            <p className="font-bold text-lg">{log.name}</p>
+            <p className="text-sm text-gray-300">{log.description}</p>
+            <p className="text-sm font-semibold mt-1">Winner: {log.winnerName} (<span className={log.winningTeam === 'Red' ? 'text-red-300' : 'text-blue-300'}>{log.winningTeam} Team</span>)</p>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-6xl rounded-2xl bg-gray-800 bg-opacity-80 border border-gray-700 shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-5">
+                
+                {/* Header */}
+                <div className="p-4 flex justify-between items-center bg-white/10 flex-shrink-0">
+                    <h3 className="font-bold text-2xl text-white">Sports Festival - LIVE</h3>
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 px-4 rounded-lg bg-red-500/80 text-white">
+                            <span className="font-bold text-xl">RED: {teamRed.score}</span>
+                        </div>
+                        <div className="p-2 px-4 rounded-lg bg-blue-500/80 text-white">
+                            <span className="font-bold text-xl">WHITE: {teamWhite.score}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="p-5 grid md:grid-cols-3 gap-4 overflow-y-auto text-white">
+                    {/* Team Red */}
+                    <div className="md:col-span-1 p-4 rounded-lg bg-red-900/40">
+                        <h3 className="text-xl font-bold mb-3 text-center text-red-200">RED TEAM</h3>
+                        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
+                            {teamRed.members.map(m => <p key={m.id} className="text-sm p-1 bg-black/20 rounded truncate">{m.name}</p>)}
+                        </div>
+                    </div>
+
+                    {/* Event Log */}
+                    <div className="md:col-span-1 p-4 rounded-lg bg-black/30">
+                         <h3 className="text-xl font-bold mb-3 text-center text-gray-200">EVENT LOG</h3>
+                         <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            {eventLog.length === 0 && <p className="text-center text-gray-400 italic mt-10">Events will appear here as they happen.</p>}
+                            {eventLog.map((log, index) => <EventCard key={index} log={log} index={index} />)}
+                         </div>
+                    </div>
+                    
+                    {/* Team White */}
+                    <div className="md:col-span-1 p-4 rounded-lg bg-blue-900/40">
+                        <h3 className="text-xl font-bold mb-3 text-center text-blue-200">WHITE TEAM</h3>
+                        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
+                            {teamWhite.members.map(m => <p key={m.id} className="text-sm p-1 bg-black/20 rounded truncate">{m.name}</p>)}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="flex justify-center p-5 mt-auto border-t border-white/10 flex-shrink-0">
+                    {isFinished ? (
+                         <button onClick={finishSportsFestival} className="px-10 py-4 bg-green-600 text-white rounded-lg font-bold text-xl hover:bg-green-700 transition-colors shadow-lg">
+                            View Final Results
+                        </button>
+                    ) : (
+                        <button onClick={simulateSportsFestivalEvent} className="px-10 py-4 bg-blue-600 text-white rounded-lg font-bold text-xl hover:bg-blue-700 transition-colors animate-pulse">
+                            Simulate: {events[currentEventIndex].name}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
     const HandshakeEventResultModal = () => {
         if (!modalData) return null;
         const { convertedFans, newFans, members } = modalData;
         const containerRef = useRef(null);
-    
-        // NEW: Ultra-simplified, single-color Chibi silhouette
+
         const Chibi = ({ index }) => {
-            const idolPink = '#ffc1d5'; // A single, soft pink color for the shape
+            const hairColor = '#ff99c8'; // Brighter pink for hair
+            const skinColor = '#ffdab9'; // Peach skin tone
+            const dressColor = '#fcf6bd'; // Pastel yellow dress
+            const highlightColor = 'rgba(255, 255, 255, 0.6)';
 
             return (
-                <div className="relative flex flex-col items-center chibi-bounce" style={{ animationDelay: `${index * 0.2}s` }}>
-                    <div className="relative w-16 h-24">
-                        {/* Twintail 1 */}
-                        <div 
-                            className="absolute top-5 -left-5 w-6 h-12 rounded-lg" 
-                            style={{ backgroundColor: idolPink, transform: 'rotate(-20deg)' }}
-                        ></div>
-                        {/* Twintail 2 */}
-                        <div 
-                            className="absolute top-5 -right-5 w-6 h-12 rounded-lg" 
-                            style={{ backgroundColor: idolPink, transform: 'rotate(20deg)' }}
-                        ></div>
-                        {/* Main Head/Body Shape */}
-                        <div 
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-20 rounded-t-full"
-                            style={{ backgroundColor: idolPink }}
-                        ></div>
+                <div className="relative flex flex-col items-center chibi-bounce" style={{ animationDelay: `${index * 0.15}s` }}>
+                    <div className="relative w-20 h-28">
+                        {/* Hair */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full" style={{ backgroundColor: hairColor }}></div>
+                        {/* Face */}
+                        <div className="absolute top-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full" style={{ backgroundColor: skinColor }}></div>
+                        {/* Hair highlight */}
+                        <div className="absolute top-2 left-8 w-6 h-4 rounded-full" style={{ backgroundColor: highlightColor, transform: 'rotate(-30deg)'}}></div>
+                        {/* Dress */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-8 bg-pink-300 rounded-t-lg"></div>
                     </div>
                 </div>
             );
         };
-    
+
         useEffect(() => {
             const container = containerRef.current;
             if (!container) return;
-            const heartInterval = setInterval(() => {
-                const heart = document.createElement('div');
-                heart.innerHTML = '❤️';
-                heart.className = 'heart-float text-xl';
-                heart.style.left = `${Math.random() * 95 + 5}%`;
-                heart.style.animationDuration = `${Math.random() * 2 + 3}s`;
-                container.appendChild(heart);
-                setTimeout(() => heart.remove(), 5000);
-            }, 400);
-    
-            return () => clearInterval(heartInterval);
+
+            const createParticle = (emoji, className) => {
+                const particle = document.createElement('div');
+                particle.innerHTML = emoji;
+                particle.className = `absolute bottom-0 pointer-events-none text-2xl ${className}`;
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.animationDuration = `${Math.random() * 2 + 3}s`;
+                particle.style.opacity = Math.random();
+                container.appendChild(particle);
+                setTimeout(() => particle.remove(), 5000);
+            };
+            
+            const heartInterval = setInterval(() => createParticle('❤️', 'heart-float'), 300);
+            const sparkleInterval = setInterval(() => createParticle('✨', 'sparkle-float'), 450);
+
+            return () => {
+                clearInterval(heartInterval);
+                clearInterval(sparkleInterval);
+            };
         }, []);
-    
+
         return (
-            <ModalWrapper title="" maxWidth="max-w-2xl">
-                <div ref={containerRef} className="relative bg-pink-50 rounded-2xl overflow-hidden p-6 text-center border-4 border-pink-200">
-                    <h2 className="text-3xl font-bold font-['Fredoka_One'] text-pink-500 mb-2">HANDSHAKE SUCCESS!</h2>
-                    <p className="text-gray-500 mb-6">The fans loved the event!</p>
+            <div ref={containerRef} className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in overflow-hidden">
+                <div className="w-full max-w-xl rounded-3xl bg-gradient-to-br from-pink-400/50 to-purple-400/30 border-2 border-white/30 shadow-2xl p-6 text-center text-white relative animate-in fade-in slide-in-from-bottom-5">
                     
-                    <div className="flex justify-center items-end gap-6 my-8 h-40">
+                    <h2 className="text-4xl font-bold font-['Fredoka_One'] text-white drop-shadow-lg mb-2" style={{ textShadow: '2px 2px 8px rgba(236, 72, 153, 0.8)'}}>
+                        HANDSHAKE SUCCESS!
+                    </h2>
+                    <p className="text-white/80 mb-6">The fans absolutely loved the event!</p>
+                    
+                    <div className="flex justify-center items-end gap-4 my-6 h-32">
                         {(members || []).slice(0, 5).map((member, index) => (
                             <Chibi key={member.id} index={index} />
                         ))}
                     </div>
-    
-                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl space-y-3">
-                        <div className="flex justify-center items-center gap-3">
-                            <span className="text-2xl">❤️</span>
-                            <p className="text-lg">
-                                Converted <span className="font-bold text-red-500 text-xl">{convertedFans.toLocaleString()}</span> fans to Hardcore!
+
+                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl space-y-4 border border-white/20">
+                        <div className="flex items-center justify-center gap-4">
+                            <div className="text-4xl drop-shadow-md">❤️</div>
+                            <p className="text-lg text-left">
+                                Converted <span className="font-bold text-2xl text-red-300 drop-shadow-sm">{convertedFans.toLocaleString()}</span> fans to Hardcore!
                             </p>
                         </div>
-                        <div className="flex justify-center items-center gap-3">
-                            <span className="text-2xl">✨</span>
-                            <p className="text-lg">
-                                Gained <span className="font-bold text-blue-500 text-xl">{newFans.toLocaleString()}</span> new Casual fans!
+                        <div className="flex items-center justify-center gap-4">
+                            <div className="text-4xl drop-shadow-md">✨</div>
+                            <p className="text-lg text-left">
+                                Gained <span className="font-bold text-2xl text-cyan-300 drop-shadow-sm">{newFans.toLocaleString()}</span> new Casual fans!
                             </p>
                         </div>
                     </div>
-    
+
                     <div className="flex justify-center mt-8">
-                        <button onClick={() => setShowModal(null)} className="bg-pink-500 hover:bg-pink-600 active:scale-95 text-white px-10 py-3 rounded-full font-bold shadow-lg transition-transform text-lg">
+                        <button 
+                            onClick={() => setShowModal(null)} 
+                            className="bg-gradient-to-br from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 active:scale-95 text-white px-12 py-3 rounded-full font-bold shadow-xl transition-all text-lg border-2 border-white/50"
+                        >
                             Awesome!
                         </button>
                     </div>
                 </div>
                 <style jsx>{`
-                    .chibi-bounce { animation: bounce 2.5s infinite ease-in-out; }
-                    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-                    .heart-float { position: absolute; bottom: 0; pointer-events: none; animation: floatUp 5s linear forwards; }
-                    @keyframes floatUp { to { transform: translateY(-400px); opacity: 0; } }
+                    .chibi-bounce { animation: bounce 3s infinite ease-in-out; }
+                    @keyframes bounce { 
+                        0%, 100% { transform: translateY(0); } 
+                        50% { transform: translateY(-12px); } 
+                    }
+                    .heart-float, .sparkle-float { 
+                        animation-name: floatUp;
+                        animation-timing-function: linear;
+                        animation-fill-mode: forwards;
+                    }
+                    @keyframes floatUp { 
+                        to { 
+                            transform: translateY(-500px) rotate(360deg); 
+                            opacity: 0; 
+                        } 
+                    }
                 `}</style>
-            </ModalWrapper>
+            </div>
         );
     };
 
@@ -3895,47 +4547,48 @@ const ScandalDecisionModal = () => {
         );
     };
 
-    const GraduationAnnouncementModal = () => {
-        const member = modalData;
-        if (!member) return null;
-
-        const reasons = {
-            'Pursue a Solo Dream': "I've spent a long time thinking about my future, and I’ve decided I want to challenge myself as an actress. To take that next step, I will be graduating.",
-            'Space for Juniors': "Seeing how much the younger members have grown lately makes me so happy. I feel like I can finally entrust the future of the group to them and move on to my own next chapter.",
-            'Study Abroad': "There is a world outside of this theater that I still don't know. I've decided to go study abroad to find a version of myself that isn't an idol.",
-            'Physical Health / Injury': "As much as I love being on this stage, my body can no longer keep up with the performances. For the sake of my health, I have decided to step down.",
-            'Academic Focus': "I've tried my best to balance school and my activities here, but I’ve reached a point where I need to focus 100% on my exams and my future education.",
-            'Reaching the Goal': "When I joined, I promised myself I would stay until we reached this stage. Now that we've done it together, I feel I can leave with no regrets.",
-            'Find Normal Happiness': "Being an idol has been a dream come true, but I’ve realized I want to experience life as a normal girl again, away from the bright lights."
-        };
-
-        const handleConfirm = () => {
-            // The member data is already in modalData, so we just need to switch the modal view.
-            setShowModal('graduationPath'); 
-        };
-
-        return (
-            <ModalWrapper title={<span className="flex items-center text-yellow-500"><AlertCircle size={24} className="mr-2"/>Graduation Announcement</span>} maxWidth="max-w-lg">
-                <div className="text-center">
-                    {/* Placeholder image, can be improved later */}
-                    <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 border-4 border-gray-300"></div>
-                    <h3 className="text-2xl font-bold">{member.name}</h3>
-                    <p className="text-sm text-gray-500 mb-4">From {member.homeGroup === 'main' ? groupName : member.homeGroup}</p>
-
-                    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-left">
-                        <p className="text-lg italic">"{reasons[member.ambition] || 'I have decided to graduate.'}"</p>
+        const GraduationAnnouncementModal = () => {
+            const member = modalData;
+            if (!member) return null;
+    
+            const reasons = {
+                'Pursue a Solo Dream': "I've spent a long time thinking about my future, and I’ve decided I want to challenge myself as an actress. To take that next step, I will be graduating.",
+                'Space for Juniors': "Seeing how much the younger members have grown lately makes me so happy. I feel like I can finally entrust the future of the group to them and move on to my own next chapter.",
+                'Study Abroad': "There is a world outside of this theater that I still don't know. I've decided to go study abroad to find a version of myself that isn't an idol.",
+                'Physical Health / Injury': "As much as I love being on this stage, my body can no longer keep up with the performances. For the sake of my health, I have decided to step down.",
+                'Academic Focus': "I've tried my best to balance school and my activities here, but I’ve reached a point where I need to focus 100% on my exams and my future education.",
+                'Reaching the Goal': "When I joined, I promised myself I would stay until we reached this stage. Now that we've done it together, I feel I can leave with no regrets.",
+                'Find Normal Happiness': "Being an idol has been a dream come true, but I’ve realized I want to experience life as a normal girl again, away from the bright lights."
+            };
+    
+            const handleConfirm = () => {
+                // The member data is already in modalData, so we just need to switch the modal view.
+                setShowModal('graduationPath'); 
+            };
+    
+            return (
+                <ModalWrapper title={<span className="flex items-center text-pink-400"><Heart size={24} className="mr-2"/>Graduation Announcement</span>} maxWidth="max-w-lg">
+                    <div className="text-center">
+                        <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center bg-pink-100/50 border-4 border-pink-200">
+                            <Sparkles size={48} className="text-pink-400" />
+                        </div>
+                        <h3 className="text-2xl font-bold">{member.name}</h3>
+                        <p className="text-sm text-pink-300 mb-4">From {member.homeGroup === 'main' ? groupName : member.homeGroup}</p>
+    
+                        <div className="p-4 bg-white/50 dark:bg-pink-900/30 backdrop-blur-md border border-white/20 rounded-lg text-left">
+                            <p className="text-lg italic">"{reasons[member.ambition] || 'I have decided to graduate.'}"</p>
+                        </div>
+    
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">You must now decide how to proceed with her graduation path.</p>
                     </div>
-
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">You must now decide how to proceed with her graduation path.</p>
-                </div>
-                <div className="flex justify-center gap-2 mt-6">
-                    <button onClick={handleConfirm} className="p-3 bg-blue-500 text-white rounded font-bold w-full">
-                        Plan Graduation Path
-                    </button>
-                </div>
-            </ModalWrapper>
-        );
-    };
+                    <div className="flex justify-center gap-2 mt-6">
+                        <button onClick={handleConfirm} className="p-3 bg-pink-500 hover:bg-pink-600 text-white rounded font-bold w-full">
+                            Plan Graduation Path
+                        </button>
+                    </div>
+                </ModalWrapper>
+            );
+        };
 
 
     const GraduationPathModal = () => {
@@ -4822,124 +5475,188 @@ const SetlistDetailsModal = ({ setlist, allTheaterSongs, getFormattedDateForWeek
       );
     };
 
-    const GroupMediaModal = () => {
-      // --- NEW: State for a multi-step modal ---
-      const [step, setStep] = useState('job_selection');
-      const [selectedJob, setSelectedJob] = useState(null);
-      const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+      const GroupMediaModal = () => {
+        // --- NEW: State for a multi-step modal ---
+        const [step, setStep] = useState('job_selection');
+        const [selectedJob, setSelectedJob] = useState(null);
+        const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+        // --- NEW: State for the filter dropdown ---
+        const [memberFilter, setMemberFilter] = useState('all');
+  
+        const jobs = [
+            { id: 'music_show', name: 'Major Music Show', members: 7, multiplier: 1.5 },
+            { id: 'awards_show', name: 'Year-End Awards Show', members: 16, multiplier: 3 },
+            { id: 'variety_program', name: 'Popular Variety Program', members: 5, multiplier: 1 },
+            { id: 'web_series', name: 'Sponsored Web Series', members: 4, multiplier: 1.2 }
+        ];
+        
+        const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
 
-      const jobs = [
-          { id: 'music_show', name: 'Major Music Show', members: 7, multiplier: 1.5 },
-          { id: 'awards_show', name: 'Year-End Awards Show', members: 16, multiplier: 3 },
-          { id: 'variety_program', name: 'Popular Variety Program', members: 5, multiplier: 1 },
-          { id: 'web_series', name: 'Sponsored Web Series', members: 4, multiplier: 1.2 }
-      ];
+        // --- NEW: Generate data for the filter dropdown ---
+        const mainGroupGenerations = [...new Set(availableMembers.filter(m => !m.isSisterMember).map(m => m.generation).filter(Boolean))];
+        const sisterGroupDetails = sisterGroups.map(sg => ({
+            ...sg,
+            generations: [...new Set(availableMembers.filter(m => m.groupId === sg.id).map(m => m.generation).filter(Boolean))]
+        }));
 
-      const handleJobSelect = (job) => {
-          if (groupMediaJobDoneThisWeek) {
-            setMessage("You can only do one group media job per week.");
-            return;
-          }
-          if (money < 20000) {
-            setMessage("You need at least ¥20,000 for a group media job.");
-            return;
-          }
-          setSelectedJob(job);
-          setStep('member_selection');
-      };
-
-      const toggleMember = (memberId) => {
-          setSelectedMemberIds(prev => 
-              prev.includes(memberId) 
-                  ? prev.filter(id => id !== memberId) 
-                  : [...prev, memberId]
-          );
-      };
-const selectAll = () => {
-    setSelectedMemberIds(availableMembers.map(m => m.id));
-};
-
-const deselectAll = () => {
-    setSelectedMemberIds([]);
-};
-
-      const handleConfirm = () => {
-          if (!selectedJob || selectedMemberIds.length < selectedJob.members) {
-              setMessage(`You need to select at least ${selectedJob.members} members for this job.`);
+        // --- NEW: Logic to filter members based on the dropdown selection ---
+        let filteredMembers = availableMembers;
+        if (memberFilter !== 'all') {
+            if (memberFilter === 'main') {
+                filteredMembers = availableMembers.filter(m => !m.isSisterMember);
+            } else if (memberFilter.startsWith('main-gen-')) {
+                const gen = memberFilter.replace('main-gen-', '');
+                filteredMembers = availableMembers.filter(m => !m.isSisterMember && m.generation === gen);
+            } else if (memberFilter.startsWith('sg-')) {
+                if (memberFilter.includes('-gen-')) {
+                    const [sgIdStr, gen] = memberFilter.replace('sg-', '').split('-gen-');
+                    const sgId = parseInt(sgIdStr, 10);
+                    filteredMembers = availableMembers.filter(m => m.groupId === sgId && m.generation === gen);
+                } else {
+                    const sgId = parseInt(memberFilter.replace('sg-', ''), 10);
+                    filteredMembers = availableMembers.filter(m => m.groupId === sgId);
+                }
+            }
+        }
+  
+        // --- MODIFIED: selectAll and deselectAll now use the 'filteredMembers' list ---
+        const selectAll = () => {
+          setSelectedMemberIds(prev => [...new Set([...prev, ...filteredMembers.map(m => m.id)])]);
+        };
+  
+        const deselectAll = () => {
+            const filteredIds = new Set(filteredMembers.map(m => m.id));
+            setSelectedMemberIds(prev => prev.filter(id => !filteredIds.has(id)));
+        };
+  
+        const handleJobSelect = (job) => {
+            if (groupMediaJobDoneThisWeek) {
+              setMessage("You can only do one group media job per week.");
               return;
-          }
-          startGroupMediaJob(selectedJob.id, selectedMemberIds);
+            }
+            if (money < 20000) {
+              setMessage("You need at least ¥20,000 for a group media job.");
+              return;
+            }
+            setSelectedJob(job);
+            setStep('member_selection');
+        };
+  
+        const toggleMember = (memberId) => {
+            setSelectedMemberIds(prev => 
+                prev.includes(memberId) 
+                    ? prev.filter(id => id !== memberId) 
+                    : [...prev, memberId]
+            );
+        };
+  
+        const handleConfirm = () => {
+            if (!selectedJob || selectedMemberIds.length < selectedJob.members) {
+                setMessage(`You need to select at least ${selectedJob.members} members for this job.`);
+                return;
+            }
+            startGroupMediaJob(selectedJob.id, selectedMemberIds);
+        };
+  
+        const renderJobSelection = () => (
+            <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a sub-unit on a high-impact media job. Cost: ¥20,000. This can only be done once per week.</p>
+                <div className="space-y-3">
+                    {jobs.map(job => (
+                        <div key={job.id} className="p-3 border rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex justify-between items-center">
+                            <div>
+                                <span className="font-bold dark:text-gray-100">{job.name}</span>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
+                            </div>
+                            <button 
+                                onClick={() => handleJobSelect(job)} 
+                                disabled={groupMediaJobDoneThisWeek || money < 20000}
+                                className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400"
+                            >
+                                Select Job
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded">Cancel</button>
+                </div>
+            </div>
+        );
+  
+        const renderMemberSelection = () => {
+            return (
+                <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members for: <span className="font-bold">{selectedJob.name}</span>. Requires at least {selectedJob.members} members.</p>
+                    
+                    {/* --- MODIFIED: Added filter dropdown and updated buttons --- */}
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="flex gap-2">
+                            <button onClick={selectAll} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All (Filtered)</button>
+                            <button onClick={deselectAll} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All (Filtered)</button>
+                        </div>
+                        <div>
+                            <label htmlFor="member-filter" className="text-sm mr-2 dark:text-gray-300">Filter:</label>
+                            <select id="member-filter" value={memberFilter} onChange={e => setMemberFilter(e.target.value)} className="p-1 rounded border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 text-sm">
+                                <option value="all">All Available Members</option>
+                                <optgroup label="Groups">
+                                    <option value="main">{groupName}</option>
+                                    {sisterGroups.map(sg => (
+                                        <option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>
+                                    ))}
+                                </optgroup>
+                                {mainGroupGenerations.length > 0 && (
+                                    <optgroup label={`${groupName} Generations`}>
+                                        {mainGroupGenerations.map(gen => (
+                                            <option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                                {sisterGroupDetails.map(sg => (
+                                    sg.generations.length > 0 && (
+                                        <optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Generations`}>
+                                            {sg.generations.map(gen => (
+                                                <option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>
+                                            ))}
+                                        </optgroup>
+                                    )
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+  
+                    {/* --- MODIFIED: Now maps over 'filteredMembers' --- */}
+                    <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
+                        {filteredMembers.map(member => (
+                            <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
+                                <div>
+                                    <p className="font-semibold text-sm">{member.name} {member.isSisterMember && <span className="text-xs text-gray-500">({member.displayGroupName})</span>}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Fans: {getTotalFansForMember(member).toLocaleString()}</p>
+                                </div>
+                                <input type="checkbox" checked={selectedMemberIds.includes(member.id)} readOnly className="form-checkbox h-4 w-4 text-blue-600"/>
+                            </div>
+                        ))}
+                    </div>
+  
+                    <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
+                        <p className={`font-bold text-lg dark:text-gray-100 ${selectedMemberIds.length < selectedJob.members ? 'text-red-500' : 'text-green-500'}`}>Selected: {selectedMemberIds.length} / {selectedJob.members} (min)</p>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setStep('job_selection'); setSelectedMemberIds([]); }} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Back</button>
+                            <button onClick={handleConfirm} disabled={selectedMemberIds.length < selectedJob.members} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
+                                Confirm Job (¥20,000)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+  
+        return (
+            <ModalWrapper title="Group Media Appearance" maxWidth="max-w-2xl">
+                {step === 'job_selection' ? renderJobSelection() : renderMemberSelection()}
+            </ModalWrapper>
+        );
       };
-
-      const renderJobSelection = () => (
-          <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Send a sub-unit on a high-impact media job. Cost: ¥20,000. This can only be done once per week.</p>
-              <div className="space-y-3">
-                  {jobs.map(job => (
-                      <div key={job.id} className="p-3 border rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex justify-between items-center">
-                          <div>
-                              <span className="font-bold dark:text-gray-100">{job.name}</span>
-                              <p className="text-xs text-gray-600 dark:text-gray-400">Min Members: {job.members} | Fan Boost: x{job.multiplier}</p>
-                          </div>
-                          <button 
-                              onClick={() => handleJobSelect(job)} 
-                              disabled={groupMediaJobDoneThisWeek || money < 20000}
-                              className="p-2 bg-blue-500 text-white rounded text-sm disabled:bg-gray-400"
-                          >
-                              Select Job
-                          </button>
-                      </div>
-                  ))}
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                  <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded">Cancel</button>
-              </div>
-          </div>
-      );
-
-      const renderMemberSelection = () => {
-          const availableMembers = getAllAvailableMembers(true).filter(m => m.isAvailable);
-
-          return (
-              <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select members for: <span className="font-bold">{selectedJob.name}</span>. Requires at least {selectedJob.members} members.</p>
-
-<div className="flex gap-2 mb-2">
-    <button onClick={selectAll} className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded font-semibold hover:bg-blue-200">Select All</button>
-    <button onClick={deselectAll} className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded font-semibold hover:bg-gray-300">Deselect All</button>
-</div>
-
-                  <div className="space-y-1 max-h-[400px] overflow-y-auto border-t border-b dark:border-gray-700 p-1">
-                      {availableMembers.map(member => (
-                          <div key={member.id} className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-700/50 hover:bg-gray-50'}`} onClick={() => toggleMember(member.id)}>
-                              <div>
-                                  <p className="font-semibold text-sm">{member.name}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Fans: {getTotalFansForMember(member).toLocaleString()}</p>
-                              </div>
-                              <input type="checkbox" checked={selectedMemberIds.includes(member.id)} readOnly className="form-checkbox h-4 w-4 text-blue-600"/>
-                          </div>
-                      ))}
-                  </div>
-
-                  <div className="flex justify-between items-center mt-6 pt-4 border-t dark:border-gray-600">
-                      <p className={`font-bold text-lg dark:text-gray-100 ${selectedMemberIds.length < selectedJob.members ? 'text-red-500' : 'text-green-500'}`}>Selected: {selectedMemberIds.length} / {selectedJob.members} (min)</p>
-                      <div className="flex gap-2">
-                          <button onClick={() => { setStep('job_selection'); setSelectedMemberIds([]); }} className="p-2 bg-gray-300 dark:bg-gray-600 rounded px-4">Back</button>
-                          <button onClick={handleConfirm} disabled={selectedMemberIds.length < selectedJob.members} className="p-3 bg-green-500 text-white rounded font-bold disabled:bg-gray-400">
-                              Confirm Job (¥20,000)
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          );
-      };
-
-      return (
-          <ModalWrapper title="Group Media Appearance" maxWidth="max-w-2xl">
-              {step === 'job_selection' ? renderJobSelection() : renderMemberSelection()}
-          </ModalWrapper>
-      );
-    };
 
     const HandshakeEventModal = () => {
         const [selectedMemberIds, setSelectedMemberIds] = useState([]);
@@ -5014,10 +5731,9 @@ const deselectAll = () => {
 
         const senbatsuMembers = (titleTrack.members || []).map(m => getMemberById(String(m.id))).filter(Boolean);
         const kami7Ids = (titleTrack.lineup ? Object.entries(titleTrack.lineup)
-            .filter(([, row]) => row === '1st Row' || row === '2nd Row')
-            .map(([id]) => id) : []).slice(0, 7);
-        
-        // This function will be properly implemented in the next step.
+            .filter(([, row]) => row === '1st Row' || row === '2nd Row' || row === '3rd Row')
+            .map(([id]) => id) : []).slice(0, 7);        
+            
         const handleStartPromotion = (promoType) => {
             startSenbatsuPromotion(promoType, single.id);
         };
@@ -5029,8 +5745,8 @@ const deselectAll = () => {
                 cost: 75000, 
                 description: 'Features the top 7 members on a major magazine cover. Massive boost to Visual and individual fan counts.',
                 requirement: () => senbatsuMembers.filter(m => kami7Ids.includes(String(m.rosterId || m.id))).length >= 7,
-                reqText: 'Requires at least 7 members in the top two rows.'
-            },
+                reqText: 'Requires at least 7 members in the top three rows.'
+            },            
             { 
                 id: 'tvSpecial', 
                 name: 'TV Music Show Special', 
@@ -5080,6 +5796,112 @@ const deselectAll = () => {
             </ModalWrapper>
         );
     };
+
+const SenbatsuPromotionResultModal = () => {
+    if (!modalData) return null;
+
+    const { promoType, singleName, members, totalFanGain, salesBoost, message } = modalData;
+
+    const containerRef = useRef(null);
+
+    // Effect for sparkles
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        const sparkleInterval = setInterval(() => {
+            const sparkle = document.createElement('div');
+            sparkle.innerHTML = '✨';
+            sparkle.className = 'sparkle-float text-xl';
+            sparkle.style.left = `${Math.random() * 95 + 5}%`;
+            sparkle.style.animationDuration = `${Math.random() * 2 + 1}s`;
+            container.appendChild(sparkle);
+            setTimeout(() => sparkle.remove(), 3000);
+        }, 300);
+
+        return () => clearInterval(sparkleInterval);
+    }, []);
+
+    const renderContent = () => {
+        switch (promoType) {
+            case 'magazineCover':
+                return (
+                    <>
+                        <h3 className="text-2xl font-bold text-pink-500 mb-2">Magazine Cover Success!</h3>
+                        <p className="text-gray-500 mb-4">The Kami 7 graced the cover of a top idol magazine!</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
+                            {(members || []).map(member => (
+                                <div key={member.id} className="text-center">
+                                    <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 border-4 border-pink-200"></div>
+                                    <p className="font-bold text-sm text-pink-800">{member.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="bg-white/80 p-3 rounded-lg text-pink-700 font-semibold">{message}</p>
+                    </>
+                );
+            case 'tvSpecial':
+                return (
+                     <>
+                        <h3 className="text-2xl font-bold text-blue-500 mb-2">TV Special Aired!</h3>
+                        <p className="text-gray-500 mb-4">The group's special performance reached a huge audience.</p>
+                        <div className="flex justify-around items-center my-8 text-center">
+                            <div>
+                                <p className="text-4xl font-bold text-blue-500">+{totalFanGain.toLocaleString()}</p>
+                                <p className="font-semibold text-blue-800">New Fans</p>
+                            </div>
+                            <div>
+                                <p className="text-4xl font-bold text-green-500">+{salesBoost}%</p>
+                                <p className="font-semibold text-green-800">Sales Boost</p>
+                            </div>
+                        </div>
+                        <p className="bg-white/80 p-3 rounded-lg text-blue-700 font-semibold">{message}</p>
+                    </>
+                );
+            case 'radioUnit':
+                 return (
+                    <>
+                        <h3 className="text-2xl font-bold text-purple-500 mb-2">On The Air!</h3>
+                        <p className="text-gray-500 mb-4">The radio unit charmed listeners nationwide!</p>
+                        <div className="my-6">
+                            <p className="text-center text-3xl font-bold text-purple-500 mb-3">+{totalFanGain.toLocaleString()} New Fans!</p>
+                            <div className="flex justify-center gap-4">
+                                {(members || []).map(member => (
+                                    <div key={member.id} className="text-center">
+                                        <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 border-4 border-purple-200"></div>
+                                        <p className="font-bold text-sm text-purple-800">{member.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <p className="bg-white/80 p-3 rounded-lg text-purple-700 font-semibold">{message}</p>
+                    </>
+                );
+            default:
+                return <p>{message}</p>;
+        }
+    };
+
+    return (
+        <ModalWrapper title="" maxWidth="max-w-2xl">
+            <div ref={containerRef} className="relative bg-pink-50 rounded-2xl overflow-hidden p-6 text-center border-4 border-pink-200">
+                {renderContent()}
+                <div className="flex justify-center mt-8">
+                    <button onClick={() => setShowModal(null)} className="bg-pink-500 hover:bg-pink-600 active:scale-95 text-white px-10 py-3 rounded-full font-bold shadow-lg transition-transform text-lg">
+                        Awesome!
+                    </button>
+                </div>
+            </div>
+            <style jsx>{`
+                .sparkle-float { position: absolute; top: 100%; pointer-events: none; animation: floatUpAndFade 3s linear forwards; }
+                @keyframes floatUpAndFade { 
+                    0% { transform: translateY(0); opacity: 1; }
+                    100% { transform: translateY(-300px) rotate(360deg); opacity: 0; } 
+                }
+            `}</style>
+        </ModalWrapper>
+    );
+};
+
 
     const BsidePromotionModal = () => {
         if (!modalData || !modalData.single) return null;
@@ -5133,7 +5955,787 @@ const deselectAll = () => {
         );
     };
 
-    const TrainingCampModal = () => {
+const JankenTournamentModal = () => {
+    if (!jankenTournament) return null;
+
+    const { stage, blocks, finalBracket, round, blockWinners, isFinished, roundResults } = jankenTournament;
+
+    // --- NEW: Hand Icons ---
+    const HandIcon = ({ hand, size = 16 }) => {
+        if (hand === 'rock') return <Hand size={size} className="text-gray-500" />;
+        if (hand === 'paper') return <FileText size={size} className="text-gray-500" />;
+        if (hand === 'scissors') return <Scissors size={size} className="text-gray-500" />;
+        return null;
+    };
+
+    const Matchup = ({ pair }) => {
+        const getMemberResult = (member) => {
+            if (!roundResults || !member) return null;
+            for (const outcome of roundResults) {
+                const result = outcome.results.find(r => r.member.id === member.id);
+                if (result) {
+                    const isWinner = outcome.winner.id === member.id;
+                    return { ...result, isWinner };
+                }
+            }
+            return null;
+        };
+
+        const MemberCard = ({ member }) => {
+            if (!member) {
+                return <div className="p-3 text-center text-gray-500 italic">TBD</div>;
+            }
+            const team = teams.find(t => t.id === member.teamId);
+            const result = getMemberResult(member);
+            const cardClasses = result 
+                ? (result.isWinner ? 'bg-green-100 dark:bg-green-900 border-green-400' : 'bg-red-50 dark:bg-red-900/50 opacity-60')
+                : 'bg-gray-50/80 dark:bg-gray-700/80';
+
+            return (
+                <div className={`p-2.5 text-center border-b dark:border-gray-600/80 ${cardClasses} transition-all duration-500`}>
+                    <div className="flex justify-between items-center">
+                        <div className="flex-1 text-left">
+                            <p className="font-bold text-sm truncate" title={member.name}>{member.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {team?.name || 'No Team'} - Gen {member.generation}
+                            </p>
+                        </div>
+                        {result && <HandIcon hand={result.hand} />}
+                    </div>
+                </div>
+            )
+        };
+        
+        return (
+            <div className="relative my-1.5 text-center border border-gray-300/80 dark:border-gray-600/80 rounded-md overflow-hidden">
+                {pair.map((member, index) => (
+                    <MemberCard key={member?.id || `tbd-${index}`} member={member} />
+                ))}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
+                    VS
+                </div>
+            </div>
+        );
+    };
+    
+    const WinnerDisplay = ({ member }) => {
+         const team = teams.find(t => t.id === member.teamId);
+         return (
+             <div className="p-4 bg-yellow-100/80 dark:bg-yellow-900/80 backdrop-blur-sm border-2 border-yellow-400 dark:border-yellow-600 rounded-lg text-center">
+                <Trophy size={20} className="mx-auto text-yellow-600 dark:text-yellow-400" />
+                <p className="font-bold text-lg text-yellow-800 dark:text-yellow-200">{member.name}</p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    {team?.name || 'No Team'} - Gen {member.generation}
+                </p>
+            </div>
+        );
+    };
+
+    const getBlockRoundName = (blockName) => {
+        const bracket = blocks[blockName];
+        if (!bracket || bracket.length === 0) return 'Finished';
+        const numPairs = bracket.reduce((acc, curr) => acc + (curr.length > 0 ? 1 : 0), 0);
+        if (numPairs === 1) return 'Final';
+        return `Round ${round}`;
+    }
+
+    return (
+        <ModalWrapper title="Janken Tournament" maxWidth="max-w-7xl">
+            <style>{`
+                .janken-crowd-glow::before {
+                    content:""; position:absolute; inset:-80px;
+                    background: radial-gradient(320px 200px at 15% 30%, rgba(120,84,255,.12), transparent 70%),
+                                radial-gradient(340px 200px at 80% 25%, rgba(0,255,198,.1), transparent 70%),
+                                radial-gradient(400px 260px at 55% 70%, rgba(255,62,128,.09), transparent 75%);
+                    filter: blur(25px); opacity: .7;
+                }
+                .dark .janken-crowd-glow::before {
+                    opacity: 1;
+                    background: radial-gradient(220px 160px at 15% 30%, rgba(120,84,255,.28), transparent 60%),
+                                radial-gradient(240px 160px at 80% 25%, rgba(0,255,198,.22), transparent 62%),
+                                radial-gradient(300px 200px at 60% 65%, rgba(255,62,128,.18), transparent 65%);
+                }
+            `}</style>
+            <div className="relative overflow-hidden p-4 bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                <div className="absolute top-0 left-0 right-0 bottom-0 janken-crowd-glow"></div>
+                <div className="relative">
+                    <div className="text-center mb-4">
+                        <h2 className="text-2xl font-bold uppercase tracking-wider">{stage === 'blocks' ? 'Block Rounds' : 'Final Tournament'}</h2>
+                        {stage === 'finals' && <p className="text-lg font-semibold">Round {round}</p>}
+                    </div>
+
+                    {stage === 'blocks' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {['A', 'B', 'C', 'D'].map(blockName => (
+                                <div key={blockName} className="p-3 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/80 dark:border-gray-700/80">
+                                    <h3 className="text-xl font-bold text-center border-b-2 pb-2 mb-2">Block {blockName} <span className="text-base font-medium">({getBlockRoundName(blockName)})</span></h3>
+                                    {blockWinners[blockName] ? (
+                                        <WinnerDisplay member={blockWinners[blockName]} />
+                                    ) : (
+                                        blocks[blockName]?.map((pair, index) => <Matchup key={index} pair={pair} />)
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {stage === 'finals' && (
+                        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                            <h3 className="text-xl font-bold text-center mb-2 md:col-span-2">Final Bracket</h3>
+                            {finalBracket.map((pair, index) => <Matchup key={index} pair={pair} />)}
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button onClick={() => setShowModal(null)} className="py-2 px-4 bg-gray-700/80 text-white font-semibold rounded-lg hover:bg-gray-700 backdrop-blur-sm">
+                            Close
+                        </button>
+                        {!isFinished && (
+                            <>
+                                {roundResults ? (
+                                    <button onClick={advanceJankenRound} className="py-2 px-6 bg-green-600/80 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg backdrop-blur-sm">
+                                        Continue to Next Round
+                                    </button>
+                                ) : (
+                                    <button onClick={simulateJankenRound} className="py-2 px-6 bg-blue-600/80 text-white font-bold rounded-lg hover:bg-blue-700 animate-pulse shadow-lg backdrop-blur-sm">
+                                        Simulate Round
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </ModalWrapper>
+    );
+};
+
+        const HistoryDetailModal = () => {
+        if (!modalData) return null;
+
+        const { type, week } = modalData;
+        const history = modalData;
+        let title = '';
+        let content = null;
+
+        if (type === 'election') {
+            title = `General Election #${electionHistory.findIndex(e => e.week === week) + 1}`;
+
+            // Helper to get detailed status string, now used by history
+            const getMemberStatusString = (member) => {
+                if (!member) return '...';
+                
+                const { isSisterMember, displayGroupName, generation, id } = member;
+
+                // Fallback for very old data that doesn't have the required properties
+                if (typeof id === 'undefined') {
+                    return member.teamName ? `Team ${member.teamName}` : (member.group || 'Unknown Group');
+                }
+
+                let teamStatus = '';
+                const allMemberTeams = teams.filter(t => (t.members || []).map(String).includes(String(id)));
+
+                if (allMemberTeams.length > 0) {
+                    teamStatus = allMemberTeams.map(team => {
+                        let parentGroupName;
+                        if (team.groupId === 'main') {
+                            parentGroupName = groupName;
+                        } else {
+                            const parentGroup = sisterGroups.find(sg => String(sg.id) === String(team.groupId));
+                            parentGroupName = parentGroup ? parentGroup.name : '';
+                        }
+                        return `${parentGroupName} Team ${team.name}`;
+                    }).join(' / ');
+                } else {
+                    teamStatus = isSisterMember ? displayGroupName : groupName;
+                }
+
+                const generationStatus = generation ? `${generation}` : null;
+                return [teamStatus, generationStatus].filter(Boolean).join(' | ');
+            };
+
+                const RankChangeArrow = ({ member, electionWeek }) => {
+                    if (!member) return null;
+                    const oldRank = member.previousRank;
+                    const newRank = member.rank;
+
+                    // Check if the member has any history entries *before* this specific election's week.
+                    const hadRankingsBeforeThisElection = (member.electionHistory || []).some(entry => entry.week < electionWeek);
+
+                    if (oldRank === 999 || !oldRank) {
+                        if (hadRankingsBeforeThisElection) {
+                            return <span className="text-purple-500 font-bold text-center">Re-Entry</span>;
+                        } else {
+                            return <span className="text-cyan-500 font-bold text-center">New Entry</span>;
+                        }
+                    }
+                    if (newRank < oldRank) return <span className="text-green-400 font-bold flex items-center justify-center"><ChevronUp size={16} />{oldRank - newRank}</span>;
+                    if (newRank > oldRank) return <span className="text-red-400 font-bold flex items-center justify-center"><ChevronDown size={16} />{newRank - oldRank}</span>;
+                    return <span className="text-gray-400 font-bold text-center">-</span>;
+                };
+
+            const units = {
+                'Senbatsu': { min: 1, max: 16, members: [], color: 'from-yellow-400 to-amber-500' },
+                'Undergirls': { min: 17, max: 32, members: [], color: 'from-blue-400 to-sky-500' },
+                'Next Girls': { min: 33, max: 48, members: [], color: 'from-green-400 to-emerald-500' },
+                'Future Girls': { min: 49, max: 64, members: [], color: 'from-purple-400 to-violet-500' },
+                'Upcoming Girls': { min: 65, max: 80, members: [], color: 'from-orange-400 to-red-500' },
+            };
+
+            if (history.results) {
+                [...history.results].sort((a, b) => a.rank - b.rank).forEach(member => {
+                    const unit = Object.values(units).find(u => member.rank >= u.min && member.rank <= u.max);
+                    if (unit) unit.members.push(member);
+                });
+            }
+
+            const UnitSection = ({ name, data }) => {
+                if (data.members.length === 0) return null;
+                return (
+                    <div className="mb-4">
+                        <h2 className={`text-lg font-bold p-2 bg-gradient-to-r ${data.color} text-white rounded-t-lg shadow-md`}>
+                            {name} (Ranks {data.min}-{data.max})
+                        </h2>
+                        <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-md">
+                            <div className="grid grid-cols-12 gap-2 items-center p-2 font-bold text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
+                                <div className="col-span-1 text-center">Rank</div>
+                                <div className="col-span-7">Member</div>
+                                <div className="col-span-1 text-center">Change</div>
+                                <div className="col-span-3 text-right">Votes</div>
+                            </div>
+                            {data.members.map(member => (
+                                <div key={member.id} className="grid grid-cols-12 gap-2 items-center p-2 border-b dark:border-gray-700 last:border-b-0">
+                                    <div className="col-span-1 text-center font-bold text-gray-700 dark:text-gray-200">#{member.rank}</div>
+                                            <div className="col-span-7">
+                                                <p className="font-semibold text-sm">{member.name}</p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate" title={getMemberStatusString(member)}>{getMemberStatusString(member)}</p>
+                                            </div>
+                                    <div className="col-span-1 text-center text-[13px]">
+                                        <RankChangeArrow member={member} electionWeek={history.week} />
+                                    </div>
+                                    <div className="col-span-3 text-right font-mono text-[14px] text-gray-600 dark:text-gray-400">{member.votes.toLocaleString()}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            content = (
+                <div className="max-h-[70vh] overflow-y-auto p-1">
+                    {Object.entries(units).map(([name, data]) => <UnitSection key={name} name={name} data={data} />)}
+                </div>
+            );
+
+        } else if (type === 'janken') {
+            title = `Janken Tournament #${jankenHistory.findIndex(j => j.week === week) + 1}`;
+            
+            const MemberRow = ({ member, isSenbatsu = false }) => (
+                <div className="py-2 px-3 grid grid-cols-12 gap-2 items-center border-b border-gray-200 dark:border-gray-700">
+                    <div className="col-span-1 font-bold text-center">{isSenbatsu ? `#${member.rank}` : '-'}</div>
+                    <div className="col-span-4 font-semibold">{member.name}</div>
+                    <div className="col-span-3 text-sm text-gray-600 dark:text-gray-400">{member.eliminationRound}</div>
+                    <div className="col-span-4 text-sm text-gray-600 dark:text-gray-400">
+                        {member.lostTo ? (
+                            <span><span className="text-red-500">Lost to:</span> {member.lostTo}</span>
+                        ) : (
+                            <span className="text-green-500 font-semibold">Tournament Winner</span>
+                        )}
+                    </div>
+                </div>
+            );
+
+            const { senbatsu, unplaced } = history;
+
+            content = (
+                <div className="p-1 bg-gray-50 dark:bg-gray-800 max-h-[70vh] overflow-y-auto">
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold p-3 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-t-lg">
+                            Senbatsu (Top 16)
+                        </h2>
+                        <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-md">
+                            <div className="py-2 px-3 grid grid-cols-12 gap-2 font-semibold text-sm bg-gray-100 dark:bg-gray-700">
+                                <div className="col-span-1 text-center">Rank</div>
+                                <div className="col-span-4">Member</div>
+                                <div className="col-span-3">Elimination Round</div>
+                                <div className="col-span-4">Details</div>
+                            </div>
+                            {senbatsu && senbatsu.map((member) => ( <MemberRow key={member.id} member={member} isSenbatsu={true} /> ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold p-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-lg">
+                            Unplaced Members
+                        </h2>
+                        <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-md">
+                            <div className="py-2 px-3 grid grid-cols-12 gap-2 font-semibold text-sm bg-gray-100 dark:bg-gray-700">
+                                <div className="col-span-1 text-center">Rank</div>
+                                <div className="col-span-4">Member</div>
+                                <div className="col-span-3">Elimination Round</div>
+                                <div className="col-span-4">Details</div>
+                            </div>
+                            {unplaced && unplaced.map((member) => ( <MemberRow key={member.id} member={member} /> ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <ModalWrapper title={`${title} (Week ${week})`} maxWidth="max-w-4xl">
+                <div className="p-1">
+                    {content}
+                    <button onClick={() => setShowModal(null)} className="mt-6 w-full p-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">
+                        Close
+                    </button>
+                </div>
+            </ModalWrapper>
+        );
+    };
+
+const JankenResultModal = () => {
+    if (!modalData) return null;
+
+    const { senbatsu, unplaced } = modalData;
+
+    const MemberRow = ({ member, isSenbatsu = false }) => (
+        <div className="py-2 px-3 grid grid-cols-12 gap-2 items-center border-b border-gray-200 dark:border-gray-700">
+            <div className="col-span-1 font-bold text-center">{isSenbatsu ? `#${member.rank}` : '-'}</div>
+            <div className="col-span-4 font-semibold">{member.name}</div>
+            <div className="col-span-3 text-sm text-gray-600 dark:text-gray-400">{member.eliminationRound}</div>
+            <div className="col-span-4 text-sm text-gray-600 dark:text-gray-400">
+                {member.lostTo ? (
+                    <span>
+                        <span className="text-red-500">Lost to:</span> {member.lostTo}
+                    </span>
+                ) : (
+                    <span className="text-green-500 font-semibold">Tournament Winner</span>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
+        <ModalWrapper title="Janken Tournament Results" maxWidth="max-w-4xl">
+            <div className="p-1 bg-gray-50 dark:bg-gray-800">
+                
+                {/* --- Senbatsu --- */}
+                <div className="mb-6">
+                    <h2 className="text-xl font-bold p-3 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-t-lg">
+                        Senbatsu (Top 16)
+                    </h2>
+                    <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-md">
+                        <div className="py-2 px-3 grid grid-cols-12 gap-2 font-semibold text-sm bg-gray-100 dark:bg-gray-700">
+                            <div className="col-span-1 text-center">Rank</div>
+                            <div className="col-span-4">Member</div>
+                            <div className="col-span-3">Elimination Round</div>
+                            <div className="col-span-4">Details</div>
+                        </div>
+                        {senbatsu && senbatsu.map((member) => (
+                            <MemberRow key={member.id} member={member} isSenbatsu={true} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* --- Unplaced --- */}
+                <div>
+                    <h2 className="text-xl font-bold p-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-lg">
+                        Unplaced Members
+                    </h2>
+                     <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-md">
+                        <div className="py-2 px-3 grid grid-cols-12 gap-2 font-semibold text-sm bg-gray-100 dark:bg-gray-700">
+                            <div className="col-span-1 text-center">Rank</div>
+                            <div className="col-span-4">Member</div>
+                            <div className="col-span-3">Elimination Round</div>
+                            <div className="col-span-4">Details</div>
+                        </div>
+                        {unplaced && unplaced.map((member) => (
+                            <MemberRow key={member.id} member={member} />
+                        ))}
+                    </div>
+                </div>
+
+            </div>
+        </ModalWrapper>
+    );
+};
+
+const KouhakuInvitationModal = () => {
+    const cost = 5000000;
+    const canAfford = money >= cost;
+
+    const handleAccept = () => {
+        if (canAfford) {
+            acceptKouhakuInvitation();
+        } else {
+            setMessage(`You cannot afford the ¥${cost.toLocaleString()} participation fee.`);
+        }
+    };
+
+    const handleDecline = () => {
+        declineKouhakuInvitation();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-lg rounded-2xl bg-gradient-to-b from-red-800 to-red-900 border-2 border-yellow-400 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5 text-white">
+                <div className="p-6 text-center">
+                    <Trophy size={48} className="mx-auto text-yellow-300 mb-4" />
+                    <h2 className="text-3xl font-bold mb-2">You're Invited!</h2>
+                    <h3 className="text-xl font-semibold text-yellow-200 mb-4">Kouhaku Uta Gassen</h3>
+                    <p className="text-gray-200 mb-6">
+                        Your group's phenomenal success this year has earned them a coveted invitation to the nation's most prestigious year-end music festival. This is a huge opportunity for growth and prestige.
+                    </p>
+                    <div className="p-4 bg-black bg-opacity-30 rounded-lg">
+                        <p className="text-lg font-bold text-red-300">Participation Fee: ¥{cost.toLocaleString()}</p>
+                        <p className="text-sm text-gray-400">This covers production, outfits, and other expenses.</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2">
+                    <button onClick={handleDecline} className="p-4 bg-gray-700 hover:bg-gray-600 font-bold text-lg transition-colors">
+                        Decline
+                    </button>
+                    <button onClick={handleAccept} disabled={!canAfford} className="p-4 bg-yellow-500 hover:bg-yellow-400 text-red-900 font-bold text-lg transition-colors disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed">
+                        {canAfford ? 'Accept' : 'Not Enough Money'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+    const KouhakuPreparationModal = () => {
+        // --- STATE ---
+        const [selectedSongId, setSelectedSongId] = useState(null);
+        const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+        const [memberFilter, setMemberFilter] = useState('all');
+
+        // --- DATA DERIVATION ---
+        const allSingles = [...songs, ...sisterGroups.flatMap(sg => sg.songs || [])].filter(s => s.type === 'single');
+        const yearStartWeek = Math.floor((week - 1) / 52) * 52 + 1;
+        const eligibleSingles = allSingles.filter(s => s.releaseWeek >= yearStartWeek).sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0));
+
+        const selectedSong = eligibleSingles.find(s => s.id === selectedSongId);
+        
+        // --- THIS IS THE KEY CHANGE ---
+        // The pool of available members is now ALL available members from ALL groups,
+        // as long as a song has been selected.
+        const availableMembers = selectedSong ? getAllAvailableMembers(true) : [];
+        // --- END OF KEY CHANGE ---
+
+        // --- FILTERING LOGIC (Now operates on the full group list) ---
+        const mainGroupGenerations = [...new Set(availableMembers.filter(m => !m.isSisterMember).map(m => m.generation).filter(Boolean))];
+        const sisterGroupDetails = sisterGroups.map(sg => ({
+            ...sg,
+            generations: [...new Set(availableMembers.filter(m => String(m.groupId) === String(sg.id)).map(m => m.generation).filter(Boolean))]
+        }));
+
+        let filteredMembers = availableMembers;
+        if (memberFilter !== 'all') {
+            if (memberFilter.startsWith('team-')) {
+                const teamId = parseInt(memberFilter.replace('team-', ''), 10);
+                const selectedTeam = teams.find(t => t.id === teamId);
+                if (selectedTeam) {
+                    const teamMemberIds = new Set(selectedTeam.members.map(String));
+                    filteredMembers = availableMembers.filter(member => teamMemberIds.has(String(member.rosterId || member.id)));
+                } else {
+                    filteredMembers = [];
+                }
+            } else if (memberFilter === 'main') {
+                filteredMembers = availableMembers.filter(m => !m.isSisterMember);
+            } else if (memberFilter.startsWith('main-gen-')) {
+                const gen = memberFilter.replace('main-gen-', '');
+                filteredMembers = availableMembers.filter(m => !m.isSisterMember && m.generation === gen);
+            } else if (memberFilter.startsWith('sg-')) {
+                if (memberFilter.includes('-gen-')) {
+                    const [sgIdStr, gen] = memberFilter.replace('sg-', '').split('-gen-');
+                    filteredMembers = availableMembers.filter(m => String(m.groupId) === sgIdStr && m.generation === gen);
+                } else {
+                    const sgId = memberFilter.replace('sg-', '');
+                    filteredMembers = availableMembers.filter(m => String(m.groupId) === sgId);
+                }
+            }
+        }
+
+        // --- HANDLERS ---
+        const handleSongSelect = (songId) => {
+            setSelectedSongId(songId);
+            const song = eligibleSingles.find(s => s.id === songId);
+            const titleTrack = song?.tracks.find(t => t.type === 'title');
+            // Default selection is still the original senbatsu
+            const memberIds = titleTrack?.members?.map(m => m.id) || [];
+            setSelectedMemberIds(memberIds);
+            setMemberFilter('all');
+        };
+
+        const toggleMember = (memberId) => {
+            setSelectedMemberIds(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+        };
+
+        const selectAllFiltered = () => setSelectedMemberIds(prev => [...new Set([...prev, ...filteredMembers.map(m => m.id)])]);
+
+        const deselectAllFiltered = () => {
+            const filteredIds = new Set(filteredMembers.map(m => m.id));
+            setSelectedMemberIds(prev => prev.filter(id => !filteredIds.has(id)));
+        };
+
+        const handleConfirm = () => {
+            confirmKouhakuParticipation(selectedSongId, selectedMemberIds);
+        };
+
+        // --- RENDER ---
+        return (
+            <ModalWrapper title="Kouhaku Performance Preparation" maxWidth="max-w-4xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 className="font-bold mb-2">1. Select Representative Song</h4>
+                        <div className="space-y-2 max-h-96 overflow-y-auto p-2 border rounded bg-gray-50 dark:bg-gray-900">
+                            {eligibleSingles.map(song => (
+                                <label key={song.id} className={`block p-3 rounded-lg border cursor-pointer ${selectedSongId === song.id ? 'bg-blue-100 dark:bg-blue-900 border-blue-500' : 'bg-white dark:bg-gray-800'}`}>
+                                    <input type="radio" name="kouhaku-song" checked={selectedSongId === song.id} onChange={() => handleSongSelect(song.id)} className="mr-2"/>
+                                    <span className="font-semibold">{song.name}</span>
+                                    <span className="text-xs text-gray-500 block">Total Sales: {(song.totalSales || 0).toLocaleString()}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="font-bold mb-2">2. Confirm Performing Members ({selectedMemberIds.length})</h4>
+                        
+                        <div className="mb-2 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                                <label htmlFor="kouhaku-member-filter" className="text-sm font-medium dark:text-gray-300">Filter:</label>
+                                <select id="kouhaku-member-filter" value={memberFilter} onChange={e => setMemberFilter(e.target.value)} className="p-1 rounded border-gray-300 dark:bg-gray-700 dark:border-gray-600 text-xs">
+                                    <option value="all">All Available</option>
+                                    <optgroup label="Teams">
+                                        {(teams || []).map(team => (<option key={`team-${team.id}`} value={`team-${team.id}`}>{team.name}</option>)) }
+                                    </optgroup>
+                                    <optgroup label="Groups">
+                                        <option value="main">{groupName}</option>
+                                        {sisterGroups.map(sg => (<option key={`sg-${sg.id}`} value={`sg-${sg.id}`}>{sg.name}</option>))}
+                                    </optgroup>
+                                    {mainGroupGenerations.length > 0 && <optgroup label={`${groupName} Gen`}>{mainGroupGenerations.map(gen => (<option key={`main-gen-${gen}`} value={`main-gen-${gen}`}>{gen}</option>))}</optgroup>}
+                                    {sisterGroupDetails.map(sg => (sg.generations.length > 0 && (<optgroup key={`sg-gen-group-${sg.id}`} label={`${sg.name} Gen`}>{sg.generations.map(gen => (<option key={`sg-${sg.id}-gen-${gen}`} value={`sg-${sg.id}-gen-${gen}`}>{gen}</option>))}</optgroup>)))}
+                                </select>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={selectAllFiltered} className="flex-1 px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">Select Filtered</button>
+                                <button onClick={deselectAllFiltered} className="flex-1 px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Deselect Filtered</button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1 max-h-[330px] overflow-y-auto p-2 border rounded bg-gray-50 dark:bg-gray-900">
+                            {filteredMembers.map(member => (
+                                <label key={member.rosterId || member.id} className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${selectedMemberIds.includes(member.id) ? 'bg-green-100 dark:bg-green-900' : 'bg-white dark:bg-gray-800'}`}>
+                                    <span>{member.name}</span>
+                                    <input type="checkbox" checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />
+                                </label>
+                            ))}
+                            {!selectedSong && <p className="text-center text-gray-500 p-4">Select a song to see the member list.</p>}
+                            {selectedSong && filteredMembers.length === 0 && <p className="text-center text-gray-500 p-4">No members match the current filter.</p>}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                    <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded">Cancel</button>
+                    <button onClick={handleConfirm} disabled={!selectedSong || selectedMemberIds.length === 0} className="p-3 bg-red-600 text-white rounded font-bold disabled:bg-gray-400">
+                        Confirm Lineup & Pay Fee (¥5,000,000)
+                    </button>
+                </div>
+            </ModalWrapper>
+        );
+    };
+
+const KouhakuResultModal = () => {
+    if (!modalData) return null;
+    const { songName, fanGain, performers } = modalData;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-2xl rounded-2xl bg-gradient-to-b from-red-600 to-red-800 border-2 border-yellow-300 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5 text-white">
+                <div className="p-4 flex justify-between items-center bg-black bg-opacity-20">
+                    <div className="flex items-center gap-3">
+                        <Trophy size={24} className="text-yellow-300" />
+                        <h3 className="font-bold text-2xl text-white">Kouhaku Performance Success!</h3>
+                    </div>
+                    <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white bg-opacity-10 text-white flex items-center justify-center hover:bg-opacity-20 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-8 text-center">
+                    <p className="text-lg mb-2">The group delivered a stunning performance of</p>
+                    <h2 className="text-4xl font-bold text-yellow-200 mb-6">"{songName}"</h2>
+                    
+                    <div className="bg-black bg-opacity-25 p-6 rounded-xl">
+                        <p className="text-5xl font-bold text-cyan-300">+{fanGain.toLocaleString()}</p>
+                        <p className="text-lg text-gray-200 font-semibold">New Fans Gained!</p>
+                    </div>
+
+                    <div className="mt-6">
+                        <p className="font-semibold mb-2 text-gray-300">Performing Members:</p>
+                        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-yellow-100 max-h-24 overflow-y-auto p-2 bg-black bg-opacity-20 rounded-lg">
+                            {(performers || []).map(p => <span key={p.rosterId || p.id}>{p.name}</span>)}
+                        </div>
+                    </div>
+                </div>
+                 <div className="p-4 bg-black bg-opacity-20">
+                    <button onClick={() => setShowModal(null)} className="w-full p-3 bg-yellow-400 text-red-800 rounded-lg font-bold text-lg hover:bg-yellow-300 transition-colors">
+                        Amazing!
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const RequestHourVotingModal = () => {
+    const allSongs = [
+        ...songs.flatMap(s => (s.tracks || []).map(t => ({...t, id: `${s.id}-${t.name}`, artist: s.artist || s.targetGroup, singleName: s.name}))),
+        ...sisterGroups.flatMap(sg => (sg.songs || []).flatMap(s => (s.tracks || []).map(t => ({...t, id: `sg-${sg.id}-${s.id}-${t.name}`, artist: sg.name, singleName: s.name})))),
+        ...theaterSongs.map(ts => ({...ts, id: `theater-${ts.id}`, artist: groupName, singleName: "Theater Stage"}))
+    ];
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [voteAmount, setVoteAmount] = useState('1');
+
+    const filteredSongs = allSongs.filter(song => 
+        song.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        song.artist.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a,b) => (requestHourStatus.votes[b.id] || 0) - (requestHourStatus.votes[a.id] || 0));
+
+    return (
+        <ModalWrapper title="Request Hour - Cast Votes" maxWidth="max-w-4xl">
+            <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg text-center">
+                    <p className="font-bold text-xl text-blue-800 dark:text-blue-200">¥{money.toLocaleString()}</p>
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Your Money</p>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg text-center">
+                    <p className="font-bold text-xl text-green-800 dark:text-green-200">{votingTickets.toLocaleString()}</p>
+                    <p className="text-xs font-semibold text-green-600 dark:text-green-400">Voting Tickets</p>
+                </div>
+                <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg text-center">
+                    <p className="font-bold text-xl text-red-800 dark:text-red-200">{requestHourStatus.endWeek - week} Weeks</p>
+                    <p className="text-xs font-semibold text-red-600 dark:text-red-400">Voting Ends</p>
+                </div>
+            </div>
+
+            <input 
+                type="text"
+                placeholder="Search for a song or artist..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full p-2 border rounded mb-3 bg-white dark:bg-gray-700"
+            />
+
+            <div className="max-h-96 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-900">
+                {filteredSongs.map(song => (
+                    <div key={song.id} className="p-2 border-b dark:border-gray-700 flex justify-between items-center">
+                        <div>
+                            <p className="font-bold dark:text-gray-200">{song.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{song.artist} - {song.singleName}</p>
+                            <p className="text-sm font-mono dark:text-cyan-300">Votes: {(requestHourStatus.votes[song.id] || 0).toLocaleString()}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <input type="number" value={voteAmount} onChange={e => setVoteAmount(e.target.value)} className="w-20 p-1 border rounded text-center dark:bg-gray-700" />
+                            <button onClick={() => castPlayerVotes(song.id, parseInt(voteAmount), 'money')} className="px-2 py-1 text-xs bg-blue-500 text-white rounded">Vote (¥)</button>
+                            <button onClick={() => castPlayerVotes(song.id, parseInt(voteAmount), 'tickets')} className="px-2 py-1 text-xs bg-green-500 text-white rounded">Vote (Tix)</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+             <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowModal(null)} className="p-2 bg-gray-300 dark:bg-gray-600 rounded">Close</button>
+            </div>
+        </ModalWrapper>
+    );
+};
+
+const RequestHourResultModal = () => {
+    if (!modalData) return null;
+    const { results } = modalData;
+
+    const [revealIndex, setRevealIndex] = useState(0);
+    const revealCount = 10;
+    
+    const handleReveal = () => {
+        setRevealIndex(prev => Math.min(results.length, prev + revealCount));
+    };
+
+    const revealedSongs = results.slice(0, revealIndex);
+
+    // This is a special modal, so we won't use the standard ModalWrapper.
+    // This allows for the full-screen backdrop-blur effect.
+    return (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+            <div className="w-full max-w-3xl rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-500/10 border border-white/20 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-5">
+                
+                {/* Header */}
+                <div className="text-center p-6 border-b border-white/10">
+                    <Award size={48} className="mx-auto text-pink-300 mb-3" />
+                    <h2 className="text-3xl font-bold tracking-tight">Voting Has Concluded!</h2>
+                    <p className="text-sm text-white/70 mt-2 max-w-xl mx-auto">
+                        The fan-voted setlist is ready. Please proceed to <strong>Booking Major Concert</strong> and use the <strong>Import Request Hour</strong> button to import this setlist.
+                    </p>
+                </div>
+
+                {/* Results List */}
+                <div className="max-h-[55vh] overflow-y-auto p-4 space-y-2">
+                    {revealedSongs.map(song => {
+                        let rankStyle = 'bg-black/20 border-transparent';
+                        if (song.rank === 1) {
+                            rankStyle = 'bg-gradient-to-br from-yellow-400/50 to-orange-500/50 border-yellow-300/50';
+                        } else if (song.rank <= 10) {
+                            rankStyle = 'bg-pink-500/30 border-pink-400/40';
+                        } else if (song.rank <= 50) {
+                            rankStyle = 'bg-purple-500/20 border-purple-400/30';
+                        }
+
+                        return (
+                            <div key={song.rank} className={`p-3 my-1 rounded-lg flex justify-between items-center border ${rankStyle} backdrop-blur-sm transition-all duration-300`}>
+                                <div className="flex items-center gap-4">
+                                    <span className={`font-black text-3xl w-16 text-center ${song.rank === 1 ? 'text-yellow-200' : 'text-white/80'}`}>
+                                        #{song.rank}
+                                    </span>
+                                    <div>
+                                        <p className="font-bold text-lg">{song.name}</p>
+                                        <p className="text-xs opacity-70">{song.artist}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-mono text-xl font-bold">{song.votes.toLocaleString()}</p>
+                                    <p className="text-xs opacity-70">votes</p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Footer/Actions */}
+                <div className="flex justify-between items-center mt-2 p-4 border-t border-white/10">
+                    <p className="text-sm text-white/60">Revealed: {revealIndex} / {results.length}</p>
+                    {revealIndex < results.length ? (
+                        <button 
+                            onClick={handleReveal} 
+                            className="p-3 px-6 bg-pink-500/80 text-white font-bold rounded-lg shadow-lg hover:bg-pink-500 transition-all active:scale-95"
+                        >
+                            Reveal Next {Math.min(revealCount, results.length - revealIndex)}
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={() => setShowModal(null)} 
+                            className="p-3 px-8 bg-green-500/80 text-white font-bold rounded-lg shadow-lg hover:bg-green-500 transition-all active:scale-95"
+                        >
+                            Finish
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const TrainingCampModal = () => {
         const [campMemberId, setCampMemberId] = useState('');
         const [campSkill, setCampSkill] = useState('singing');
         
@@ -5306,12 +6908,202 @@ const EditGroupNameModal = () => {
 };
     // --- END NEW MODALS ---
 
+const DraftKaigiModal = () => {
+    if (!draftKaigi) return null;
+
+    const {
+        stage, prospects, draftingTeams, picks,
+        currentPick, log, lotteryResults
+    } = draftKaigi;
+    
+    // UI state
+    const [selectedNomineeId, setSelectedNomineeId] = useState(null);
+    const [isLotteryRunning, setIsLotteryRunning] = useState({});
+
+
+    useEffect(() => {
+        if (stage === 'draft' && draftKaigi.draftOrder[currentPick - 1]?.type === 'rival') {
+            // Add a small delay for the AI to feel more natural
+            const timer = setTimeout(() => {
+                handleAiDraftPick();
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [stage, currentPick, draftKaigi]);
+
+
+    const renderNominationStage = () => {
+        const topProspects = prospects.filter(p => p.potentialGrade === 'S');
+        return (
+            <div>
+                <h2 className="text-2xl font-bold text-center mb-4">Stage 1: Nomination Round</h2>
+                <p className="text-center text-gray-600 dark:text-gray-400 mb-4">Nominate one of the top prospects for your main group. If multiple teams nominate the same girl, a lottery will decide who gets negotiation rights.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {topProspects.map(prospect => (
+                        <div key={prospect.id} 
+                             className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedNomineeId === prospect.id ? 'border-yellow-500 bg-yellow-100 dark:bg-yellow-900/50' : 'bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                             onClick={() => setSelectedNomineeId(prospect.id)}>
+                            <h3 className="font-bold text-lg">{prospect.name} <span className="text-sm font-normal text-gray-500">({prospect.hometown})</span></h3>
+                            <p className="text-yellow-400 font-bold">Grade: {prospect.potentialGrade}</p>
+                            <p className="text-xs italic text-gray-500 mt-1">"{prospect.scoutingComment}"</p>
+                            <p className="text-xs mt-2">Rival Interest: {prospect.competingInterest.join(', ') || 'None'}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="text-center">
+                    <button 
+                        onClick={() => advanceDraftStage('process_nominations', { playerNominationId: selectedNomineeId })}
+                        disabled={!selectedNomineeId}
+                        className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg disabled:bg-gray-400">
+                        Lock In Nomination
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderNominationRevealStage = () => {
+         const prospectsInLottery = prospects.filter(p => p.nominatedBy && p.nominatedBy.length > 1);
+         return (
+            <div>
+                <h2 className="text-2xl font-bold text-center mb-4">Nomination Results</h2>
+                <div className="space-y-4 max-h-96 overflow-y-auto p-2">
+                    {prospects.filter(p => p.nominatedBy && p.nominatedBy.length > 0).map(prospect => (
+                        <div key={prospect.id} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <h3 className="text-xl font-bold">{prospect.name}</h3>
+                            <p className="text-sm">Nominated By: {prospect.nominatedBy.map(t => t.name).join(', ')}</p>
+                            {(() => {
+                                const lottery = lotteryResults.find(r => r.prospectId === prospect.id);
+                                if (lottery) return <p className="font-bold text-green-500 mt-2">Lottery Winner: {lottery.winnerName}!</p>;
+                                if (prospect.nominatedBy.length > 1) {
+                                    return (
+                                        <div className="mt-2">
+                                            <button 
+                                                onClick={() => {
+                                                    setIsLotteryRunning(prev => ({...prev, [prospect.id]: true}));
+                                                    setTimeout(() => {
+                                                        advanceDraftStage('run_lottery', { prospectId: prospect.id });
+                                                        setIsLotteryRunning(prev => ({...prev, [prospect.id]: false}));
+                                                    }, 1500);
+                                                }}
+                                                disabled={isLotteryRunning[prospect.id]}
+                                                className="px-4 py-2 bg-yellow-500 text-black font-bold rounded mt-1 disabled:bg-gray-400">
+                                                {isLotteryRunning[prospect.id] ? "Drawing..." : "Start Lottery"}
+                                            </button>
+                                        </div>
+                                    );
+                                }
+                                return <p className="font-bold text-blue-500 mt-2">Negotiation rights secured by {prospect.nominatedBy[0].name}.</p>;
+                            })()}
+                        </div>
+                    ))}
+                </div>
+                 <div className="text-center mt-6">
+                    <button 
+                        onClick={() => advanceDraftStage('start_snake_draft')}
+                        disabled={prospectsInLottery.some(p => !lotteryResults.find(r => r.prospectId === p.id))}
+                        className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg disabled:bg-gray-400">
+                        Proceed to Snake Draft
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderSnakeDraftStage = () => {
+        const { prospects, draftOrder, currentPick, log } = draftKaigi;
+        if (!draftOrder || draftOrder.length === 0) return <p>Setting up draft...</p>;
+
+        const draftFinished = currentPick > draftOrder.length || prospects.length === 0;
+        const currentTeam = !draftFinished ? draftOrder[currentPick - 1] : null;
+        const isPlayerTurn = currentTeam && currentTeam.type === 'player';
+
+        if (draftFinished) {
+            return (
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-4">Draft Complete!</h2>
+                    <button onClick={finishDraft} className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg">
+                        Finalize Selections & Proceed
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-5">
+                    <h3 className="font-bold text-lg mb-2">Available Prospects ({prospects.length})</h3>
+                    <div className="max-h-[60vh] overflow-y-auto space-y-2 p-2 border rounded">
+                        {prospects.map(prospect => (
+                            <div key={prospect.id} 
+                                 className={`p-2 rounded border-2 ${isPlayerTurn ? 'cursor-pointer hover:border-blue-500 bg-white dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-800'}`}
+                                 onClick={isPlayerTurn ? () => handlePlayerDraftPick(prospect.id) : undefined}>
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-bold">{prospect.name}</h4>
+                                    <span className="font-mono text-sm text-yellow-500">Pot: {prospect.potential} ({prospect.potentialGrade})</span>
+                                </div>
+                                <p className="text-xs text-gray-500">Vo:{prospect.vocal} Da:{prospect.dance} Vi:{prospect.visual} Ch:{prospect.charisma} In:{prospect.intelligence}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="col-span-4">
+                    <h3 className="font-bold text-lg mb-2">Draft Log</h3>
+                    <div className="max-h-[60vh] overflow-y-auto space-y-2 p-2 bg-gray-100 dark:bg-gray-900 rounded border">
+                        {log.slice().reverse().map((entry, index) => (
+                            <p key={index} className={`text-sm p-1 rounded ${entry.includes('selects') ? 'font-semibold' : ''}`}>{entry}</p>
+                        ))}
+                    </div>
+                </div>
+                <div className="col-span-3">
+                    <h3 className="font-bold text-lg mb-2">Picks</h3>
+                     <div className="max-h-[60vh] overflow-y-auto space-y-2">
+                    {picks.map((pick) => (
+                        <div key={pick.prospectId} className="p-2 bg-white dark:bg-gray-800 rounded shadow text-sm">
+                            <p className="font-bold truncate">
+                                {pick.round === 'Nomination' ? (pick.pick > 0 ? `LOTT:` : 'NOM:') : `R${pick.round} P${pick.pick}:`} {pick.teamName}
+                            </p>
+                            <p className="text-blue-600 dark:text-blue-400 truncate">{pick.prospectName}</p>
+                        </div>
+                    ))}
+                    </div>
+                </div>
+                 <div className="col-span-12 text-center mt-4">
+                    {isPlayerTurn && <p className="text-xl font-bold animate-pulse">You are on the clock! Select a prospect.</p>}
+                    {!isPlayerTurn && <p className="text-xl font-bold">Current Pick: {currentTeam?.name}</p>}
+                </div>
+            </div>
+        );
+    };
+    
+    const renderCurrentStage = () => {
+        switch (stage) {
+            case 'nomination_start':
+                return renderNominationStage();
+            case 'nomination_reveal':
+                return renderNominationRevealStage();
+            case 'draft':
+                return renderSnakeDraftStage();
+            default:
+                return <p>Loading draft... Current stage: {stage}</p>;
+        }
+    };
+
+    return (
+        <ModalWrapper title="Draft Kaigi" maxWidth="max-w-6xl">
+            {renderCurrentStage()}
+        </ModalWrapper>
+    );
+}
+
+
        const MemberParticipationHistory = ({ member, getFormattedDateForWeek }) => { 
          
          const songHistory = (member.songsParticipation || []);
          const centerHistory = (member.centerHistory || []);
          const teamHistory = (member.teamHistory || []);
          const electionHistory = (member.electionHistory || []);
+         const jankenHistory = (member.jankenHistory || []);
          const albumTrackHistory = songHistory.filter(s => s.type === 'album');
          const bSideTrackHistory = songHistory.filter(s => s.type === 'b-side'); // This is the new line
          const memberPerformances = performanceHistory.filter(p => p.members.map(String).includes(String(member.id)));
@@ -5348,7 +7140,26 @@ const EditGroupNameModal = () => {
                             </div>
                         ))}
                     </div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Hand size={14} className='mr-1 text-gray-500'/> Janken Tournament History ({jankenHistory.length}):</p>
+                        <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-gray-50 dark:bg-gray-800">
+                            {jankenHistory.length === 0 && <p className="text-gray-500 italic p-1">No Janken history recorded.</p>}
+                            {jankenHistory.slice().reverse().map((entry, index) => {
+                                const isWinner = entry.roundName === 'Winner';
+                                const hasRank = typeof entry.rank === 'number' && entry.rank > 0;
 
+                                return (
+                                    <div key={index} className={`p-1.5 rounded border ${isWinner ? 'bg-yellow-100 dark:bg-yellow-900 border-yellow-300 dark:border-yellow-700' : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600'}`}>
+                                        <p className={`font-bold ${isWinner ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-800 dark:text-gray-200'}`}>
+                                            {hasRank ? `Senbatsu Rank #${entry.rank}` : (isWinner ? 'Tournament Winner' : 'Eliminated')}
+                                        </p>
+                                        <p className="text-gray-600 dark:text-gray-400">
+                                            <span className="font-semibold">{entry.roundName}</span> • {getFormattedDateForWeek(entry.week)}
+                                            {!isWinner && entry.lostTo && <span className="italic"> (vs {entry.lostTo})</span>}
+                                        </p> 
+                                    </div>
+                                )
+                            })}
+                 </div>
 
                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-3 flex items-center"><Film size={14} className='mr-1 text-red-500'/> Title Tracks ({titleTrackHistory.length}):</p>
                  <div className="max-h-24 overflow-y-auto text-xs space-y-1 mb-2 p-1 border rounded bg-red-50 dark:bg-gray-800">
@@ -5889,9 +7700,15 @@ if (!gameStarted) {
         <div className="p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
           <h3 className="text-base font-bold mb-2 flex items-center"><User size={18} className="mr-2"/> Recruitment & Auditions</h3>
           <div className="flex flex-col gap-1.5">
-            <button onClick={() => setShowModal('holdAudition')} className="w-full px-3 py-1.5 text-sm bg-green-600 text-white rounded font-semibold">
-              <Plus size={16} className='inline mr-1'/> Hold Audition
-            </button>
+            
+<button onClick={() => setShowModal('holdAudition')} className="w-full px-3 py-1.5 text-sm bg-green-600 text-white rounded font-semibold">
+    <Plus size={16} className='inline mr-1'/> Hold Audition
+</button>
+<button onClick={startDraftKaigi} className="w-full px-3 py-1.5 text-sm bg-blue-600 text-white rounded font-semibold mt-1.5">
+    <Users size={16} className='inline mr-1'/> Host Draft Kaigi (¥200k)
+</button>
+
+
           </div>
         </div>
                       {/* Performance & Elections */}
@@ -5950,6 +7767,10 @@ if (!gameStarted) {
                     <p className="text-center text-xs text-gray-500 dark:text-gray-400">
                         Vote Pool: {electionVotePool.toLocaleString()}
                     </p>
+
+            <button onClick={startJankenTournament} className="w-full p-1.5 text-sm bg-green-700 text-white rounded font-semibold disabled:bg-gray-400 mt-2">
+                Host Janken Tournament (¥75k)
+            </button>
 
                 </div>
                 <button onClick={startTour} className="w-full p-1.5 text-sm bg-red-800 text-white rounded font-semibold" disabled={!!activeTour}>Start Tour (¥30k)</button>
@@ -6260,30 +8081,103 @@ if (!gameStarted) {
 
 {/* ----- HISTORY TAB ----- */}
 {currentTab === 'history' && (
-  <div>
-    <h2 className="text-xl font-bold mb-4">Performance History</h2>
-    <div className="space-y-3">
-      {(performanceHistory || []).map(p => (
-        <div key={p.id} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <div>
-            <h3 className="font-bold">{p.name}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Week {p.week} | {p.category}
-            </p>
-            <p className="text-xs mt-1">
-              <span className="font-semibold text-green-600">Profit: ¥{p.profit.toLocaleString()}</span> | 
-              <span className="font-semibold text-blue-600"> Fans: +{p.fansGained.toLocaleString()}</span>
-            </p>
-          </div>
-          <button 
-            onClick={() => { setModalData(p); setShowModal('performanceDetails'); }}
-            className="px-3 py-1.5 text-sm font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700"
-          >
-            Details
-          </button>
+  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
+    <h2 className="text-2xl font-bold mb-4">Group History</h2>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* Performance History */}
+        <div>
+            <h3 className="text-xl font-semibold mb-3 border-b-2 pb-2">Performance History</h3>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {(performanceHistory || []).map(p => (
+                <div key={p.id} className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold">{p.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Week {p.week} | {p.category}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setModalData(p); setShowModal('performanceDetails'); }}
+                    className="px-3 py-1.5 text-sm font-semibold text-white bg-gray-600 rounded-md hover:bg-gray-700"
+                  >
+                    Details
+                  </button>
+                </div>
+              ))}
+              {performanceHistory.length === 0 && <p className="text-gray-500 italic">No performances recorded yet.</p>}
+            </div>
         </div>
-      ))}
-      {performanceHistory.length === 0 && <p className="text-gray-500">No performances recorded yet.</p>}
+
+        {/* Election History */}
+        <div>
+            <h3 className="text-xl font-semibold mb-3 border-b-2 pb-2">Election History</h3>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {electionHistory.length > 0 ? (
+                    [...electionHistory].reverse().map((event, index) => (
+                        <button 
+                            key={`election-${index}`} 
+                            onClick={() => {
+                                setModalData({ type: 'election', ...event });
+                                setShowModal('historyDetail');
+                            }}
+                            className="w-full text-left p-3 bg-pink-300d dark:bg-gray-700 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            <span className="font-bold">Week {event.week}:</span> General Election #{electionHistory.length - index}
+                        </button>
+                    ))
+                ) : (
+                    <p className="text-gray-500 italic">No election history yet.</p>
+                )}
+            </div>
+        </div>
+
+        {/* Janken History */}
+        <div>
+            <h3 className="text-xl font-semibold mb-3 border-b-2 pb-2">Janken Tournament History</h3>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {jankenHistory.length > 0 ? (
+                    [...jankenHistory].reverse().map((event, index) => (
+                        <button 
+                            key={`janken-${index}`}
+                            onClick={() => {
+                                setModalData({ type: 'janken', ...event });
+                                setShowModal('historyDetail');
+                            }}
+                            className="w-full text-left p-3 bg-pink-300 dark:bg-gray-700 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            <span className="font-bold">Week {event.week}:</span> Janken Tournament #{jankenHistory.length - index}
+                        </button>
+                    ))
+                ) : (
+                    <p className="text-gray-500 italic">No Janken tournament history yet.</p>
+                )}
+            </div>
+        </div>
+
+            {/* Sports Festival History */}
+            <div>
+                <h3 className="text-xl font-semibold mb-3 border-b-2 pb-2">Sports Festival History</h3>
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                    {sportsFestivalHistory.length > 0 ? (
+                        [...sportsFestivalHistory].reverse().map((event, index) => (
+                            <button
+                                key={`sf-${index}`}
+                                onClick={() => { setModalData(event); setShowModal('sportsFestivalResult'); }}
+                                className="w-full text-left p-3 bg-red-100 dark:bg-gray-700 rounded-lg shadow hover:bg-red-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                <span className="font-bold">Week {event.week}:</span> Sports Festival #{sportsFestivalHistory.length - index}
+                                <span className="block text-xs">Winner: {event.winningTeam} Team</span>
+                            </button>
+                        ))
+                    ) : (
+                        <p className="text-gray-500 italic">No sports festivals held yet.</p>
+                    )}
+                </div>
+            </div>
+
+
     </div>
   </div>
 )}
@@ -6293,28 +8187,178 @@ if (!gameStarted) {
 {currentTab === 'activities' && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
 
- {/* Senbatsu Promotions - NEW PANEL */}
- <div className="p-2 rounded-lg shadow-md bg-yellow-50 dark:bg-gray-800 text-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700 transition-colors duration-300 md:col-span-2">
-              <h3 className="text-base font-bold mb-2 flex items-center"><Star size={18} className="mr-2 text-yellow-500"/> Senbatsu Promotions</h3>
-              {(() => {
-                  const promotingSingle = songs.find(s => s.chartWeeksLeft > 0 && s.type === 'single');
-                  if (promotingSingle) {
-                      return (
-                          <div className="flex flex-col gap-1.5">
-                              <p className="text-xs text-center mb-1">Promoting: <strong>{promotingSingle.name}</strong></p>
-                              {/* NOTE: The onClick here will trigger the new modal we are about to create. */}
-                              <button onClick={() => { setModalData({ single: promotingSingle }); setShowModal('senbatsuPromotion'); }} className="w-full p-2 text-sm bg-yellow-500 text-white rounded font-semibold">
-                                  <div className="flex justify-center items-center gap-1 font-semibold"><Tv size={16} /> Senbatsu Media Appearance</div>
-                                  <span className="text-xs font-normal">High-impact activities for promoting Senbatsu members.</span>
-                              </button>
-                          </div>
-                      );
-                  } else {
-                      return <p className="text-xs text-center text-gray-500 dark:text-gray-400">No single is currently being promoted. Release a single to unlock these activities.</p>
-                  }
-              })()}
+        {/* Reputation Box */}
+        <div className="md:col-span-1 p-3 rounded-lg shadow-md bg-pink-100 text-pink-900 border border-pink-200 flex flex-col">
+            <div>
+                <h3 className="text-lg font-bold mb-2">Group Reputation</h3>
+                <div className="text-center">
+                    <p className="text-5xl font-bold">{groupReputation}</p>
+                    <p className="text-sm text-pink-700/80 mt-2">Your group's standing in the industry.</p>
+                </div>
             </div>
+            
+            <details className="mt-4 text-xs">
+                <summary className="cursor-pointer font-semibold text-pink-800 hover:text-pink-900">How to change Reputation...</summary>
+                <div className="mt-2 pt-2 border-t border-pink-200/60">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <p className="font-bold text-green-700">Gain Reputation:</p>
+                            <ul className="list-disc list-inside space-y-1 mt-1">
+                                <li><span className="font-semibold text-green-600">+5</span> Million-selling single</li>
+                                <li><span className="font-semibold text-green-600">+5</span> Sell out a Dome/Stadium</li>
+                                <li><span className="font-semibold text-green-600">+3</span> 500k+ selling single</li>
+                                <li><span className="font-semibold text-green-600">+3</span> Sell out a major Arena</li>
+                                <li><span className="font-semibold text-green-600">+1</span> 100k+ selling single</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="font-bold text-red-700">Lose Reputation:</p>
+                            <ul className="list-disc list-inside space-y-1 mt-1">
+                                <li><span className="font-semibold text-red-600">-10</span> Decline Kouhaku invitation</li>
+                                <li><span className="font-semibold text-red-600">-8</span> Failed scandal cover-up</li>
+                                <li><span className="font-semibold text-red-600">-5</span> Forcibly disband sister group</li>
+                                <li><span className="font-semibold text-red-600">-1 to -5</span> Handle scandal poorly</li>
+                                <li><span className="font-semibold text-red-600">-2</span> Flop concert (&lt;50% attendance)</li>
+                                <li><span className="font-semibold text-red-600">-1</span> Flop single (&lt;10k sales)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </div>
 
+    {/* Kouhaku Uta Gassen Panel */}
+    <div className="md:col-span-1 p-3 rounded-lg shadow-md bg-red-800 text-white border-2 border-yellow-400 flex flex-col justify-between">
+        <div>
+            <h3 className="text-lg font-bold mb-2 flex items-center">
+                <Trophy size={20} className="mr-2 text-yellow-300"/> Kouhaku Uta Gassen
+            </h3>
+            <p className="text-sm mb-3">The nation's most prestigious year-end music festival. An invitation is a sign of immense success.</p>
+            
+            <div className="text-xs bg-black bg-opacity-20 p-2 rounded-md mb-3">
+                <p className="font-bold mb-1">Eligibility Conditions:</p>
+                <ul className="list-disc list-inside pl-1 space-y-0.5">
+                    <li>Group Reputation: 50+</li>
+                    <li>Total Fans: 1,000,000+</li>
+                    <li>Recent Hit Single: 500,000+ sales</li>
+                </ul>
+            </div>
+        </div>
+        
+        {kouhakuInvitationOffered && (
+            <div className="mt-4">
+                 <p className="text-center font-bold text-yellow-200 mb-2 animate-pulse">You have been invited!</p>
+                 <button
+                    onClick={acceptKouhakuInvitation}
+                    className="w-full p-2 text-base bg-yellow-400 text-red-800 rounded font-bold hover:bg-yellow-300"
+                >
+                    Accept Invitation (Cost: ¥5,000,000)
+                </button>
+            </div>
+        )}
+    </div>
+
+{/* Request Hour Panel */}
+<div className="md:col-span-1 p-3 rounded-lg shadow-md bg-cyan-800 text-white border-2 border-cyan-400 flex flex-col justify-between">
+    <div>
+        <h3 className="text-lg font-bold mb-2 flex items-center">
+            <BarChart3 size={20} className="mr-2 text-cyan-300"/> Request Hour Best 100
+        </h3>
+        <p className="text-sm mb-3">A yearly concert where fans vote for their favorite songs from the group's entire discography.</p>
+        
+        {requestHourStatus && requestHourStatus.isActive ? (
+            <div className="text-center p-2 bg-black bg-opacity-30 rounded-lg">
+                <p className="font-bold text-cyan-200 animate-pulse">VOTING ACTIVE</p>
+                <p className="text-sm">Ends in: {requestHourStatus.endWeek - week} week(s)</p>
+                <button 
+                    onClick={() => setShowModal('requestHourVoting')}
+                    className="mt-2 w-full p-1.5 text-sm bg-cyan-500 text-white rounded font-semibold"
+                >
+                    Cast Your Votes
+                </button>
+            </div>
+        ) : (
+            <div className="text-xs bg-black bg-opacity-20 p-2 rounded-md mb-3">
+                <p>Host this major event to re-engage fans with older hits and discover which songs truly resonate. Costs ¥500,000.</p>
+            </div>
+        )}
+    </div>
+    
+    {!(requestHourStatus && requestHourStatus.isActive) && (
+        <div className="mt-4">
+             <button
+                onClick={startRequestHour}
+                className="w-full p-2 text-base bg-cyan-500 hover:bg-cyan-400 text-white font-bold transition-colors"
+            >
+                Host Request Hour
+            </button>
+        </div>
+    )}
+</div>
+
+            {/* Senbatsu Promotions - NEW PANEL */}
+            <div className="p-2 rounded-lg shadow-md bg-yellow-50 dark:bg-gray-800 text-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700 transition-colors duration-300 md:col-span-2">
+                <h3 className="text-base font-bold mb-2 flex items-center"><Star size={18} className="mr-2 text-yellow-500"/> Senbatsu Promotions</h3>
+                {(() => {
+                    const allChartingSingles = [
+                        ...songs.filter(s => s.type === 'single' && s.chartWeeksLeft > 0),
+                        ...sisterGroups.flatMap(sg => (sg.songs || []).filter(s => s.type === 'single' && s.chartWeeksLeft > 0))
+                    ];
+
+                    if (allChartingSingles.length === 0) {
+                        return <p className="text-xs text-center text-gray-500 dark:text-gray-400">No single is currently being promoted. Release a single to unlock these activities.</p>;
+                    }
+
+                    if (allChartingSingles.length === 1) {
+                        const single = allChartingSingles[0];
+                        const ownerName = single.targetGroup === 'main' ? groupName : single.targetGroup;
+                        return (
+                            <div className="flex flex-col gap-1.5">
+                                <p className="text-xs text-center mb-1">Promoting: <strong>{single.name}</strong> ({ownerName})</p>
+                                <button onClick={() => { setModalData({ single }); setShowModal('senbatsuPromotion'); }} className="w-full p-2 text-sm bg-yellow-500 text-white rounded font-semibold">
+                                    <div className="flex justify-center items-center gap-1 font-semibold"><Tv size={16} /> Senbatsu Media Appearance</div>
+                                    <span className="text-xs font-normal">High-impact activities for promoting Senbatsu members.</span>
+                                </button>
+                            </div>
+                        );
+                    }
+
+                    const selectedSingleObject = allChartingSingles.find(s => String(s.id) === String(selectedSingleForPromo));
+
+                    return (
+                        <div className="flex flex-col gap-2">
+                            <p className="text-xs text-center mb-1">Multiple singles are charting. Choose one to promote:</p>
+                            <select
+                                value={selectedSingleForPromo || ''}
+                                onChange={(e) => setSelectedSingleForPromo(e.target.value)}
+                                className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600"
+                            >
+                                {allChartingSingles.map(s => {
+                                    const ownerName = s.targetGroup === 'main' ? groupName : s.targetGroup;
+                                    return (
+                                        <option key={s.id} value={s.id}>
+                                            {s.name} ({ownerName}) - {s.chartWeeksLeft} wks left
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <button 
+                                onClick={() => { 
+                                    if (selectedSingleObject) {
+                                        setModalData({ single: selectedSingleObject });
+                                        setShowModal('senbatsuPromotion');
+                                    }
+                                }} 
+                                disabled={!selectedSingleObject}
+                                className="w-full p-2 text-sm bg-yellow-500 text-white rounded font-semibold disabled:bg-gray-400"
+                            >
+                                <div className="flex justify-center items-center gap-1 font-semibold"><Tv size={16} /> Senbatsu Media Appearance</div>
+                                <span className="text-xs font-normal">High-impact activities for promoting Senbatsu members.</span>
+                            </button>
+                        </div>
+                    );
+                })()}
+            </div>
 
 
 
@@ -6324,6 +8368,13 @@ if (!gameStarted) {
       <button onClick={() => setShowModal('handshakeEvent')} className="w-full p-2 text-sm bg-green-500 text-white rounded">          <div className="flex justify-center items-center gap-1 font-semibold"><Hand size={16} /> Hold Handshake Event</div>
           <span className="text-xs font-normal">(¥50,000) - Boosts fans, drains all member stamina/morale.</span>
         </button>
+
+        <button onClick={() => setShowModal('sportsFestival')} className="w-full p-2 text-sm bg-red-500 text-white rounded">
+            <div className="flex justify-center items-center gap-1 font-semibold"><Trophy size={16} /> Hold Sports Festival</div>
+            <span className="text-xs font-normal">(¥150,000) - Boosts group-wide morale.</span>
+        </button>
+
+
       </div>
     </div>
     
@@ -6364,7 +8415,37 @@ if (!gameStarted) {
     </div>
   </div>
 )}
-            
+
+        {/* ----- RIVALS TAB ----- */}
+        {currentTab === 'rivals' && (
+            <div className="space-y-4">
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                    <Globe size={22} className="mr-2 text-red-500"/> Rival Groups
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(rivalGroups || []).map(rival => (
+                        <div key={rival.id} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-bold text-red-500">{rival.name}</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Members: {rival.membersCount}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Fans: {rival.fans.toLocaleString()}</p>
+                            <div className="mt-2 pt-2 border-t dark:border-gray-700">
+                                <h4 className="font-semibold text-xs mb-1">Recent Releases:</h4>
+                                <div className="max-h-24 overflow-y-auto text-xs space-y-1">
+                                    {(rival.songs && rival.songs.length > 0) ? rival.songs.slice(-5).reverse().map(song => (
+                                        <div key={song.name} className="p-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                            <p className="font-semibold">{song.name}</p>
+                                            <p className="text-gray-500">Sales: {song.sales.toLocaleString()}</p>
+                                        </div>
+                                    )) : <p className="italic text-gray-500">No recent releases.</p>}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+
             {/* ----- MERCHANDISE TAB ----- */}
             {currentTab === 'merch' && (
                 <MerchTab 
@@ -6392,7 +8473,8 @@ if (!gameStarted) {
             <TabButton id="members" label="Members" icon={Users} />
             <TabButton id="discography" label="Songs" icon={Music} />
             <TabButton id="management" label="Manage" icon={Building} />
-            <TabButton id="history" label="History" icon={Clipboard} />
+            <TabButton id="history" label="History" icon={Clipboard} />\
+            <TabButton id="rivals" label="Rivals" icon={Globe} />
             <TabButton id="activities" label="Activities" icon={Zap} />
             <TabButton id="training" label="Training" icon={Brain} />
             <TabButton id="merch" label="Merch" icon={ShoppingBag} />
@@ -6710,6 +8792,7 @@ if (!gameStarted) {
       { id: 'discography', label: 'Songs' },
       { id: 'merch', label: 'Merch' },
       { id: 'history', label: 'History' },
+      { id: 'rivals', label: 'Rivals' },
     ].map(tab => (
       <button
         key={tab.id}
@@ -6809,7 +8892,29 @@ if (!gameStarted) {
         {showModal === 'electionResult' && <ElectionResultModal />}
         {showModal === 'scandalDecision' && <ScandalDecisionModal />}
         {showModal === 'senbatsuPromotion' && <SenbatsuPromotionModal />}
-        {showModal === 'bsidePromotion' && <BsidePromotionModal />}     
+        {showModal === 'bsidePromotion' && <BsidePromotionModal />}
+        {showModal === 'jankenTournament' && <JankenTournamentModal />}
+        {showModal === 'historyDetail' && <HistoryDetailModal />}
+        {showModal === 'jankenResult' && <JankenResultModal />}
+        {showModal === 'kouhakuResult' && <KouhakuResultModal />}
+        {showModal === 'kouhakuInvite' && <KouhakuInvitationModal />}
+        {showModal === 'kouhakuPrep' && <KouhakuPreparationModal />}
+        {showModal === 'senbatsuPromotionResult' && <SenbatsuPromotionResultModal />}
+        {showModal === 'requestHourVoting' && <RequestHourVotingModal />}
+        {showModal === 'requestHourResult' && <RequestHourResultModal />}
+        {showModal === 'sportsFestival' && <SportsFestivalModal />}
+        {showModal === 'sportsFestivalResult' && <SportsFestivalResultModal />}
+        {showModal === 'liveSportsFestival' && <LiveSportsFestivalModal />}
+        {showModal === 'draftKaigi' && (
+            <DraftKaigiModal 
+                draftKaigi={draftKaigi} 
+                advanceDraftStage={advanceDraftStage}
+                handlePlayerDraftPick={handlePlayerDraftPick}
+                handleAiDraftPick={handleAiDraftPick}
+                finishDraft={finishDraft}
+            />
+        )}
+
         </div>
     );
 };
